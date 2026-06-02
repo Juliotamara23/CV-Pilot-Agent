@@ -1,57 +1,29 @@
-<h1 align="center">🤖 CV Pilot</h1>
+<h1 align="center">🤖 CV-Pilot Agentic Evolution</h1>
 
-**CV Pilot** es un flujo de trabajo automatizado para **n8n** diseñado para actuar como tu coach de carrera personal. Este sistema scrapea ofertas de empleo de Indeed (mas sitios en el futuro), gestiona el registro de usuarios, procesa hojas de vida (CVs) y utiliza Inteligencia Artificial (Google Gemini) para analizar la compatibilidad de tu perfil con múltiples ofertas de trabajo automáticamente.
+**CV-Pilot Agent** es un orquestador inteligente de reclutamiento diseñado para ejecutarse de forma **agnóstica** en cualquier entorno que soporte agentes (OpenCode, ChatGPT, Claude Desktop, Ollama, etc.).
 
-![Workflow Overview](media/n8n.png)
+Este agente es la evolución lógica del sistema original **[CV-Pilot (n8n Workflow)](https://github.com/Juliotamara23/CV-Pilot)**. Mientras que la versión original se centra en flujos de automatización de infraestructura en n8n, esta versión se enfoca en el **razonamiento autónomo y la validación semántica**.
 
-## ✨ Características Principales (n8n Workflow Original)
+## 📖 Manual de Usuario
+Para instrucciones detalladas sobre cómo configurar tu entorno, subir tu CV y configurar tu identidad profesional para una experiencia personalizada, consulta el [Manual de Usuario](USER_GUIDE.md).
 
-- **📝 Sistema de Registro y Onboarding:** Formulario web, carga de CVs (PDF), gestión en Drive.
-- **🤖 Análisis Inteligente con IA (Gemini):** Veredicto **APTO/NO APTO**, comparativas, sugerencias.
-- **🌐 Integración con Google Workspace:** Drive, Sheets, Docs, Gmail.
+## 🧠 Arquitectura Agéntica
+A diferencia de un workflow rígido, este agente utiliza **protocolos de toma de decisiones** que se adaptan al entorno donde se ejecuten:
 
----
+- **Plataforma Agnostic:** No requiere APIs específicas pre-configuradas en un servidor n8n. Utiliza la capacidad de razonamiento del LLM conectado para evaluar el CV y decidir el siguiente paso.
+- **Validación Semántica de Identidad (VSI):** El agente entiende qué es un CV profesional y qué no, rechazando documentos irrelevantes antes de consumir tokens o tiempo.
+- **Protocolo de Auto-Sanación:** Si faltan datos en el contexto de la sesión, el agente escaneará activamente el documento (RAG) para extraer información faltante de forma silenciosa.
+- **Mimetismo Estratégico:** Aprende tu estilo de escritura a partir de ejemplos reales para redactar correos de postulación que suenan a ti, no a una plantilla genérica.
+- **Memoria Persistente:** Gracias al protocolo Engram, el agente recuerda decisiones pasadas, lo que permite que cada interacción sea más precisa que la anterior.
 
-# 🚀 CV-Pilot (The Agentic Evolution)
+## 🛠️ Estructura Técnica
+El agente opera bajo una lógica de orquestación rigurosa definida en:
+- `AGENTS.md`: Orquestador principal.
+- `rule-*.md`: Reglas de comportamiento e integridad.
+- `skill-*.md`: Herramientas tácticas (contacto, redacción, formatos).
 
-Esta versión de **CV-Pilot** es una mejora sustancial que evoluciona el concepto de "workflow" de n8n hacia un **Agente Autónomo (Standalone Agent)** con capacidad de razonamiento, memoria persistente y autogestión.
+## 🤝 Relación con el Proyecto Original
+Este agente **no reemplaza** el flujo de trabajo de **[CV-Pilot (n8n)](https://github.com/Juliotamara23/CV-Pilot)**. Son herramientas complementarias:
+- Utiliza la versión **n8n** para automatización de infraestructura masiva y procesos programados.
+- Utiliza esta **versión Agente** para el análisis inteligente, redacción personalizada y toma de decisiones críticas en tiempo real.
 
-## 🧠 ¿Qué hace a esta versión superior?
-
-Mientras el sistema original de n8n requiere una infraestructura externa y flujos lineales, **CV-Pilot (Agente)** funciona como una entidad inteligente dentro de tu entorno de desarrollo:
-
-1.  **Agente Autónomo:** No depende de un workflow lineal; utiliza un orquestador senior para delegar tareas y tomar decisiones técnicas en tiempo real.
-2.  **Validación Semántica de Identidad (VSI):** Antes de procesar cualquier documento, el agente analiza si realmente es un CV profesional, rechazando documentos irrelevantes (ej. listas de compras).
-3.  **Protocolo de Auto-Sanación (Auto-Sanation):** Si faltan datos de contacto (LinkedIn, GitHub) en su estado interno pero existen en el texto del CV (RAG), el agente los extrae y actualiza su memoria de forma silenciosa y automática.
-4.  **Mimetismo Estratégico:** Posee una base de conocimientos de tus ejemplos reales (`ejemplo-correos.md`) y utiliza IA para redactar borradores de correo que suenan exactamente como vos, no como un bot genérico.
-5.  **Memoria Persistente (Engram):** Aprende de los análisis anteriores, bugs corregidos y decisiones tomadas, mejorando su rendimiento sesión tras sesión.
-6.  **Personalidad Senior:** Configurado para actuar como un reclutador implacable con más de 15 años de experiencia, enfocado en el rigor técnico y la calidad de datos.
-
-## 🛠️ Cómo Funciona la Nueva Arquitectura
-
-El agente opera bajo una lógica de orquestación rigurosa:
-
-- **Paso 0:** VSI (Valida el archivo).
-- **Paso 1:** Análisis técnico (Protocolo 1).
-- **Paso 2:** Auto-Sanación (Prioridad 2 - busca datos si faltan).
-- **Paso 3:** Redacción (Mimetismo automático si existen ejemplos en `ejemplo-correos.md`).
-- **Seguridad:** Regla de Información Completa (si no hay datos, el agente se detiene y te lo exige).
-
----
-
-## ⚙️ Configuración e Instalación
-
-1.  **Requisitos:**
-    - Entorno compatible con OpenCode (o el orquestador de agentes de tu elección).
-    - Acceso a API de LLM (ej. Gemini/GPT) configurado en el agente.
-2.  **Instalación:**
-    - Clona este repositorio.
-    - Asegúrate de tener los archivos `AGENTS.md`, `email-skill.md`, `skills-comunicacion.md`, `skills-formatos.md` y `ejemplo-correos.md` en la raíz.
-3.  **Uso:**
-    - Simplemente invoca al agente y sube tu CV. El agente te guiará por el proceso de análisis.
-
----
-
-## 🤝 Contribución
-
-¡Las contribuciones son bienvenidas! Esta evolución hacia sistemas agenticos es el futuro. Si tienes ideas para mejorar los prompts, las reglas de orquestación o los protocolos de auto-sanación, abre un *Issue* o *Pull Request*.
