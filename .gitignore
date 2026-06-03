@@ -3,5 +3,6 @@ cv-test/
 test/logs/
 cv-test/
 CV-Pilot-secret/
-.windsurf
+.windsurf/
 .git
+.windsurf/
