@@ -6,22 +6,39 @@ scope: SOURCING_PHASE
 
 # Skill: Apify Scraper
 
-## Protocolo de Ejecución (3 pasos)
+## Esquema de Entrada (JSON Schema)
+Cuando el usuario confirme la búsqueda, el agente DEBE construir el JSON basándose estrictamente en esta estructura (los valores de 'maxItemsPerSearch' deben ser definidos por el usuario):
 
-### 1. Validación de Entorno
-Antes de cualquier operación, el agente debe verificar la disponibilidad del CLI:
-- Comando: `apify --version`
-- Si no está instalado o no responde, informar al usuario: "El CLI de Apify no está instalado en tu entorno. Puedes instalarlo siguiendo la documentación oficial de Apify o continuar pegando tus ofertas manualmente."
+```json
+{
+  "position": "[CARGO_SOLICITADO]",
+  "country": "[PAIS_SOLICITADO]",
+  "location": "[UBICACION_SOLICITADA]",
+  "maxItemsPerSearch": [CANTIDAD_DEFINIDA_POR_USUARIO],
+  "parseCompanyDetails": true,
+  "saveOnlyUniqueItems": true,
+  "followApplyRedirects": false
+}
+```
 
-### 2. Lanzamiento (Sourcing)
-- Comando: `apify call <actor_id> -i <json_input>`
-- Validación: Confirmar recepción de `runId`.
+## Gestión de Costos
+Antes de ejecutar `apify call`, el agente DEBE:
+1. Obtener información del actor: `apify actors info misceres/indeed-scraper`.
+2. Identificar el costo por ítem.
+3. Calcular costo: `CANTIDAD_DEFINIDA * Costo por Job listing`.
+4. Informar al usuario: "Para buscar [CANTIDAD] empleos, el costo estimado es de [Costo calculado] USD. ¿Confirmas la ejecución?"
 
-### 3. Recuperación (Data Ingestion)
-- Comando: `apify dataset get <dataset_id> --format json`
-- Normalización: Convertir JSON a "Texto de oferta" estándar antes de pasarlo al Paso 1 (Análisis Técnico).
+## Ejecución Técnica (Bash/CLI)
+1. **Validación:** Ejecutar `apify --version`. Si falla, avisar al usuario.
+2. **Lanzamiento:** Construir JSON dinámicamente y ejecutar: 
+   `apify call misceres/indeed-scraper -i '<json_input>' --output-dataset`
+3. **Monitorización:** Capturar el `runId` del output y verificar estado hasta `SUCCEEDED`.
+4. **Recuperación:** Ejecutar `apify dataset get <dataset_id> --format json`.
 
-## Instrucciones para el Agente
-- **Estado de Espera:** Durante la ejecución, informar: "Proceso iniciado. Mantendré la sesión en espera hasta que los datos estén listos."
-- **Prohibición:** NUNCA ejecutar este paso sin permiso explícito del usuario. Siempre ofrecer la alternativa de entrada manual.
-
+## Instrucciones para el Agente (Naturalización)
+- **Estado de Espera:** Durante la ejecución, informar: "Iniciando búsqueda automatizada. Esto tardará unos minutos, te avisaré al terminar."
+- **Transparencia:** El usuario NO debe ver código, JSON o tecnicismos. Solo lenguaje natural.
+- **Integridad:** Validar que el dataset tenga campos: `title`, `companyName`, `location`, `description`. Si está vacío, abortar.
+- **Manejo de Errores:**
+    - Fallo de Auth: "No tengo permiso para usar Apify. Ejecuta 'apify login' en tu terminal."
+    - Sin resultados: "No encontré vacantes con ese cargo. ¿Quieres intentar con una palabra clave diferente?"
