@@ -21,18 +21,12 @@ Cuando el usuario confirme la búsqueda, el agente DEBE construir el JSON basán
 }
 ```
 
-## Gestión de Costos
+## Gobernanza y Control de Costos
 Antes de ejecutar `apify call`, el agente DEBE:
-1. Obtener información del actor: `apify actors info misceres/indeed-scraper`.
-2. Identificar el costo por ítem.
-3. Calcular costo: `CANTIDAD_DEFINIDA * Costo por Job listing`.
-4. Informar al usuario: "Para buscar [CANTIDAD] empleos, el costo estimado es de [Costo calculado] USD. ¿Confirmas la ejecución?"
-
-## Gobernanza de Costos
-Antes de ejecutar `apify call`, el agente DEBE:
-1. **Límite de seguridad:** Nunca ejecutar una búsqueda mayor a 100 resultados sin validación explícita.
-2. **Concurrencia:** Ejecutar los scrapers de forma secuencial. No disparar procesos paralelos que multipliquen el consumo de créditos.
-3. **Validación previa:** Calcular costo estimado (Resultados * $0.001 USD) e informar al usuario: "La búsqueda se estima en X empleos, con un costo aproximado de Y USD. ¿Deseas proceder?".
+1. **Verificación de Actor:** Obtener información con `apify actors info misceres/indeed-scraper` para conocer el costo real por ítem.
+2. **Límite de seguridad:** Nunca ejecutar una búsqueda > 100 resultados sin validación explícita.
+3. **Concurrencia:** Ejecutar scrapers de forma secuencial. Nunca disparar procesos paralelos.
+4. **Validación previa:** Calcular costo (Resultados * Costo por ítem) e informar: "Para buscar [CANTIDAD] empleos, el costo estimado es de [Costo calculado] USD. ¿Confirmas la ejecución?".
 
 ## Protocolo de Ejecución Técnica (Bash/CLI)
 1. **Validación:** Ejecutar `apify --version`. Si falla, avisar al usuario.
