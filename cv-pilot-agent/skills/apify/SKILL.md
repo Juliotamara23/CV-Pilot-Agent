@@ -28,7 +28,13 @@ Antes de ejecutar `apify call`, el agente DEBE:
 3. Calcular costo: `CANTIDAD_DEFINIDA * Costo por Job listing`.
 4. Informar al usuario: "Para buscar [CANTIDAD] empleos, el costo estimado es de [Costo calculado] USD. ¿Confirmas la ejecución?"
 
-## Ejecución Técnica (Bash/CLI)
+## Gobernanza de Costos
+Antes de ejecutar `apify call`, el agente DEBE:
+1. **Límite de seguridad:** Nunca ejecutar una búsqueda mayor a 100 resultados sin validación explícita.
+2. **Concurrencia:** Ejecutar los scrapers de forma secuencial. No disparar procesos paralelos que multipliquen el consumo de créditos.
+3. **Validación previa:** Calcular costo estimado (Resultados * $0.001 USD) e informar al usuario: "La búsqueda se estima en X empleos, con un costo aproximado de Y USD. ¿Deseas proceder?".
+
+## Protocolo de Ejecución Técnica (Bash/CLI)
 1. **Validación:** Ejecutar `apify --version`. Si falla, avisar al usuario.
 2. **Lanzamiento:** Construir JSON dinámicamente y ejecutar: 
    `apify call misceres/indeed-scraper -i '<json_input>' --output-dataset`
