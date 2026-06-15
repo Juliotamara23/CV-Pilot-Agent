@@ -5,3 +5,4 @@ cv-test/
 .git
 .windsurf/
 gema-privada/
+*.db
