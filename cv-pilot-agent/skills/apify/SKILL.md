@@ -41,7 +41,7 @@ El agente debe generar este JSON estrictamente:
 
 ### Ejemplo Incorrecto (No seguir instrucciones)
 - **Usuario:** "Busca 2 trabajos para Medellín."
-- **Agente:** (Ignora el '2' y busca 10 por defecto) "Aquí tienes tu lista de trabajos: [Lista de 10 trabajos]."
+- **Agente:** (Ignorar cantidad de empleos y ubicación) "Aquí tienes tu lista de trabajos: [Lista de 10 trabajos]."
 - **Error:** El agente ignoró la cantidad solicitada, impactando el presupuesto.
 
 ## 5. Instrucciones de Operación
