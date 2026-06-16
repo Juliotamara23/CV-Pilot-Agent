@@ -1,39 +1,43 @@
 ---
-name: Email & Contact Skill
+name: Skill Contacto
 description: Extracción por Regex y gestión de hipervínculos de contacto.
-scope: RESTRICTED_TO_PROTOCOL_3
-version: 1.5
+scope: SOURCING_PHASE
 ---
 
-# Herramientas de Extracción
+# Skill: Contacto y Extracción
 
 ## ATENCIÓN: PROHIBIDO CITAR ESTE ARCHIVO
-Este archivo es una herramienta de proceso, NO una base de conocimiento técnico. NUNCA lo cites para fundamentar análisis de habilidades (Java, Spring, React, etc.). Úsalo solo para la lógica de correos.
+Este archivo es una herramienta de proceso, NO una base de conocimiento técnico. NUNCA lo cites para fundamentar análisis.
 
-## Detección de Destinatario y Origen
-- **Regex Email:** `[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}`
-- **Regex URL:** `https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)`
-- **Lógica de Procesamiento (Proactiva):** 
-    1. Escanear todo el texto de entrada EN EL MOMENTO DEL ANÁLISIS (Protocolo 1).
-    2. Si hay email: Etiquetar vacante como "Aplicación vía Email".
-    3. Si NO hay email: Etiquetar vacante como "Aplicación vía Portal".
-    4. Esta etiqueta debe guardarse en la memoria de la sesión para el Protocolo 3.
-- **Prohibido:** Inventar correos corporativos o asumir destinos. Si no es explícito, es Portal/Manual.
+## Protocolos de Extracción
+1. **Detección de Destinatario:**
+   - Regex: `[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}`
+   - Si no hay match, retornar: `PORTAL_POSTULATION`
+2. **Auto-Sanación (Prioridad 2):**
+   - Si `{CV-Candidato-Activo}` tiene campos vacíos, escanea el contexto (RAG) buscando:
+     - LinkedIn: `linkedin\.com/in/[a-zA-Z0-9_-]+`
+     - GitHub: `github\.com/[a-zA-Z0-9_-]+`
+     - Teléfono: `\+?\d{1,3}[\s-]?\d{7,10}`
+   - Si encuentra match, actualiza `{CV-Candidato-Activo}` internamente.
 
-## Firma de Contacto (Links Dinámicos)
-Extrae de {CV-Candidato-Activo}:
-- **WhatsApp:** `https://wa.me/{{CV-Candidato-Activo.telefono}}`
-- **Teléfono:** `tel:{{CV-Candidato-Activo.telefono}}`
-- **LinkedIn:** [LinkedIn]({{CV-Candidato-Activo.linkedin}})
-- **GitHub:** [GitHub]({{CV-Candidato-Activo.github}})
-- **Regla de Información Completa:** Ver sección homónima en `AGENTS.md`.
+## Esquema de Salida Esperado
+```json
+{
+  "email": "destinatario@empresa.com | PORTAL_POSTULATION",
+  "linkedin": "url_link",
+  "github": "url_link",
+  "telefono": "numero"
+}
+```
 
-## Protocolo de Auto-Sanación (Prioridad 2)
-Si un campo requerido en {CV-Candidato-Activo} está vacío:
-1. Escanear el texto del CV disponible en el contexto (RAG).
-2. Aplicar los siguientes patrones Regex para rellenar el dato faltante de forma silenciosa:
-    - LinkedIn: `linkedin\.com/in/[a-zA-Z0-9_-]+`
-    - GitHub: `github\.com/[a-zA-Z0-9_-]+`
-    - Teléfono/WhatsApp: `\+?\d{1,3}[\s-]?\d{7,10}`
-3. Si la extracción es exitosa, actualizar el objeto de identidad SILENCIOSAMENTE.
-4. Si la extracción falla o devuelve null, aplicar la "Regla de Información Completa" (detener flujo y solicitar al usuario).
+## Ejemplos de Interacción (Few-Shot)
+- **Input:** "Envía tu CV a recursoshumanos@empresa.com"
+- **Acción:** Extracción email.
+- **Output:** `{"email": "recursoshumanos@empresa.com"}`
+
+- **Input:** "Aplica en nuestra web"
+- **Acción:** Detección de ausencia de email.
+- **Output:** `{"email": "PORTAL_POSTULATION"}`
+
+## Instrucciones de Manejo de Errores
+- Si la extracción falla o el dato no existe y no es posible la auto-sanación, retornar un error específico de campo faltante para que el orquestador dispare la "Regla de Información Completa".
