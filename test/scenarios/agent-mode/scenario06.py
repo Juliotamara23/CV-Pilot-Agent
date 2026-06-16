@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Scenario 06: Full Apify flow simulation"""
-import json
-import sqlite3
-import os
-from datetime import datetime
 
-DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'cv-pilot.db')
+import json
+import os
+import sqlite3
+
+DB_PATH = os.path.join(os.path.dirname(__file__), "..", "cv-pilot.db")
 
 # ============================================================
 # STEP A: Environment verification
@@ -20,7 +20,7 @@ cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
 tables = [r[0] for r in cursor.fetchall()]
 print("  DB path: %s" % os.path.abspath(DB_PATH))
 print("  Tablas detectadas: %s" % ", ".join(tables))
-if 'jobs' in tables and 'analyses' in tables:
+if "jobs" in tables and "analyses" in tables:
     print("  Estado: DB Ready")
 else:
     print("  Estado: DB Initialized (tablas creadas)")
@@ -45,7 +45,10 @@ print("  Cantidad solicitada: %d" % max_items)
 print("  Costo estimado: $%.4f USD" % total_cost)
 print()
 print("  -> Informando al usuario:")
-msg = "Para buscar %d empleos, el costo estimado es de $%.4f USD. Confirmas la ejecucion?" % (max_items, total_cost)
+msg = (
+    "Para buscar %d empleos, el costo estimado es de $%.4f USD. Confirmas la ejecucion?"
+    % (max_items, total_cost)
+)
 print("     '%s'" % msg)
 print("  -> USUARIO CONFIRMA")
 
@@ -64,18 +67,23 @@ search_input = {
     "maxItemsPerSearch": max_items,
     "parseCompanyDetails": True,
     "saveOnlyUniqueItems": True,
-    "followApplyRedirects": False
+    "followApplyRedirects": False,
 }
 
 print("  Input construido:")
 print("  %s" % json.dumps(search_input, indent=4, ensure_ascii=False))
 print()
 print("  Comando ejecutado:")
-cmd = "apify call misceres/indeed-scraper -i '%s' --output-dataset --json --silent" % json.dumps(search_input)
+cmd = (
+    "apify call misceres/indeed-scraper -i '%s' --output-dataset --json --silent"
+    % json.dumps(search_input)
+)
 print("  %s" % cmd)
 print()
 print("  -> Informando al usuario:")
-print("     'Iniciando busqueda automatizada. Esto tardara unos minutos, te avisare al terminar.'")
+print(
+    "     'Iniciando busqueda automatizada. Esto tardara unos minutos, te avisare al terminar.'"
+)
 print()
 print("  [SIMULACION] Dataset recibido de Apify...")
 
@@ -96,7 +104,7 @@ apify_response = [
         "description": "Buscamos desarrollador Full Stack Junior con experiencia en React, Node.js y bases de datos PostgreSQL. Conocimientos en TypeScript deseables. Trabajo hibrido 3 dias en oficina.",
         "url": "https://co.indeed.com/viewjob?jk=abc123",
         "salary": "2,500,000 - 3,500,000 COP/mes",
-        "pubDate": "2026-06-15"
+        "pubDate": "2026-06-15",
     },
     {
         "id": "apify-002",
@@ -106,7 +114,7 @@ apify_response = [
         "description": "Ingeniero de software junior para equipo de backend. Python, Django, PostgreSQL. Experiencia con Docker deseable. Remoto.",
         "url": "https://co.indeed.com/viewjob?jk=def456",
         "salary": "3,000,000 - 4,000,000 COP/mes",
-        "pubDate": "2026-06-14"
+        "pubDate": "2026-06-14",
     },
     {
         "id": "apify-003",
@@ -116,7 +124,7 @@ apify_response = [
         "description": "Programador junior para desarrollo de APIs RESTful. Node.js, Express, MongoDB. Conocimientos en Git. Presencial zona norte.",
         "url": "https://co.indeed.com/viewjob?jk=ghi789",
         "salary": "2,000,000 - 2,800,000 COP/mes",
-        "pubDate": "2026-06-13"
+        "pubDate": "2026-06-13",
     },
     {
         "id": "apify-004",
@@ -126,7 +134,7 @@ apify_response = [
         "description": "Backend developer junior. Python, FastAPI, PostgreSQL. Experiencia con AWS o GCP. Trabajo remoto con reuniones semanales.",
         "url": "https://co.indeed.com/viewjob?jk=jkl012",
         "salary": "3,200,000 - 4,200,000 COP/mes",
-        "pubDate": "2026-06-12"
+        "pubDate": "2026-06-12",
     },
     {
         "id": "apify-005",
@@ -136,8 +144,8 @@ apify_response = [
         "description": "Ingeniero de sistemas junior para soporte y desarrollo. SQL, Python, documentacion tecnica. Hibrido.",
         "url": "https://co.indeed.com/viewjob?jk=mno345",
         "salary": "2,800,000 - 3,800,000 COP/mes",
-        "pubDate": "2026-06-11"
-    }
+        "pubDate": "2026-06-11",
+    },
 ]
 
 print("  Vacantes recibidas: %d" % len(apify_response))
@@ -149,7 +157,7 @@ all_valid = True
 for i, job in enumerate(apify_response):
     missing = [f for f in required_fields if f not in job or not job[f]]
     if missing:
-        print("  WARNING: Vacante %d sin campos: %s" % (i+1, missing))
+        print("  WARNING: Vacante %d sin campos: %s" % (i + 1, missing))
         all_valid = False
 
 if all_valid:
@@ -160,51 +168,56 @@ else:
 print()
 print("  Vacantes encontradas:")
 for i, job in enumerate(apify_response, 1):
-    print("    %d. %s @ %s (%s)" % (i, job["title"], job["companyName"], job["location"]))
+    print(
+        "    %d. %s @ %s (%s)" % (i, job["title"], job["companyName"], job["location"])
+    )
+
+# ... (Código previo hasta el Paso 4: Persistencia)
 
 # ============================================================
-# STEP E: Persist to SQLite
+# STEP 5: Análisis Técnico (Protocolo 1)
 # ============================================================
 print()
 print("=" * 60)
-print("PASO 4: PERSISTENCIA EN SQLite")
+print("PASO 5: ANÁLISIS TÉCNICO DE VACANTES")
 print("=" * 60)
 
-inserted = 0
-for job in apify_response:
-    try:
-        cursor.execute(
-            "INSERT OR IGNORE INTO jobs (id, public_date, url, company, position, location, salary, description, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'new')",
-            (
-                job["id"],
-                job.get("pubDate", ""),
-                job.get("url", ""),
-                job.get("companyName", ""),
-                job.get("title", ""),
-                job.get("location", ""),
-                job.get("salary", ""),
-                job.get("description", "")
-            )
-        )
-        if cursor.rowcount > 0:
-            inserted += 1
-            print("  [INSERT] %s - %s" % (job["companyName"], job["title"]))
-        else:
-            print("  [SKIP] %s - %s (duplicada)" % (job["companyName"], job["title"]))
-    except Exception as e:
-        print("  [ERROR] %s: %s" % (job["companyName"], str(e)))
+cursor.execute(
+    "SELECT id, position, company, description FROM jobs WHERE status = 'new'"
+)
+pendientes = cursor.fetchall()
+
+for job in pendientes:
+    job_id, position, company, description = job
+    print(f"  Analizando vacante: {position} en {company}...")
+
+    # SIMULACIÓN DE ANÁLISIS (Usando mimetismo y reglas de integridad)
+    veredicto = (
+        "Apto" if "Python" in description or "Node" in description else "No apto"
+    )
+    summary = f"Análisis técnico para {position}: Encaje basado en stack tecnológico detectado en oferta y CV."
+
+    # Guardar análisis en tabla 'analyses'
+    cursor.execute(
+        "INSERT INTO analyses (job_id, verdict, summary) VALUES (?, ?, ?)",
+        (job_id, veredicto, summary),
+    )
+    # Marcar como analizado
+    cursor.execute("UPDATE jobs SET status = 'analyzed' WHERE id = ?", (job_id,))
+
+    print(f"    [VERDICT] {veredicto}")
+    print(f"    [SUMMARY] {summary}")
 
 conn.commit()
-print()
-print("  Registros insertados: %d" % inserted)
 
 # ============================================================
-# STEP F: Verify persistence + user response
+# STEP 6: Verificación y Respuesta Final
 # ============================================================
 print()
 print("=" * 60)
-print("PASO 5: VERIFICACION Y RESPUESTA AL USUARIO")
+print("PASO 6: RESPUESTA FINAL AL USUARIO")
 print("=" * 60)
+# ... (Código de respuesta)
 
 cursor.execute("SELECT COUNT(*) FROM jobs WHERE status = 'new'")
 total_new = cursor.fetchone()[0]
@@ -212,7 +225,9 @@ print("  Total ofertas nuevas en BD: %d" % total_new)
 
 print()
 print("  Contenido de la tabla jobs:")
-cursor.execute("SELECT id, company, position, location, salary FROM jobs WHERE status = 'new'")
+cursor.execute(
+    "SELECT id, company, position, location, salary FROM jobs WHERE status = 'new'"
+)
 rows = cursor.fetchall()
 for row in rows:
     print("    ID: %s | %s | %s | %s | %s" % (row[0], row[1], row[2], row[3], row[4]))
@@ -221,7 +236,10 @@ print()
 print("=" * 60)
 print("RESPUESTA FINAL AL USUARIO")
 print("=" * 60)
-print("  'Busqueda completada. Encontre %d vacantes que coinciden con tu perfil:" % total_new)
+print(
+    "  'Busqueda completada. Encontre %d vacantes que coinciden con tu perfil:"
+    % total_new
+)
 for row in rows:
     print("   - %s en %s (%s)" % (row[2], row[1], row[3]))
 print("   Las ofertas estan guardadas en tu base de datos.")

@@ -6,19 +6,21 @@ scope: GLOBAL
 
 # Skill: Database Manager
 
-## 1. Protocolo de Inicialización (Fallback Strategy)
-Para garantizar la persistencia sin importar el entorno, el agente debe seguir estrictamente este orden:
-1. **Intento Shell:** Ejecutar `bash ./scripts/init.sh`.
-2. **Fallback:** Si el comando anterior falla o no es reconocido, ejecutar `python3 ./scripts/init.py`.
-3. **Alerta:** Si ambos fallan, informar al usuario: "No he podido inicializar la base de datos. Asegúrate de tener SQLite CLI o Python 3 instalados."
+## 1. Protocolo de Inicialización
+Para garantizar la persistencia sin importar el entorno:
+1. Ejecutar `python3 ./scripts/init.py`.
+2. Si falla, avisar: "No he podido inicializar la base de datos. Asegúrate de tener Python 3 instalado."
 
-## 2. Protocolos de Ejecución (Comandos)
+## 2. Deduplicación (Business Key)
+Antes de insertar, el agente DEBE calcular: `job_hash = SHA256(company + position + location)`.
+- **Comando Inserción:** `sqlite3 cv-pilot.db "INSERT OR IGNORE INTO jobs (job_hash, indeed_id, public_date, url, company, position, location, salary, description) VALUES ('...', '...', ...);"`
+
+## 3. Protocolos de Ejecución
 - **Consultar vacantes nuevas:** `sqlite3 cv-pilot.db "SELECT * FROM jobs WHERE status = 'new';"`
-- **Registrar nueva oferta:** `sqlite3 cv-pilot.db "INSERT OR IGNORE INTO jobs ..."`
-- **Registrar veredicto:** `sqlite3 cv-pilot.db "INSERT INTO analyses ..."`
+- **Registrar veredicto:** `sqlite3 cv-pilot.db "INSERT INTO analyses (job_hash, verdict, summary) VALUES ('...', '...', '...');"`
+- **Actualizar estado:** `sqlite3 cv-pilot.db "UPDATE jobs SET status = 'analyzed' WHERE job_hash = '...';"`
 
-## 3. Reglas de Operación (Harness)
-- **Atomicidad:** Cada operación es independiente.
-- **Silencio Operativo:** NUNCA mostrar la sentencia SQL al usuario. Reportar el resultado de alto nivel (ej: "Trabajo guardado con éxito").
-- **Integridad:** Verificar existencia de `job_id` antes de cada `UPDATE` o `INSERT` en la tabla `analyses`.
-- **Transparencia:** Si una query falla (ej. base bloqueada), informar: "Hubo un error al acceder al historial. Verifica el estado de cv-pilot.db."
+## 4. Reglas de Operación (Harness)
+- **Silencio Operativo:** NUNCA mostrar queries al usuario. Reportar resultados finales.
+- **Integridad:** Validar `job_hash` antes de actualizar `analyses`.
+- **Transparencia:** Si una query falla, informar: "Hubo un error al gestionar el historial. Verifica el archivo cv-pilot.db."
