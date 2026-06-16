@@ -17,7 +17,9 @@ Antes de insertar, el agente DEBE calcular: `job_hash = SHA256(company + positio
 
 ## 3. Protocolos de Ejecución
 - **Consultar vacantes nuevas:** `sqlite3 cv-pilot.db "SELECT * FROM jobs WHERE status = 'new';"`
-- **Registrar veredicto:** `sqlite3 cv-pilot.db "INSERT INTO analyses (job_hash, verdict, summary) VALUES ('...', '...', '...');"`
+- **Registrar veredicto:** 
+  1. Generar UUID: `import uuid; str(uuid.uuid4())`
+  2. Comando: `sqlite3 cv-pilot.db "INSERT INTO analyses (analysis_id, job_hash, verdict, summary) VALUES ('<UUID>', '...', '...', '...');"`
 - **Actualizar estado:** `sqlite3 cv-pilot.db "UPDATE jobs SET status = 'analyzed' WHERE job_hash = '...';"`
 
 ## 4. Reglas de Operación (Harness)

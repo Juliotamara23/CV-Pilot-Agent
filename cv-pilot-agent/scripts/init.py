@@ -2,14 +2,14 @@ import sqlite3
 from pathlib import Path
 
 # Ubicación de la base de datos
-db_path = Path(__file__).parent.parent / "cv-pilot.db"
+db_path = Path(__file__).parent.parent.parent / "cv-pilot.db"
 
 def init():
     try:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
-        # Esquema definitivo (Idempotente)
+        # Esquema con UUID como clave primaria para analyses
         cursor.execute('''CREATE TABLE IF NOT EXISTS jobs (
             job_hash TEXT PRIMARY KEY,
             indeed_id TEXT,
@@ -24,7 +24,7 @@ def init():
         )''')
         
         cursor.execute('''CREATE TABLE IF NOT EXISTS analyses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            analysis_id TEXT PRIMARY KEY,
             job_hash TEXT,
             verdict TEXT,
             summary TEXT,
