@@ -14,7 +14,7 @@ Este archivo es una herramienta de proceso, NO una base de conocimiento técnico
    - Regex: `[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}`
    - Si no hay match, retornar: `PORTAL_POSTULATION`
 2. **Auto-Sanación (Prioridad 2):**
-   - Si `{CV-Candidato-Activo}` tiene campos vacíos, escanea el contexto (RAG) buscando:
+   - Si el perfil del usuario tiene campos vacíos, escanea el contexto (RAG) buscando:
      - LinkedIn: `linkedin\.com/in/[a-zA-Z0-9_-]+`
      - GitHub: `github\.com/[a-zA-Z0-9_-]+`
      - Teléfono: `\+?\d{1,3}[\s-]?\d{7,10}`
