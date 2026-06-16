@@ -3,17 +3,9 @@
 
 import hashlib
 import json
-import os
 import sqlite3
-
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "cv-pilot.db")
-
-import subprocess
-import sqlite3
-import os
 from pathlib import Path
-import json
-import hashlib
+import subprocess
 
 # 1. Inicializar DB de pruebas usando el nuevo script
 subprocess.run(["python", str(Path(__file__).parent / "init_test.py")], check=True)
