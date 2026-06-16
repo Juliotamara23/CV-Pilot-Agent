@@ -1,4 +1,4 @@
-# Escenario 06: Flujo Completo Apify + Persistencia
+# Escenario 06: Flujo Completo Apify + Persistencia + Análisis
 
 **Entrada del Usuario:**
 1. "Hola."
@@ -10,11 +10,15 @@
 2. **Validación CV:** Agente valida la información.
 3. **Búsqueda:** 
    - Usuario pide búsqueda para "Desarrollador Junior" en "Medellín".
-   - Agente ejecuta `scripts/init.sh` -> "DB Ready".
+   - Agente ejecuta `scripts/init.py` -> "DB Ready".
    - Agente calcula costos y solicita confirmación.
    - Agente ejecuta `skills/apify/SKILL.md` (apify call).
-   - Agente notifica hallazgo.
-4. **Consulta DB:**
+   - Agente registra en DB.
+4. **Análisis:**
+   - Agente detecta trabajos nuevos en status 'new'.
+   - Agente invoca `skills/formatos/SKILL.md` para generar el análisis detallado por vacante.
+   - Agente guarda el análisis en tabla `analyses`.
+5. **Consulta DB:**
    - Usuario pide ver el trabajo guardado.
    - Agente invoca `skills/database/SKILL.md` (SELECT query).
    - Agente responde con los detalles (Empresa, Cargo, Ubicación, URL) sin revelar datos técnicos (SQL/Protocolos).
