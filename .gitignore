@@ -6,3 +6,4 @@ cv-test/
 .windsurf/
 gema-privada/
 *.db
+test/scenarios/agent-mode/__pycache__/

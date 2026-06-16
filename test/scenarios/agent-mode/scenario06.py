@@ -1,29 +1,29 @@
 #!/usr/bin/env python3
 """Scenario 06: Full Apify flow simulation"""
 
+import hashlib
 import json
 import os
 import sqlite3
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "cv-pilot.db")
 
-# ============================================================
-# STEP A: Environment verification
-# ============================================================
-print("=" * 60)
-print("PASO 0: VERIFICACION DE ENTORNO (init.sh)")
-print("=" * 60)
+import subprocess
+import sqlite3
+import os
+from pathlib import Path
+import json
+import hashlib
 
+# 1. Inicializar DB de pruebas usando el nuevo script
+subprocess.run(["python", str(Path(__file__).parent / "init_test.py")], check=True)
+
+# Ruta de la DB de prueba
+DB_PATH = Path(__file__).parent.parent.parent.parent / "test" / "cv-pilot-test.db"
 conn = sqlite3.connect(DB_PATH)
 cursor = conn.cursor()
-cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-tables = [r[0] for r in cursor.fetchall()]
-print("  DB path: %s" % os.path.abspath(DB_PATH))
-print("  Tablas detectadas: %s" % ", ".join(tables))
-if "jobs" in tables and "analyses" in tables:
-    print("  Estado: DB Ready")
-else:
-    print("  Estado: DB Initialized (tablas creadas)")
+
+# ... (El resto del código de procesamiento) ...
 
 # ============================================================
 # STEP B: Apify Cost Wizard
@@ -95,64 +95,100 @@ print("=" * 60)
 print("PASO 3: PROCESAMIENTO DE RESPUESTA APIFY")
 print("=" * 60)
 
+# Real Apify output schema for misceres/indeed-scraper
 apify_response = [
     {
-        "id": "apify-001",
-        "title": "Desarrollador Full Stack Junior",
-        "companyName": "TechCorp Colombia",
-        "location": "Bogota, Colombia",
-        "description": "Buscamos desarrollador Full Stack Junior con experiencia en React, Node.js y bases de datos PostgreSQL. Conocimientos en TypeScript deseables. Trabajo hibrido 3 dias en oficina.",
-        "url": "https://co.indeed.com/viewjob?jk=abc123",
+        "positionName": "Desarrollador Full Stack Junior",
         "salary": "2,500,000 - 3,500,000 COP/mes",
-        "pubDate": "2026-06-15",
-    },
-    {
-        "id": "apify-002",
-        "title": "Ingeniero de Software Junior",
-        "companyName": "DataFlow SA",
-        "location": "Medellin, Colombia",
-        "description": "Ingeniero de software junior para equipo de backend. Python, Django, PostgreSQL. Experiencia con Docker deseable. Remoto.",
-        "url": "https://co.indeed.com/viewjob?jk=def456",
-        "salary": "3,000,000 - 4,000,000 COP/mes",
-        "pubDate": "2026-06-14",
-    },
-    {
-        "id": "apify-003",
-        "title": "Programador Junior",
-        "companyName": "InnovateTech",
-        "location": "Cali, Colombia",
-        "description": "Programador junior para desarrollo de APIs RESTful. Node.js, Express, MongoDB. Conocimientos en Git. Presencial zona norte.",
-        "url": "https://co.indeed.com/viewjob?jk=ghi789",
-        "salary": "2,000,000 - 2,800,000 COP/mes",
-        "pubDate": "2026-06-13",
-    },
-    {
-        "id": "apify-004",
-        "title": "Desarrollador Backend Junior",
-        "companyName": "CloudSys Colombia",
+        "jobType": ["Fulltime"],
+        "company": "TechCorp Colombia",
+        "companyLogo": "https://d2q79iu7y748jz.cloudfront.net/s/_squarelogo/256x256/example1",
         "location": "Bogota, Colombia",
-        "description": "Backend developer junior. Python, FastAPI, PostgreSQL. Experiencia con AWS o GCP. Trabajo remoto con reuniones semanales.",
-        "url": "https://co.indeed.com/viewjob?jk=jkl012",
-        "salary": "3,200,000 - 4,200,000 COP/mes",
-        "pubDate": "2026-06-12",
+        "rating": 4.2,
+        "reviewsCount": 12,
+        "url": "https://co.indeed.com/viewjob?jk=abc123",
+        "id": "abc123",
+        "postedAt": "2 days ago",
+        "scrapedAt": "2026-06-16T10:00:00.000Z",
+        "description": "Buscamos desarrollador Full Stack Junior con experiencia en React, Node.js y bases de datos PostgreSQL. Conocimientos en TypeScript deseables. Trabajo hibrido 3 dias en oficina.",
+        "descriptionHTML": "<p>Buscamos desarrollador Full Stack Junior con experiencia en React, Node.js y bases de datos PostgreSQL.</p>",
+        "externalApplyLink": "https://techcorp.co/apply/abc123",
     },
     {
-        "id": "apify-005",
-        "title": "Ingeniero de Sistemas Junior",
-        "companyName": "SoftDev Group",
-        "location": "Barranquilla, Colombia",
-        "description": "Ingeniero de sistemas junior para soporte y desarrollo. SQL, Python, documentacion tecnica. Hibrido.",
-        "url": "https://co.indeed.com/viewjob?jk=mno345",
+        "positionName": "Ingeniero de Software Junior",
+        "salary": "3,000,000 - 4,000,000 COP/mes",
+        "jobType": ["Fulltime", "Remote"],
+        "company": "DataFlow SA",
+        "companyLogo": "https://d2q79iu7y748jz.cloudfront.net/s/_squarelogo/256x256/example2",
+        "location": "Medellin, Colombia",
+        "rating": 3.8,
+        "reviewsCount": 43,
+        "url": "https://co.indeed.com/viewjob?jk=def456",
+        "id": "def456",
+        "postedAt": "1 day ago",
+        "scrapedAt": "2026-06-16T10:00:00.000Z",
+        "description": "Ingeniero de software junior para equipo de backend. Python, Django, PostgreSQL. Experiencia con Docker deseable. Remoto.",
+        "descriptionHTML": "<p>Ingeniero de software junior para equipo de backend. Python, Django, PostgreSQL.</p>",
+        "externalApplyLink": "https://dataflow.co/apply/def456",
+    },
+    {
+        "positionName": "Programador Junior",
+        "salary": "2,000,000 - 2,800,000 COP/mes",
+        "jobType": ["Fulltime"],
+        "company": "InnovateTech",
+        "companyLogo": "https://d2q79iu7y748jz.cloudfront.net/s/_squarelogo/256x256/example3",
+        "location": "Cali, Colombia",
+        "rating": 4.0,
+        "reviewsCount": 8,
+        "url": "https://co.indeed.com/viewjob?jk=ghi789",
+        "id": "ghi789",
+        "postedAt": "3 days ago",
+        "scrapedAt": "2026-06-16T10:00:00.000Z",
+        "description": "Programador junior para desarrollo de APIs RESTful. Node.js, Express, MongoDB. Conocimientos en Git. Presencial zona norte.",
+        "descriptionHTML": "<p>Programador junior para desarrollo de APIs RESTful. Node.js, Express, MongoDB.</p>",
+        "externalApplyLink": None,
+    },
+    {
+        "positionName": "Desarrollador Backend Junior",
+        "salary": "3,200,000 - 4,200,000 COP/mes",
+        "jobType": ["Fulltime", "Remote"],
+        "company": "CloudSys Colombia",
+        "companyLogo": "https://d2q79iu7y748jz.cloudfront.net/s/_squarelogo/256x256/example4",
+        "location": "Bogota, Colombia",
+        "rating": 3.5,
+        "reviewsCount": 22,
+        "url": "https://co.indeed.com/viewjob?jk=jkl012",
+        "id": "jkl012",
+        "postedAt": "5 days ago",
+        "scrapedAt": "2026-06-16T10:00:00.000Z",
+        "description": "Backend developer junior. Python, FastAPI, PostgreSQL. Experiencia con AWS o GCP. Trabajo remoto con reuniones semanales.",
+        "descriptionHTML": "<p>Backend developer junior. Python, FastAPI, PostgreSQL.</p>",
+        "externalApplyLink": "https://cloudsys.co/apply/jkl012",
+    },
+    {
+        "positionName": "Ingeniero de Sistemas Junior",
         "salary": "2,800,000 - 3,800,000 COP/mes",
-        "pubDate": "2026-06-11",
+        "jobType": ["Fulltime"],
+        "company": "SoftDev Group",
+        "companyLogo": "https://d2q79iu7y748jz.cloudfront.net/s/_squarelogo/256x256/example5",
+        "location": "Barranquilla, Colombia",
+        "rating": 4.1,
+        "reviewsCount": 15,
+        "url": "https://co.indeed.com/viewjob?jk=mno345",
+        "id": "mno345",
+        "postedAt": "1 week ago",
+        "scrapedAt": "2026-06-16T10:00:00.000Z",
+        "description": "Ingeniero de sistemas junior para soporte y desarrollo. SQL, Python, documentacion tecnica. Hibrido.",
+        "descriptionHTML": "<p>Ingeniero de sistemas junior para soporte y desarrollo. SQL, Python, documentacion tecnica.</p>",
+        "externalApplyLink": None,
     },
 ]
 
 print("  Vacantes recibidas: %d" % len(apify_response))
 print()
 
-# Validate integrity
-required_fields = ["title", "companyName", "location", "description"]
+# Validate integrity against real Apify fields
+required_fields = ["positionName", "company", "location", "description", "id"]
 all_valid = True
 for i, job in enumerate(apify_response):
     missing = [f for f in required_fields if f not in job or not job[f]]
@@ -169,10 +205,61 @@ print()
 print("  Vacantes encontradas:")
 for i, job in enumerate(apify_response, 1):
     print(
-        "    %d. %s @ %s (%s)" % (i, job["title"], job["companyName"], job["location"])
+        "    %d. %s @ %s (%s)" % (i, job["positionName"], job["company"], job["location"])
     )
 
-# ... (Código previo hasta el Paso 4: Persistencia)
+# ============================================================
+# STEP 4: Persistencia en tabla jobs (idempotente)
+# ============================================================
+print()
+print("=" * 60)
+print("PASO 4: PERSISTENCIA EN TABLA JOBS")
+print("=" * 60)
+
+
+def compute_job_hash(company, position_name, location):
+    """Generate deterministic SHA-256 hash for job deduplication."""
+    raw = (company + position_name + location).encode()
+    return hashlib.sha256(raw).hexdigest()
+
+
+persisted = 0
+skipped = 0
+
+for job in apify_response:
+    job_hash = compute_job_hash(job["company"], job["positionName"], job["location"])
+
+    # Check if already exists (idempotent)
+    cursor.execute("SELECT job_hash FROM jobs WHERE job_hash = ?", (job_hash,))
+    if cursor.fetchone():
+        skipped += 1
+        print("  [SKIP] %s @ %s ya existe en BD" % (job["positionName"], job["company"]))
+        continue
+
+    cursor.execute(
+        """INSERT INTO jobs (job_hash, indeed_id, public_date, url, company, position, location, salary, description, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')""",
+        (
+            job_hash,
+            job.get("id", ""),
+            job.get("postedAt", ""),
+            job.get("url", ""),
+            job.get("company", ""),
+            job.get("positionName", ""),
+            job.get("location", ""),
+            job.get("salary", ""),
+            job.get("description", ""),
+        ),
+    )
+    persisted += 1
+    print(
+        "  [INSERT] %s @ %s (hash: %s...)"
+        % (job["positionName"], job["company"], job_hash[:12])
+    )
+
+conn.commit()
+print()
+print("  Resumen: %d insertados, %d saltados (duplicados)" % (persisted, skipped))
 
 # ============================================================
 # STEP 5: Análisis Técnico (Protocolo 1)
@@ -183,12 +270,12 @@ print("PASO 5: ANÁLISIS TÉCNICO DE VACANTES")
 print("=" * 60)
 
 cursor.execute(
-    "SELECT id, position, company, description FROM jobs WHERE status = 'new'"
+    "SELECT job_hash, position, company, description FROM jobs WHERE status = 'new'"
 )
 pendientes = cursor.fetchall()
 
 for job in pendientes:
-    job_id, position, company, description = job
+    job_hash, position, company, description = job
     print(f"  Analizando vacante: {position} en {company}...")
 
     # SIMULACIÓN DE ANÁLISIS (Usando mimetismo y reglas de integridad)
@@ -199,11 +286,11 @@ for job in pendientes:
 
     # Guardar análisis en tabla 'analyses'
     cursor.execute(
-        "INSERT INTO analyses (job_id, verdict, summary) VALUES (?, ?, ?)",
-        (job_id, veredicto, summary),
+        "INSERT INTO analyses (job_hash, verdict, summary) VALUES (?, ?, ?)",
+        (job_hash, veredicto, summary),
     )
     # Marcar como analizado
-    cursor.execute("UPDATE jobs SET status = 'analyzed' WHERE id = ?", (job_id,))
+    cursor.execute("UPDATE jobs SET status = 'analyzed' WHERE job_hash = ?", (job_hash,))
 
     print(f"    [VERDICT] {veredicto}")
     print(f"    [SUMMARY] {summary}")
@@ -217,7 +304,6 @@ print()
 print("=" * 60)
 print("PASO 6: RESPUESTA FINAL AL USUARIO")
 print("=" * 60)
-# ... (Código de respuesta)
 
 cursor.execute("SELECT COUNT(*) FROM jobs WHERE status = 'new'")
 total_new = cursor.fetchone()[0]
@@ -226,7 +312,7 @@ print("  Total ofertas nuevas en BD: %d" % total_new)
 print()
 print("  Contenido de la tabla jobs:")
 cursor.execute(
-    "SELECT id, company, position, location, salary FROM jobs WHERE status = 'new'"
+    "SELECT indeed_id, company, position, location, salary FROM jobs WHERE status IN ('new', 'analyzed')"
 )
 rows = cursor.fetchall()
 for row in rows:
@@ -238,7 +324,7 @@ print("RESPUESTA FINAL AL USUARIO")
 print("=" * 60)
 print(
     "  'Busqueda completada. Encontre %d vacantes que coinciden con tu perfil:"
-    % total_new
+    % len(rows)
 )
 for row in rows:
     print("   - %s en %s (%s)" % (row[2], row[1], row[3]))
