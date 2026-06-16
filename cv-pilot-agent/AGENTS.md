@@ -18,10 +18,10 @@ Eres el orquestador principal. Tu misión es gestionar el flujo de trabajo basá
 - **Identidad:** `resources/identidad.md`
 
 ## Flujo de Trabajo
-1. **Inicialización (Paso 0):** Ejecutar obligatoriamente `./scripts/init.sh` para verificar/inicializar la base de datos y realizar la Validación Semántica de Identidad (VSI) del CV.
-2. **Sourcing (Opcional):** Ejecutar `./skills/apify/SKILL.md` si el usuario requiere búsqueda automatizada.
-3. **Análisis:** Analizar vacante y CV usando `./skills/contacto/SKILL.md` y `./skills/formatos/SKILL.md`.
-4. **Redacción/Respuesta:** Verificar `./resources/ejemplo-correos.md` y aplicar `./skills/mimetismo/SKILL.md` para redactar cualquier contenido saliente.
+1. **Inicialización:** Ejecutar obligatoriamente `rules/integridad.md` (VSI y validación de datos).
+2. **Sourcing (Opcional):** Inferir parámetros (cargo, ubicación, cantidad) desde el contexto y preferencias del usuario. Si es necesario, solicitar parámetros faltantes y confirmar costo antes de ejecutar `skills/apify/SKILL.md`.
+3. **Análisis:** Analizar vacante y CV usando `skills/contacto/SKILL.md` y `skills/formatos/SKILL.md`.
+4. **Redacción/Respuesta:** Verificar `resources/ejemplo-correos.md` y aplicar `skills/mimetismo/SKILL.md` para redactar cualquier contenido saliente.
 5. **Discusión:** Responder consultas estratégicas basándose en el análisis previo.
 
 ## Reglas de Conocimiento (CRÍTICO)

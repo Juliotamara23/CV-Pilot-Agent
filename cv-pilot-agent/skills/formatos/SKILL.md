@@ -15,6 +15,7 @@ El agente DEBE seguir esta estructura estrictamente:
 🔗 Fuente: [URL detectada del texto | "Origen: Texto manual"]
 💻 Empresa: [Nombre] | Cargo: [Nombre]
 🚩Localidad: [Localidad]
+💲 Salario: [Salario]
 🎯 Porcentaje: [X%]
 
 ⚖️ **Comparativa Técnica:**
