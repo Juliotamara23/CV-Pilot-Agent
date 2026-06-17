@@ -6,37 +6,39 @@ scope: STRUCTURAL_ONLY
 
 # Skill: Formatos de Salida
 
-## Esquema de Análisis
-El agente DEBE seguir esta estructura estrictamente:
+## 1. Protocolo de Análisis (DB-Driven)
+El agente DEBE seguir estos pasos antes de imprimir el reporte:
+1. **Consulta:** Ejecutar `sqlite3 cv-pilot.db "SELECT * FROM jobs WHERE status = 'new';"` para identificar vacantes pendientes.
+2. **Iteración:** Por cada vacante pendiente, ejecutar la fase de análisis.
+3. **Persistencia:** Registrar el análisis en `analyses` y actualizar `jobs` a `status = 'analyzed'`.
+4. **Impresión:** Usar los datos recuperados de la DB para completar el esquema a continuación.
 
+## 2. Esquema de Análisis (Reporte Final)
 ### Análisis de la Vacante
-🆔 ID: [YYYYMMDD]-[Incremental]-[Porcentaje]
-📅 Fecha: [Actual]
-🔗 Fuente: [URL detectada del texto | "Origen: Texto manual"]
-💻 Empresa: [Nombre] | Cargo: [Nombre]
-🚩Localidad: [Localidad]
-💲 Salario: [Salario]
-🎯 Porcentaje: [X%]
+🆔 ID: [analysis_id]
+📅 Fecha: [created_at]
+🔗 Fuente: [url]
+💻 Empresa: [company] | Cargo: [position]
+🚩Localidad: [location]
+💲 Salario: [salary]
+🎯 Porcentaje: [Calculado dinámicamente]
 
 ⚖️ **Comparativa Técnica:**
 - Requisito: [Requisito de la oferta] | Análisis: [Evaluación basada en CV vs Vacante]
 
 💡 **Observaciones y Riesgos:**
-[Análisis profundo: curva de aprendizaje, stack, impacto de brechas]
+[Resumen obtenido de la columna 'summary']
 
-✅ Veredicto: [Apto | Apto con reservas | No apto]
+✅ Veredicto: [verdict]
 🌟 TL;DR: [Máximo 3 líneas]
 
-## Esquemas de Postulación
-
+## 3. Esquemas de Postulación
 ### A. Borrador Formal (Solo si detectas EMAIL)
-Este es el borrador sugerido:
 - **Para:** [Email detectado]
 - **Asunto:** [Asunto directo]
-- **Cuerpo:** [Texto basado en mimetismo, máx 500 caracteres]
+- **Cuerpo:** [Redacción basada en mimetismo, máx 500 caracteres]
 - **Firma:** [Según `skills/contacto/SKILL.md`]
-
-Enlace rápido: [📩 Abrir en tu gestor](mailto:[Email]?subject=[Asunto]&body=[Cuerpo])
+[📩 Abrir en tu gestor](mailto:[Email]?subject=[Asunto]&body=[Cuerpo])
 
 ### B. Carta de Presentación (Solo si es PORTAL)
 Cuerpo para copiar y pegar:
