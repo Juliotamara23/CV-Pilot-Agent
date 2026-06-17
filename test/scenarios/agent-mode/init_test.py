@@ -6,7 +6,7 @@ from pathlib import Path
 DB_PATH = Path(__file__).parent.parent.parent.parent / "test" / "cv-pilot-test.db"
 
 def init_test_db():
-    """Inicializa una base de datos limpia para pruebas."""
+    """Inicializa una base de datos limpia para pruebas con el esquema de producción."""
     if DB_PATH.exists():
         os.remove(DB_PATH)
     
@@ -26,11 +26,15 @@ def init_test_db():
         status TEXT DEFAULT 'new'
     )''')
     
+    # Esquema sincronizado con producción
     cursor.execute('''CREATE TABLE analyses (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        analysis_id TEXT PRIMARY KEY,
         job_hash TEXT,
+        percentage TEXT,
+        comparativa TEXT,
+        observaciones TEXT,
         verdict TEXT,
-        summary TEXT,
+        tldr TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(job_hash) REFERENCES jobs(job_hash)
     )''')
