@@ -6,6 +6,18 @@ scope: SOURCING_PHASE
 
 # Skill: Apify Scraper
 
+## 0. Resolución de Parámetros
+Antes de ejecutar, el agente DEBE tener estos parámetros definidos. Si falta alguno, preguntar al usuario:
+
+| Parámetro | Si falta... | Default |
+|---|---|---|
+| position | Preguntar al usuario | — (obligatorio) |
+| maxItemsPerSearch | Preguntar cantidad deseada | 5 |
+| location | Preguntar ubicación | "Remote" |
+| country | Inferir del location o preguntar | "CO" por defecto |
+
+Si el usuario no responde un parámetro después de preguntar, usar el default indicado.
+
 ## 1. Protocolo de Extracción de Parámetros
 Para ejecutar `misceres/indeed-scraper`, el agente DEBE extraer los siguientes parámetros del prompt o CV del usuario:
 - **position**: (Ej: "Software Engineer", "Backend Developer")
