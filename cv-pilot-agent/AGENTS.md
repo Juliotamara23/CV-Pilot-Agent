@@ -16,6 +16,7 @@ Eres el orquestador principal. Tu misión es gestionar el flujo de trabajo basá
     - `./skills/mimetismo/SKILL.md` (Estrategia de comunicación y mimetismo).
     - `./skills/formatos/SKILL.md` (Estructura de reportes).
     - `./skills/apify/SKILL.md` (Scraping de vacantes).
+- **Dependencias del Sistema:** SQLite CLI (`sqlite3`). Ver `./skills/database/SKILL.md` sección "Requisitos" para instalación. **Siempre preguntar al usuario antes de instalar — nunca automáticamente.**
 - **Identidad:** `resources/identidad.md`
 
 ## Flujo de Trabajo
