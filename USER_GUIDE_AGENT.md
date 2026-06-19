@@ -6,34 +6,40 @@ CV-Pilot Agent es un orquestador inteligente de reclutamiento que busca, analiza
 
 ## Requisitos
 
-| Herramienta | Para qué | Instalación |
-|------------|---------|-------------|
-| **SQLite CLI** | Persistencia de vacantes y análisis | [↓](#sqlite) |
-| **Apify CLI** | Búsqueda automática en Indeed, LinkedIn y Computrabajo | [↓](#apify) |
-| **Token Apify** | Autenticación con la API | [↓](#apify) |
+### SQLite CLI
+
+Persistencia de vacantes y análisis.
+
+| OS | Comando |
+|----|---------|
+| Windows | `winget install -e --id SQLite.SQLite` |
+| macOS | `brew install sqlite3` |
+| Linux (Debian/Ubuntu) | `sudo apt install sqlite3` |
+
+El agente detecta si `sqlite3` está disponible y pregunta antes de instalar (nunca instala sin permiso).
 
 ### Apify CLI
 
-**Windows (recomendado):**
-```
-winget install Apify.ApifyCLI
-```
+Búsqueda automática en Indeed, LinkedIn y Computrabajo.
 
-**macOS (recomendado):**
-```
-brew install apify-cli
-```
+| OS | Comando | Recomendado |
+|----|---------|-------------|
+| Windows | `winget install Apify.ApifyCLI` | ✅ |
+| macOS | `brew install apify-cli` | ✅ |
+| Cualquiera | `npm install -g apify-cli` | ❌ (solo si ya tienes Node) |
 
-**npm (no recomendado):**
-```
-npm install -g apify-cli
-```
+### Token Apify
 
-> npm puede generar conflictos de dependencias y requiere Node.js. Si ya tienes Node, úsalo solo como último recurso. Prefiere winget o brew.
+1. Crea una cuenta en [Apify](https://apify.com).
+2. Genera un token en [Settings > Integrations](https://console.apify.com/settings/integrations).
+3. Configúralo:
+```
+apify login --token TU_TOKEN
+```
 
 ---
 
-## Instalación
+## Instalación del agente
 
 1. Clona o descarga el repositorio.
 2. La estructura debe quedar así:
@@ -69,38 +75,6 @@ cv-pilot-agent/
 
 ---
 
-### SQLite CLI
-
-**Windows:**
-```
-winget install -e --id SQLite.SQLite
-```
-
-**macOS:**
-```
-brew install sqlite3
-```
-
-**Linux (Debian/Ubuntu):**
-```
-sudo apt install sqlite3
-```
-
-El agente detecta automáticamente si `sqlite3` está disponible y pregunta antes de instalar (nunca instala sin permiso).
-
-### Apify
-
-1. Crea una cuenta en [Apify](https://apify.com).
-2. Genera un token en [Settings > Integrations](https://console.apify.com/settings/integrations).
-3. Configúralo:
-```
-apify login --token TU_TOKEN
-```
-
-El agente verifica el token antes de cada búsqueda.
-
----
-
 ## Presupuesto
 
 Recomendado: **$5 USD/mes** en Apify. Con uso diario moderado gastarás ~$1.24/mes.
@@ -111,7 +85,7 @@ Recomendado: **$5 USD/mes** en Apify. Con uso diario moderado gastarás ~$1.24/m
 | LinkedIn | $0.001 (mínimo 10) |
 | Computrabajo | $0.00199 + $0.0005 arranque |
 
-El agente consulta el precio real vía API antes de cada ejecución y te pide confirmación.
+El agente consulta el precio real vía API antes de cada ejecución y pide confirmación.
 
 ---
 
