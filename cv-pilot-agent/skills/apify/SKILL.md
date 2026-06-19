@@ -46,6 +46,18 @@ Si el `position` es una sola palabra (ej: "Desarrollador", "Developer", "Ingenie
 
 Si el usuario decide no refinar, proceder igual pero anotar que los resultados pueden ser imprecisos.
 
+### Advertencia: keywords excesivas en LinkedIn
+
+LinkedIn busca TODAS las keywords juntas (AND), no algunas. Si el usuario proporciona más de 4-5 términos, el agente DEBE advertir:
+
+> "LinkedIn busca todas las keywords simultáneamente. Con [N] términos es probable que no encuentre resultados. Sugiero reducir a 2-3 keywords principales para maximizar cobertura. ¿Quieres ajustar?"
+
+Si además se combina con `location` específica (ej: "Medellín"), advertir que la combinación reduce aún más los resultados:
+
+> "La búsqueda en LinkedIn con keywords específicas Y filtro de ubicación puede devolver dataset vacío. ¿Quieres buscar sin filtro de ubicación y luego filtrar manualmente?"
+
+Si el usuario decide mantener keywords extensas + location, proceder pero informar que: (a) el dataset puede venir vacío, y (b) si está vacío no se cobra (PAY_PER_EVENT solo cobra por resultados).
+
 ## 3. Protocolo de Extracción de Parámetros
 
 El agente DEBE extraer del prompt del usuario:
