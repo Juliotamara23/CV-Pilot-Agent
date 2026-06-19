@@ -10,6 +10,15 @@ CV-Pilot Web es un orquestador de reclutamiento que funciona dentro de una gema 
 2. Extrae los archivos de `cv-pilot-web/`.
 3. Abre `user-identidad.md` y `ejemplo-correos.md`, y rellénalos con tus datos.
 4. Crea una [Gema de Gemini](https://gemini.google.com/gems/view).
+
+   **Paso 1 — Crear gema:** haz clic en "+ Nueva Gema".
+
+   <img src="images/Gem1.png" alt="Crear nueva gema" width="500" />
+
+   **Paso 2 — Configurar:** asigna un nombre, descripción y sube los archivos en la sección "Conocimiento". En instrucciones escribe: "Sigue las instrucciones descritas en AGENTS.md".
+
+   <img src="images/Gem2.png" alt="Configurar gema" width="500" />
+
 5. Sube estos archivos en la sección "Conocimiento":
 
 ```
@@ -22,8 +31,6 @@ skill-contacto.md
 skill-formatos.md
 skill-redaccion.md
 ```
-
-6. En instrucciones, escribe: "Sigue las instrucciones descritas en AGENTS.md".
 
 ---
 
