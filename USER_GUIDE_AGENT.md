@@ -8,9 +8,28 @@ CV-Pilot Agent es un orquestador inteligente de reclutamiento que busca, analiza
 
 | Herramienta | Para qué | Instalación |
 |------------|---------|-------------|
-| **SQLite CLI** (`sqlite3`) | Persistencia de vacantes y análisis | [Instrucciones](#sqlite) |
-| **Apify CLI** | Búsqueda automática en Indeed, LinkedIn y Computrabajo | `npm install -g apify-cli` |
-| **Token Apify** | Autenticación con la API | [Configuración](#apify) |
+| **SQLite CLI** | Persistencia de vacantes y análisis | [↓](#sqlite) |
+| **Apify CLI** | Búsqueda automática en Indeed, LinkedIn y Computrabajo | [↓](#apify) |
+| **Token Apify** | Autenticación con la API | [↓](#apify) |
+
+### Apify CLI
+
+**Windows (recomendado):**
+```
+winget install Apify.ApifyCLI
+```
+
+**macOS (recomendado):**
+```
+brew install apify-cli
+```
+
+**npm (no recomendado):**
+```
+npm install -g apify-cli
+```
+
+> npm puede generar conflictos de dependencias y requiere Node.js. Si ya tienes Node, úsalo solo como último recurso. Prefiere winget o brew.
 
 ---
 
@@ -50,7 +69,7 @@ cv-pilot-agent/
 
 ---
 
-## SQLite CLI
+### SQLite CLI
 
 **Windows:**
 ```
@@ -67,11 +86,9 @@ brew install sqlite3
 sudo apt install sqlite3
 ```
 
-El agente detecta automáticamente si `sqlite3` está disponible y te pregunta antes de instalar.
+El agente detecta automáticamente si `sqlite3` está disponible y pregunta antes de instalar (nunca instala sin permiso).
 
----
-
-## Apify
+### Apify
 
 1. Crea una cuenta en [Apify](https://apify.com).
 2. Genera un token en [Settings > Integrations](https://console.apify.com/settings/integrations).
