@@ -105,9 +105,9 @@ El agente DEBE normalizar los campos antes de cualquier operación. Los alias (s
 | `salary` / `salario` / `compensation` | salary | Strip whitespace, preserving original format |
 | `description` / `descripcion` / `body` | description | Preserve as-is |
 | `url` / `link` / `source_url` | url | Validate URL format |
-| `id` / `indeed_id` / `ref_id` | indeed_id | Strip whitespace |
+| `id` / `indeed_id` / `ref_id` / `external_id` | external_id | Strip whitespace |
 | `posted_at` / `public_date` / `postedAt` / `fecha` | public_date | Preserve as-is |
-| `source` | source | `'apify'` o `'manual'` (default: `'manual'`) |
+| `source` | source | `'manual'`, `'apify-indeed'`, `'apify-linkedin'`, `'apify-computrabajo'` (default: `'manual'`) |
 
 ## 3. Deduplicación (Business Key)
 Calcular hash antes de insertar:
@@ -119,7 +119,7 @@ job_hash = SHA256(normalized_company + normalized_position + normalized_location
 
 ### Insertar job (idempotente)
 ```python
-INSERT OR IGNORE INTO jobs (job_hash, indeed_id, public_date, url, company, position, location, salary, description, status, source)
+INSERT OR IGNORE INTO jobs (job_hash, external_id, public_date, url, company, position, location, salary, description, status, source)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?)
 ```
 

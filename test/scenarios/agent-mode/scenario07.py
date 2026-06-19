@@ -34,7 +34,7 @@ def test_chaos_scenario():
                 (job.get("company", "") + job.get("positionName", "")).encode()
             ).hexdigest()
             cursor.execute(
-                "INSERT INTO jobs (job_hash, indeed_id, position, company) VALUES (?, ?, ?, ?)",
+                "INSERT INTO jobs (job_hash, external_id, position, company) VALUES (?, ?, ?, ?)",
                 (job_hash, job.get("id"), job.get("positionName"), job.get("company")),
             )
             print(f"  [INSERT] {job.get('company')} - {job.get('positionName')}")

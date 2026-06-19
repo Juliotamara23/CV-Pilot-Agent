@@ -15,7 +15,7 @@ def init_test_db():
     
     cursor.execute('''CREATE TABLE jobs (
         job_hash TEXT PRIMARY KEY,
-        indeed_id TEXT,
+        external_id TEXT,
         public_date TEXT,
         url TEXT,
         company TEXT,

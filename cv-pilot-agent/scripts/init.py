@@ -15,7 +15,7 @@ def init():
         # Tabla jobs — incluye source para distinguir Apify vs manual
         cursor.execute('''CREATE TABLE IF NOT EXISTS jobs (
             job_hash TEXT PRIMARY KEY,
-            indeed_id TEXT,
+            external_id TEXT,
             public_date TEXT,
             url TEXT,
             company TEXT,

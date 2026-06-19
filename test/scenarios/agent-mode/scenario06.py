@@ -667,7 +667,7 @@ def setup_environment():
 
     cursor.execute('''CREATE TABLE IF NOT EXISTS jobs (
         job_hash TEXT PRIMARY KEY,
-        indeed_id TEXT,
+        external_id TEXT,
         public_date TEXT,
         url TEXT,
         company TEXT,
@@ -842,7 +842,7 @@ def run_scenario():
 
             cursor.execute(
                 """INSERT INTO jobs
-                   (job_hash, indeed_id, public_date, url, company,
+                   (job_hash, external_id, public_date, url, company,
                     position, location, salary, description)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
