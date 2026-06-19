@@ -13,8 +13,8 @@
 
 | Modalidad | Para quién | Guía |
 |----------|-----------|------|
-| **Web** | Usas Gemini, no querés instalar nada | [docs/web.md](docs/web.md) |
-| **Agent** | Usas OpenCode o terminal, querés búsqueda automática | [docs/agent.md](docs/agent.md) |
+| **Web** | Usas Gemini, sin instalar nada | [docs/web.md](docs/web.md) |
+| **Agent** | Usas OpenCode o terminal, con búsqueda automática | [docs/agent.md](docs/agent.md) |
 
 ## 🧠 Arquitectura
 
