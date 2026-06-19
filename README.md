@@ -13,8 +13,8 @@
 
 | Modalidad | Para quién | Guía |
 |----------|-----------|------|
-| **Web** | Usas Gemini, no querés instalar nada | [USER_GUIDE_WEB.md](USER_GUIDE_WEB.md) |
-| **Agent** | Usas OpenCode o terminal, querés búsqueda automática | [USER_GUIDE_AGENT.md](USER_GUIDE_AGENT.md) |
+| **Web** | Usas Gemini, no querés instalar nada | [docs/web.md](docs/web.md) |
+| **Agent** | Usas OpenCode o terminal, querés búsqueda automática | [docs/agent.md](docs/agent.md) |
 
 ## 🧠 Arquitectura
 
@@ -32,7 +32,3 @@ skills/mimetismo/      → Redacción personalizada
 |---------|-------|---------|
 | **v1.0.0** | Junio 2026 | Búsqueda multi-plataforma, SQLite, Apify, tests automatizados |
 | v0.x | 2025 | Análisis manual, versión web inicial |
-
----
-
-*¿Dudas? [Manual de Usuario](USER_GUIDE.md)*
