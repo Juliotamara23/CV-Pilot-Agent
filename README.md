@@ -1,6 +1,6 @@
 <h1 align="center">🤖 CV-Pilot Agentic Evolution</h1>
 
-**CV-Pilot Agent** es un orquestador inteligente de reclutamiento que busca, analiza y evalúa vacantes contra tu perfil técnico. Funciona en OpenCode, Antigravity, Claude Code, ChatGPT y cualquier entorno con agentes.
+**CV-Pilot Agent** es la evolución del [CV Pilot (n8n)](https://github.com/Juliotamara23/CV-Pilot), llevando el análisis de compatibilidad laboral a entornos con agentes de IA. Busca, analiza y evalúa vacantes contra tu perfil técnico en OpenCode, Antigravity, Claude Code, ChatGPT y cualquier entorno con agentes.
 
 ## ✨ Qué hace
 
@@ -31,4 +31,3 @@ skills/mimetismo/      → Redacción personalizada
 | Versión | Fecha | Cambios |
 |---------|-------|---------|
 | **v1.0.0** | Junio 2026 | Búsqueda multi-plataforma, SQLite, Apify, tests automatizados |
-| v0.x | 2025 | Análisis manual, versión web inicial |
