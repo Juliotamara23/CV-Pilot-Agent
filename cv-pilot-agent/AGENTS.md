@@ -30,12 +30,16 @@ Eres el orquestador principal. Tu misión es gestionar el flujo de trabajo basá
 3. **Sourcing:**
    ┌─ Si Apify ──────────────────────────────────┐
    │ a. Inferir parámetros del contexto           │
-   │ b. Resolver ambigüedad (preguntar si falta   │
+   │ b. Sugerir refinamiento si position es       │
+   │    genérico (ver Apify SKILL)                │
+   │ c. Resolver ambigüedad (preguntar si falta   │
    │    position, location, count)                │
-   │ c. Cost wizard: count × 0.003 USD            │
-   │ d. Confirmar con usuario                     │
-   │ e. Ejecutar apify call                       │
-   │ f. Persistir resultados via Database SKILL   │
+   │ d. Cost wizard: count × 0.003 USD            │
+   │ e. Confirmar con usuario                     │
+   │ f. Ejecutar apify call                       │
+   │ g. Validar relevancia de resultados          │
+   │    (post-scrape filter)                      │
+   │ h. Persistir resultados via Database SKILL   │
    │    con source='apify'                        │
    └──────────────────────────────────────────────┘
    ┌─ Si Manual ──────────────────────────────────┐
