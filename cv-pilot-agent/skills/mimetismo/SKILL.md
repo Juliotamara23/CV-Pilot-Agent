@@ -13,7 +13,7 @@ Configurar el estilo de redacción para CUALQUIER comunicación saliente (correo
 Para que cualquier respuesta sea de alto impacto, el agente debe:
 1. **Identificar el "Pain Point":** ¿Qué es lo más difícil que pide la oferta?
 2. **Cruzar con Logros:** Seleccionar del CV los logros más cercanos a ese dolor.
-3. **Mimetismo de Estilo:** Extraer la estructura y patrones de `{resources/ejemplo-correos.md}`.
+3. **Mimetismo de Estilo:** Extraer la estructura y patrones de `data/correos.md`.
 4. **Filtro de Humildad:** Usar "He implementado", "Tengo experiencia con" en lugar de "Soy un experto en".
 
 ## Aplicación
