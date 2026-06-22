@@ -1,6 +1,6 @@
 ---
 name: Plantilla de Perfil
-description: Estructura para data/perfil.md. CV unificado y datos de contacto en una sola fuente de verdad, sin duplicacion.
+description: Estructura para data/perfil.md. CV unificado y datos de contacto en una sola fuente de verdad, sin duplicación.
 scope: ONBOARDING
 ---
 
@@ -8,13 +8,13 @@ scope: ONBOARDING
 
 ## Identidad
 - **Nombre completo:** [Nombre y apellidos]
-- **Resumen profesional:** [Una o dos lineas describiendo el perfil profesional]
+- **Resumen profesional:** [Una o dos líneas describiendo el perfil profesional]
 
 ## Contacto
 - **LinkedIn:** [URL completa]
 - **GitHub:** [URL completa]
-- **WhatsApp / Telefono:** [numero con prefijo internacional]
-- **Correo electronico:** [correo]
+- **WhatsApp / Teléfono:** [número con prefijo internacional]
+- **Correo electrónico:** [correo]
 - **Link al CV (opcional):** [URL de Drive u otro repositorio]
 
 ## Experiencia
@@ -22,12 +22,12 @@ scope: ONBOARDING
   - [Responsabilidad o logro concreto]
   - [Responsabilidad o logro concreto]
 
-## Educacion
-- **[Titulo]** — [Institucion] ([periodo])
+## Educación
+- **[Título]** — [Institución] ([periodo])
 
-## Skills Tecnicos
+## Skills Técnicos
 - [Lenguaje / framework / herramienta]
 - [Lenguaje / framework / herramienta]
 
 ## Notas
-- [Cualquier informacion adicional relevante para postulaciones]
+- [Cualquier información adicional relevante para postulaciones]

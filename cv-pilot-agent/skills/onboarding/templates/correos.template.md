@@ -6,13 +6,13 @@ scope: ONBOARDING
 
 # Ejemplos de Correos
 
-## Restriccion de uso
-Este archivo es exclusivamente para extraer patrones de estilo (mimetismo) en comunicacion saliente. Prohibido utilizar su contenido como fuente de conocimiento tecnico, validacion de habilidades o fundamentacion de analisis.
+## Restricción de uso
+Este archivo es exclusivamente para extraer patrones de estilo (mimetismo) en comunicación saliente. Prohibido utilizar su contenido como fuente de conocimiento técnico, validación de habilidades o fundamentación de análisis.
 
 ### Ejemplo 1
 [Saludo]
 
-[Cuerpo del correo: presentacion, postulacion a la vacante, skills relevantes, cierre]
+[Cuerpo del correo: presentación, postulación a la vacante, skills relevantes, cierre]
 
 [Despedida]
 [Firma]

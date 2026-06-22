@@ -1,22 +1,22 @@
 ---
 name: Plantilla de Preferencias
-description: Estructura para data/preferencias.md. Configuracion de preferencias del usuario.
+description: Estructura para data/preferencias.md. Configuración de preferencias del usuario.
 scope: ONBOARDING
 ---
 
 # Preferencias
 
 ## Mimetismo
-- **Activado:** [si / no]
+- **Activado:** [sí / no]
 
 ## Sector preferido
-- [Sector o area de interes, por ejemplo: Backend, IA, Fullstack, DevOps]
+- [Sector o área de interés, por ejemplo: Backend, IA, Fullstack, DevOps]
 
 ## Tono
-- [Tono de redaccion preferido, por ejemplo: formal, cercano, tecnico]
+- [Tono de redacción preferido, por ejemplo: formal, cercano, técnico]
 
-## Idioma de postulacion
-- [Idioma preferido para correos y respuestas, por ejemplo: espanol, ingles]
+## Idioma de postulación
+- [Idioma preferido para correos y respuestas, por ejemplo: español, inglés]
 
 ## Notas adicionales
-- [Cualquier preferencia relevante para la busqueda de trabajo]
+- [Cualquier preferencia relevante para la búsqueda de trabajo]

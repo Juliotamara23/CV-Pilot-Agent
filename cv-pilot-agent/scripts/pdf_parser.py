@@ -1,4 +1,4 @@
-"""Extraccion de texto y enlaces desde un PDF usando PyMuPDF (fitz).
+"""Extracción de texto y enlaces desde un PDF usando PyMuPDF (fitz).
 
 Uso:
     python pdf_parser.py <ruta_al_pdf>
@@ -10,7 +10,7 @@ Salida (JSON a stdout):
         "ok": true
     }
 
-Si la extraccion falla o el PDF no contiene texto, devuelve ok=false para que
+Si la extracción falla o el PDF no contiene texto, devuelve ok=false para que
 el flujo de onboarding ofrezca el camino manual (pegar texto/enlaces).
 """
 
@@ -30,7 +30,7 @@ def extract(pdf_path: str) -> dict:
     Devuelve un dict con:
         text:  texto completo del PDF (str)
         links: lista de URLs (list[str])
-        ok:    True si se extrajo texto, False si fallo o vacio
+        ok:    True si se extrajo texto, False si falló o vacío
     """
     if fitz is None:
         return {"text": "", "links": [], "ok": False,
