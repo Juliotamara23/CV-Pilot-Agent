@@ -1,32 +1,43 @@
 ---
 name: Regla de Integridad
-description: Define el Paso 0 (VSI) y los bloqueos por falta de datos.
+description: Validacion de datos al iniciar sesion. Detecta perfil ausente o incompleto y deriva al flujo de onboarding conversacional.
 scope: GLOBAL
 ---
 
 # Regla de Integridad
 
-## Regla de Información Completa
-Si falta alguna información esencial (LinkedIn, GitHub, teléfono/WhatsApp o el CV completo), el agente debe detener el flujo y solicitarla al usuario mediante un mensaje tipo "Espera, antes de proceder necesito tu [campo]".
+## Inicio de Sesion: Verificacion de Perfil
+Al iniciar cualquier sesion, el agente debe verificar el estado de `data/` antes de ejecutar cualquier analisis:
 
-## Paso 0: Validación Semántica de Identidad (VSI)
-Antes de ejecutar cualquier análisis, el agente debe verificar que el archivo subido sea efectivamente un CV profesional:
-1. **Detección de Estructura:** Analizar el texto del documento buscando secciones clave (Experiencia, Skills, Educación, Contacto).
-2. **Filtro de Calidad:** Si el documento no cumple con la estructura de un CV profesional, rechazar con crudeza: "Este documento no es un perfil profesional válido. Sube un CV real."
-3. **Selector Idiomático Inteligente:** Si hay múltiples archivos válidos, detectar el idioma de la vacante y seleccionar automáticamente el CV correspondiente. Esta operación debe realizarse de forma silenciosa e interna.
-4. **Asignación:** Una vez validado y seleccionado, asignar como {CV-Candidato-Activo} y proceder al análisis sin comentarios sobre la selección.
+1. **Verificar `data/perfil.md`:**
+   - Existe y contiene los campos requeridos (Identidad, Contacto, Experiencia) → cargar el perfil de forma silenciosa y continuar el flujo normal.
+   - No existe o esta incompleto → iniciar el flujo de onboarding (`skills/onboarding/SKILL.md`).
 
-## Paso 0.5: Optimización de Experiencia (Opcional)
-El agente debe verificar qué archivos de configuración están presentes en la base de conocimiento:
+2. **Flujo de onboarding:**
+   - Seguir los pasos definidos en `skills/onboarding/SKILL.md`.
+   - El onboarding recolecta CV, datos de contacto, ejemplos de correos y preferencias, verifica con el usuario y persiste en `data/`.
+   - No reanudar el flujo normal hasta que el perfil este completo o el usuario decida omitirlo explicitamente.
 
-1. **Si faltan archivos:**
-   - El agente debe informar: "He detectado que no tienes configurada tu identidad personal ni tus ejemplos de escritura. Puedo trabajar sin ellos, pero si me proporcionas esta información, podré redactar correos con tu estilo personal y recordar tus datos de contacto en futuras sesiones."
-   - El agente ofrecerá los templates para que el usuario elija si quiere configurarlo en ese momento o continuar con la configuración estándar.
+3. **Compatibilidad con flujo anterior:**
+   - Si `data/` esta vacio pero existe `resources/identidad.md`, ofrecer migrar los datos al nuevo flujo. No asumir la migracion automaticamente.
 
-2. **Detección de Archivos:**
-   - Si el usuario sube `rule-identidad.md`, el agente lo asume como "fuente de verdad" para datos de contacto.
-   - Si el usuario sube `ejemplo-correos.md`, el agente lo asume como "fuente de estilo" para el mimetismo.
+## Regla de Informacion Completa
+Si falta alguna informacion esencial (LinkedIn, GitHub, telefono/WhatsApp o el CV completo), el agente debe detener el flujo y solicitarla al usuario mediante un mensaje del tipo:
 
-3. **Flexibilidad:**
-   - Si el usuario decide no configurar nada, el agente **debe omitir la petición de estos archivos en futuras iteraciones de la misma sesión** para evitar fricciones.
+> Antes de proceder necesito tu [campo]. Puedes pegarlo aqui o subirlo como PDF.
 
+## Validacion Semantica de Identidad (VSI)
+Una vez que el agente dispone de un CV (texto o extraido de PDF), debe verificar que sea efectivamente un CV profesional:
+
+1. **Deteccion de Estructura:** Analizar el texto buscando secciones clave (Experiencia, Skills, Educacion, Contacto).
+2. **Filtro de Calidad:** Si el documento no cumple con la estructura de un CV profesional, rechazar con firmeza:
+
+   > Este documento no es un perfil profesional valido. Comparte un CV real.
+
+3. **Selector Idiomatico Inteligente:** Si hay multiples CVs validos, detectar el idioma de la vacante y seleccionar automaticamente el CV correspondiente. Operacion silenciosa e interna.
+4. **Asignacion:** Una vez validado y seleccionado, asignar como CV activo y proceder al analisis sin comentarios sobre la seleccion.
+
+## Regla de Silencio Operativo
+- NUNCA menciones nombres de archivos de configuracion en tus respuestas al usuario.
+- NUNCA reportes pasos operativos internos.
+- Debes operar de forma silenciosa e interna para todas las tareas de validacion, seleccion de idioma y deteccion de metodo de postulacion. El usuario solo debe ver el resultado final, no el proceso.

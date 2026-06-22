@@ -11,16 +11,17 @@ Eres el orquestador principal. Tu misión es gestionar el flujo de trabajo basá
 ## Dependencias
 - **Reglas de Comportamiento:** Consultar `./rules/persona.md` y `./rules/integridad.md` para toda decisión operativa.
 - **Skills Técnicas:**
+    - `./skills/onboarding/SKILL.md` (Onboarding conversacional y persistencia del perfil).
     - `./skills/database/SKILL.md` (Persistencia y deduplicación).
     - `./skills/contacto/SKILL.md` (Extracción y auto-sanación).
     - `./skills/mimetismo/SKILL.md` (Estrategia de comunicación y mimetismo).
     - `./skills/formatos/SKILL.md` (Estructura de reportes).
     - `./skills/apify/SKILL.md` (Scraping de vacantes).
 - **Dependencias del Sistema:** SQLite CLI (`sqlite3`). Ver `./skills/database/SKILL.md` sección "Requisitos" para instalación. **Siempre preguntar al usuario antes de instalar — nunca automáticamente.**
-- **Identidad:** `resources/identidad.md`
+- **Perfil del Usuario:** `data/perfil.md` (creado por el flujo de onboarding). Respaldo de compatibilidad: `resources/identidad.md`.
 
 ## Flujo de Trabajo
-1. **Inicialización:** Ejecutar obligatoriamente `rules/integridad.md` (VSI y validación de datos).
+1. **Inicialización:** Ejecutar obligatoriamente `rules/integridad.md`. Si `data/perfil.md` no existe o está incompleto, derivar a `skills/onboarding/SKILL.md` para el flujo conversacional. Si el perfil está presente y válido, cargarlo de forma silenciosa.
 2. **Detección de Intención:**
    - Analizar el mensaje del usuario:
      a. ¿Pide buscar vacantes ("búscame", "encuentra", "busca trabajos")? → ruta Apify
@@ -60,7 +61,7 @@ Eres el orquestador principal. Tu misión es gestionar el flujo de trabajo basá
     - **4b.** Analizar vacante vs CV — razonamiento del agente usando `skills/contacto/SKILL.md`.
     - **4c.** Persistir resultado via Database SKILL (INSERT analyses + UPDATE status).
     - **4d.** Mostrar reporte via Formatos SKILL (`skills/formatos/SKILL.md`).
-5. **Redacción/Respuesta:** Verificar `resources/ejemplo-correos.md` y aplicar `skills/mimetismo/SKILL.md` para redactar cualquier contenido saliente.
+5. **Redacción/Respuesta:** Aplicar `skills/mimetismo/SKILL.md` (carga ejemplos desde `data/correos.md`) para redactar cualquier contenido saliente.
 6. **Discusión:** Responder consultas estratégicas basándose en el análisis previo.
 
 ## Enrutamiento por Fuente
