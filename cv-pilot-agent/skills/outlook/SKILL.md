@@ -88,16 +88,25 @@ Escribir el JSON en un archivo temporal con codificación UTF-8. Esto evita prob
 ```json
 {
   "subject": "<asunto>",
-  "body": { "contentType": "Text", "content": "<cuerpo>" },
+  "body": { "contentType": "HTML", "content": "<cuerpo>" },
   "toRecipients": [{ "emailAddress": { "address": "<destinatario>" } }]
 }
 ```
 
-Guardarlo usando `Out-File` con `-Encoding utf8` o `Set-Content` con `-Encoding UTF8`:
+El cuerpo debe ser HTML válido. Los saltos de línea se representan con `<br>`. Los links deben usar etiquetas `<a href="...">texto</a>`. Ejemplo:
+```html
+Adjunto mi <a href="https://drive.google.com/...">Currículum</a><br>
+Mi <a href="https://github.com/Juliotamara23">GitHub</a><br>
+<br>
+Saludos cordiales,<br>
+Julio Andrés Támara Hernández
+```
+
+Guardarlo usando `Out-File` con `-Encoding utf8`:
 ```powershell
 $bodyJson = @{
   subject = "<asunto>"
-  body = @{ contentType = "Text"; content = "<cuerpo>" }
+  body = @{ contentType = "HTML"; content = "<cuerpo html>" }
   toRecipients = @(@{ emailAddress = @{ address = "<destinatario>" } })
 } | ConvertTo-Json -Depth 3
 $bodyJson | Out-File -FilePath "$env:TEMP\cvpilot_outlook.json" -Encoding utf8

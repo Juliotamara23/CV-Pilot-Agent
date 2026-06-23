@@ -67,8 +67,10 @@ Solo ejecutar `gws` si el usuario responde "sí". Ante cualquier otra respuesta,
 ### 5. Crear el borrador
 Ejecutar:
 ```bash
-gws gmail +send --to "<to>" --subject "<subject>" --body "<body>" --draft
+gws gmail +send --to "<to>" --subject "<subject>" --body "<body>" --html --draft
 ```
+
+El flag `--html` indica que el cuerpo contiene HTML. Los saltos de línea se representan con `<br>` y los links con etiquetas `<a href="...">texto</a>`.
 
 Esta es una operación de **escritura** (ver `gws-shared/SKILL.md` — Security Rules), confirmada en el paso 4.
 

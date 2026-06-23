@@ -53,4 +53,4 @@ Al finalizar cada análisis, presentar las opciones según el método de contact
 - **Email vs Portal:** La skill `contacto/SKILL.md` retorna `PORTAL_POSTULATION` cuando no hay email. Usar esto para decidir qué opciones mostrar.
 - **ID:** Usar el `analysis_id` (UUID) generado al persistir el análisis.
 - **Comparativa:** Cada línea usa el formato `- [Requisito] | Análisis: [evaluación]` con pipe literal.
-- **CV Link:** Si `data/perfil.md` contiene link al CV, incluirlo en el correo o carta generados.
+- **CV Link:** Si `data/perfil.md` contiene link al CV, LinkedIn o GitHub, incluirlos como hipervínculos HTML (`<a href="...">texto</a>`) en el correo o carta generados, no como URLs crudas.
