@@ -37,7 +37,7 @@ Al finalizar cada análisis, presentar las opciones según el método de contact
 
 ### Si se detectó email de contacto
 
-1. **Generar correo de postulación** — redacta el correo usando tu estilo (`skills/mimetismo/SKILL.md`). Si `gmail_drafts: sí`, se guarda como borrador en Gmail. Si no, se muestra en el chat con link `mailto:`.
+1. **Generar correo de postulación** — redacta el correo usando tu estilo (`skills/mimetismo/SKILL.md`). Si `gmail_drafts: sí`, se guarda como borrador en Gmail. Si `outlook_drafts: sí`, se guarda como borrador en Outlook (ver `docs/outlook-setup.md`). Si ambos están activos, el agente pregunta al usuario a qué proveedor guardar el correo. Si ninguno está activo, se muestra en el chat con link `mailto:`.
 2. **Generar preguntas para entrevista técnica** — preguntas frecuentes basadas en la vacante y tu perfil.
 3. **Modo discusión** — ¿tienes dudas sobre este análisis?
 

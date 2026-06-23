@@ -21,5 +21,8 @@ scope: ONBOARDING
 ## Borradores en Gmail
 gmail_drafts: [sí / no]
 
+## Borradores en Outlook
+outlook_drafts: [sí / no]
+
 ## Notas adicionales
 - [Cualquier preferencia relevante para la búsqueda de trabajo]

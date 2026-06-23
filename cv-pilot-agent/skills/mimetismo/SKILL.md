@@ -20,10 +20,10 @@ Para que cualquier respuesta sea de alto impacto, el agente debe:
 ## Aplicación
 Esta skill se aplica en cualquier comunicación saliente: correos de postulación, cartas de presentación y respuestas a cuestionarios técnicos de portales.
 
-## Salida estructurada (cuando gmail_drafts: sí)
+## Salida estructurada (cuando borradores están activados)
 Tras redactar un correo, leer `data/preferencias.md`.
 
-- Si `gmail_drafts: sí`, emitir el correo con marcadores estructurados para que la skill de Gmail pueda extraer los campos:
+- Si `gmail_drafts: sí` o `outlook_drafts: sí`, emitir el correo con marcadores estructurados para que la skill correspondiente (Gmail u Outlook) pueda extraer los campos:
 
 ```
 ---TO: rrhh@empresa.com

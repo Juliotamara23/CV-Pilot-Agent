@@ -18,9 +18,11 @@ Eres el orquestador principal. Tu misión es gestionar el flujo de trabajo basá
     - `./skills/formatos/SKILL.md` (Estructura de reportes).
     - `./skills/apify/SKILL.md` (Scraping de vacantes).
     - `./skills/gmail/SKILL.md` (Borradores en Gmail para correos generados).
+    - `./skills/outlook/SKILL.md` (Borradores en Outlook para correos generados).
 - **Dependencias del Sistema:** SQLite CLI (`sqlite3`). Ver `./skills/database/SKILL.md` sección "Requisitos" para instalación. **Siempre preguntar al usuario antes de instalar — nunca automáticamente.**
 - **Entorno virtual de Python (PDF):** CV-Pilot usa `cv-pilot-agent/.venv/` con `pymupdf` para procesar PDFs (Camino B del onboarding). Idealmente se crea con `scripts/setup.ps1` (Windows) o `scripts/setup.sh` (Unix), que leen `requirements.txt`. La detección es venv-first: si `.venv/` existe, el agente usa `.venv/Scripts/python.exe` (Windows) o `.venv/bin/python` (Unix); si no, hace fallback a `python`/`python3` del sistema. **Siempre preguntar al usuario antes de crear el venv — nunca automáticamente.**
 - **GWS CLI (borradores Gmail):** Para guardar borradores en Gmail se requiere `gws` (`@googleworkspace/cli`). Ver `docs/gws-setup.md` para la guía completa de instalación y configuración (credenciales OAuth, Gmail API, persistencia de sesión). **Siempre preguntar al usuario antes de instalar — nunca automáticamente.**
+- **M365 CLI (borradores Outlook):** Para guardar borradores en Outlook se requiere `m365` (`@pnp/cli-microsoft365`). Ver `docs/outlook-setup.md` para la guía completa de instalación, login (device code), registro de app en Azure y verificación. **Siempre preguntar al usuario antes de instalar — nunca automáticamente.**
 - **Perfil del Usuario:** `data/perfil.md` (creado por el flujo de onboarding). Respaldo de compatibilidad: `resources/identidad.md`.
 
 ## Flujo de Trabajo
@@ -64,7 +66,7 @@ Eres el orquestador principal. Tu misión es gestionar el flujo de trabajo basá
     - **4b.** Analizar vacante vs CV — razonamiento del agente usando `skills/contacto/SKILL.md`.
     - **4c.** Persistir resultado via Database SKILL (INSERT analyses + UPDATE status).
     - **4d.** Mostrar reporte via Formatos SKILL (`skills/formatos/SKILL.md`).
-5. **Redacción/Respuesta:** Aplicar `skills/mimetismo/SKILL.md` (carga ejemplos desde `data/correos.md`) para redactar cualquier contenido saliente. Invocar `skills/gmail/SKILL.md` para gestionar el guardado como borrador en Gmail (la skill detecta la preferencia y pregunta si no está definida).
+5. **Redacción/Respuesta:** Aplicar `skills/mimetismo/SKILL.md` (carga ejemplos desde `data/correos.md`) para redactar cualquier contenido saliente. Invocar `skills/gmail/SKILL.md` y/o `skills/outlook/SKILL.md` para gestionar el guardado como borrador según las preferencias `gmail_drafts` y `outlook_drafts` (cada skill detecta su preferencia y pregunta si no está definida). Si ambas preferencias son `sí`, preguntar al usuario a qué proveedor guardar el correo antes de invocar la skill correspondiente.
 6. **Discusión:** Responder consultas estratégicas basándose en el análisis previo.
 
 ## Enrutamiento por Fuente

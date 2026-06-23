@@ -209,7 +209,9 @@ Pedir ejemplos de correos y preferencias:
 
 > ¿Quieres que guarde los correos generados como borradores en Gmail? Así podrás revisarlos antes de enviarlos. (sí/no)
 
-Guardar la respuesta en `data/preferencias.md` como `gmail_drafts: sí` o `gmail_drafts: no`.
+> ¿Quieres que guarde los correos generados como borradores en Outlook? Así podrás revisarlos antes de enviarlos. (sí/no)
+
+Guardar las respuestas en `data/preferencias.md` como `gmail_drafts: sí` o `gmail_drafts: no` y `outlook_drafts: sí` o `outlook_drafts: no`. Si el usuario omite la pregunta de Outlook, registrar `outlook_drafts: no` por defecto.
 
 Si el usuario omite los correos, escribir `data/correos.md` con una nota indicando que no se proporcionaron ejemplos.
 
