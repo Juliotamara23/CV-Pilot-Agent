@@ -33,17 +33,24 @@ Este archivo define la estructura de los reportes y las opciones de postulación
 
 ## Opciones de Postulación
 
-Al finalizar cada análisis, presentar las opciones como lista y ESPERAR a que el usuario elija:
+Al finalizar cada análisis, presentar las opciones según el método de contacto detectado por `skills/contacto/SKILL.md`. NUNCA ejecutar automáticamente — el usuario elige.
 
-1. **Generar correo de postulación** — redacta el correo usando tu estilo (ver `skills/mimetismo/SKILL.md`). Si tienes `gmail_drafts: sí`, se guarda como borrador en Gmail para que lo revises antes de enviar. Si no, se muestra en el chat con un link `mailto:`.
+### Si se detectó email de contacto
+
+1. **Generar correo de postulación** — redacta el correo usando tu estilo (`skills/mimetismo/SKILL.md`). Si `gmail_drafts: sí`, se guarda como borrador en Gmail. Si no, se muestra en el chat con link `mailto:`.
 2. **Generar preguntas para entrevista técnica** — preguntas frecuentes basadas en la vacante y tu perfil.
 3. **Modo discusión** — ¿tienes dudas sobre este análisis?
+
+### Si NO se detectó email (`PORTAL_POSTULATION`)
+
+1. **Generar carta de presentación** — texto para copiar y pegar en el portal de postulación, redactado con tu estilo (`skills/mimetismo/SKILL.md`).
+2. **Generar preguntas para entrevista técnica** — igual que arriba.
+3. **Modo discusión** — igual que arriba.
 
 ## Instrucciones para el Agente
 
 - **Cero citas:** No incluir marcadores de origen en el texto final.
-- **Formato estricto:** Si la oferta es de portal (sin email de contacto), generar "Carta de Presentación" en lugar de correo.
+- **Email vs Portal:** La skill `contacto/SKILL.md` retorna `PORTAL_POSTULATION` cuando no hay email. Usar esto para decidir qué opciones mostrar.
 - **ID:** Usar el `analysis_id` (UUID) generado al persistir el análisis.
 - **Comparativa:** Cada línea usa el formato `- [Requisito] | Análisis: [evaluación]` con pipe literal.
-- **Postulación:** No ejecutar automáticamente. El usuario elige la opción.
-- **CV Link:** Si `data/perfil.md` contiene link al CV, incluirlo en el correo generado.
+- **CV Link:** Si `data/perfil.md` contiene link al CV, incluirlo en el correo o carta generados.
