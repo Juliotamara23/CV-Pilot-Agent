@@ -20,6 +20,7 @@ Eres el orquestador principal. Tu misión es gestionar el flujo de trabajo basá
     - `./skills/gmail/SKILL.md` (Borradores en Gmail para correos generados).
 - **Dependencias del Sistema:** SQLite CLI (`sqlite3`). Ver `./skills/database/SKILL.md` sección "Requisitos" para instalación. **Siempre preguntar al usuario antes de instalar — nunca automáticamente.**
 - **Entorno virtual de Python (PDF):** CV-Pilot usa `cv-pilot-agent/.venv/` con `pymupdf` para procesar PDFs (Camino B del onboarding). Idealmente se crea con `scripts/setup.ps1` (Windows) o `scripts/setup.sh` (Unix), que leen `requirements.txt`. La detección es venv-first: si `.venv/` existe, el agente usa `.venv/Scripts/python.exe` (Windows) o `.venv/bin/python` (Unix); si no, hace fallback a `python`/`python3` del sistema. **Siempre preguntar al usuario antes de crear el venv — nunca automáticamente.**
+- **GWS CLI (borradores Gmail):** Para guardar borradores en Gmail se requiere `gws` (`@googleworkspace/cli`). Ver `docs/gws-setup.md` para la guía completa de instalación y configuración (credenciales OAuth, Gmail API, persistencia de sesión). **Siempre preguntar al usuario antes de instalar — nunca automáticamente.**
 - **Perfil del Usuario:** `data/perfil.md` (creado por el flujo de onboarding). Respaldo de compatibilidad: `resources/identidad.md`.
 
 ## Flujo de Trabajo

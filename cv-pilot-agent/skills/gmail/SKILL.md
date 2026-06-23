@@ -34,7 +34,7 @@ gws --version
 
 - Éxito → continuar al paso 3.
 - Fallo (comando no encontrado) → informar al usuario:
-  > No encuentro el comando `gws`. Para guardar borradores en Gmail necesitas instalar gws (ver https://github.com/googleworkspace/cli). Mientras tanto, dejo el correo aquí para que lo envíes manualmente.
+  > No encuentro el comando `gws`. Para guardar borradores en Gmail necesitas instalar y configurar gws. Consulta la guía en `docs/gws-setup.md` para el paso a paso. Mientras tanto, dejo el correo aquí para que lo envíes manualmente.
   Mostrar el correo en el chat y detener el flujo.
 
 ### 3. Extraer campos del correo
