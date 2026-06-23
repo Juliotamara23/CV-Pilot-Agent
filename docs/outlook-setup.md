@@ -21,14 +21,14 @@ Para cuentas personales de Microsoft (`@outlook.com`, `@hotmail.com`), es obliga
 
 ### 1.1. Acceder a Azure Portal
 
-Andá a [Azure Portal > App Registrations](https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade).
+Ve a [Azure Portal > App Registrations](https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade).
 
 ### 1.2. Crear la aplicación
 
 1. **New registration** → nombre: `CV-Pilot`
 2. **Supported account types**: **"Accounts in any organizational directory and personal Microsoft accounts"** ⚠️ Este paso es crítico. Si elegís otra opción, las cuentas personales no funcionarán.
 3. **Redirect URI**: dejalo vacío por ahora, se configura después.
-4. Clic en **Register**.
+4. Haz clic en **Register**.
 
 ### 1.3. Configurar autenticación
 
@@ -43,7 +43,7 @@ Andá a [Azure Portal > App Registrations](https://portal.azure.com/#view/Micros
 
 1. En el menú lateral: **API permissions**
 2. **Add a permission** → **Microsoft Graph** → **Delegated permissions** ⚠️ Delegated, NO Application.
-3. Buscá y seleccioná:
+3. Busca y selecciona:
    - `Mail.ReadWrite`
    - `Mail.Send`
 4. **Add permissions**
@@ -52,7 +52,7 @@ El consentimiento ocurre durante el login (no se necesita admin consent para cue
 
 ### 1.5. Copiar el Client ID
 
-Desde **Overview**, copiá el **Application (client) ID**. Lo vas a necesitar para el login.
+Desde **Overview**, copia el **Application (client) ID**. Lo necesitarás para el login.
 
 ---
 
@@ -66,7 +66,7 @@ m365 login --appId <TU_CLIENT_ID> --authType deviceCode --tenant consumers
 
 ⚠️ **Importante**: `--tenant consumers` es obligatorio para cuentas personales. Sin esto, el login falla con error de redirect URI.
 
-Se mostrará un código. Abrilo en `https://microsoft.com/devicelogin` y pegalo. Autorizá con tu cuenta de Microsoft.
+Se mostrará un código. Ábrelo en `https://microsoft.com/devicelogin` y pégalo. Autoriza con tu cuenta de Microsoft.
 
 ### 2.2. Verificar sesión
 
