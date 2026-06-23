@@ -22,11 +22,22 @@ El agente detecta si `sqlite3` está disponible y pregunta antes de instalar (nu
 
 Búsqueda automática en Indeed, LinkedIn y Computrabajo.
 
+### Python + PyMuPDF (soporte PDF opcional)
+
+El Camino B del onboarding (subir un PDF en lugar de pegar el texto del CV) requiere un entorno virtual de Python con `pymupdf` instalado. El entorno se crea una sola vez:
+
+| OS | Comando |
+|----|---------|
+| Windows (PowerShell) | `pwsh -File cv-pilot-agent/scripts/setup.ps1` (o `.\scripts\setup.ps1` desde `cv-pilot-agent/`) |
+| Linux / macOS | `bash cv-pilot-agent/scripts/setup.sh` |
+
+El script crea `cv-pilot-agent/.venv/`, instala las dependencias declaradas en `cv-pilot-agent/requirements.txt` y verifica PyMuPDF. Requiere Python 3.9+ en el PATH. El agente detecta la ausencia del venv y ofrece configurarlo (una sola pregunta); si el usuario declina, continúa solo con el Camino A (pegar el CV manualmente).
+
 | OS | Comando | Recomendado |
 |----|---------|-------------|
-| Windows | `winget install Apify.ApifyCLI` | ✅ |
+| Windows | `irm https://apify.com/install-cli.ps1 \| iex` | ✅ |
 | macOS | `brew install apify-cli` | ✅ |
-| Cualquiera | `npm install -g apify-cli` | ❌ (solo si ya tienes Node) |
+| Cualquiera | `npm install -g apify-cli` | ❌ (mejor deja de usar npm) |
 
 ### Token Apify
 
@@ -47,6 +58,7 @@ apify login --token TU_TOKEN
 ```
 cv-pilot-agent/
 ├── AGENTS.md
+├── requirements.txt
 ├── rules/
 │   ├── persona.md
 │   └── integridad.md
@@ -62,7 +74,9 @@ cv-pilot-agent/
 │   ├── formatos.md
 │   └── mimetismo.md
 ├── scripts/
-│   └── init.py
+│   ├── pdf_parser.py
+│   ├── setup.ps1
+│   └── setup.sh
 ├── db/
 │   └── cv-pilot.db
 └── resources/
@@ -71,7 +85,8 @@ cv-pilot-agent/
 ```
 
 3. **Configura tu identidad**: edita `resources/identidad.md` con tu nombre, LinkedIn, GitHub.
-4. **Sube tu CV** en formato Markdown a `resources/`. Usa un MCP o herramienta para convertir PDF a Markdown.
+4. **(Opcional) Configura el soporte PDF**: ejecuta el script de setup del Camino B (ver "Python + PyMuPDF" arriba) si quieres subir el CV en PDF en lugar de pegar el texto. Si omites este paso, el agente funcionará solo con el Camino A (texto manual).
+5. **Sube tu CV** en formato Markdown a `resources/`. Usa un MCP o herramienta para convertir PDF a Markdown.
 
 ---
 

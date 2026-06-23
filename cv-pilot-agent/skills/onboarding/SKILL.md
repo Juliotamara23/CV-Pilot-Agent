@@ -6,6 +6,98 @@ scope: GLOBAL
 
 # Onboarding Conversacional
 
+## 0. Requisitos
+
+- **Entorno virtual de Python** (`.venv/`) en `cv-pilot-agent/` — contiene `pymupdf` y aísla la dependencia del Python del sistema.
+- **PyMuPDF** (`fitz`) — necesario para extraer texto y enlaces desde archivos PDF (Camino B). Se instala dentro del venv.
+- Compatible con Windows (PowerShell), Linux y macOS.
+
+### Resolucion del interprete (venv-first)
+
+El agente DEBE resolver el interprete de Python segun la siguiente prioridad:
+
+1. Si existe `cv-pilot-agent/.venv/Scripts/python.exe` (Windows) o `cv-pilot-agent/.venv/bin/python` (Unix) → usar el Python del venv.
+2. Si no existe el venv → usar `python` (Windows) o `python3` (Unix) del sistema como fallback.
+
+Tabla de referencia Rapida:
+
+| Plataforma | venv existe | Python | pip |
+|------------|-------------|--------|-----|
+| Windows    | si          | `cv-pilot-agent\.venv\Scripts\python.exe` | `cv-pilot-agent\.venv\Scripts\pip.exe` |
+| Windows    | no          | `python` | `pip` |
+| Unix       | si          | `cv-pilot-agent/.venv/bin/python` | `cv-pilot-agent/.venv/bin/pip` |
+| Unix       | no          | `python3` | `pip3` |
+
+> Nota: las rutas del venv son relativas a `cv-pilot-agent/`. Ajustar el prefijo (`cv-pilot-agent/...` o `.\cv-pilot-agent\...`) segun el directorio de trabajo del agente.
+
+### Protocolo de setup (consentimiento obligatorio, una sola pregunta)
+
+El agente NUNCA crea el venv ni instalaPyMuPDF sin permiso explicito. Seguir este protocolo con una **unica** pregunta:
+
+1. **Detectar si el venv existe:**
+   - Windows: `Test-Path -LiteralPath "cv-pilot-agent\.venv\Scripts\python.exe"`
+   - Unix: `[[ -x cv-pilot-agent/.venv/bin/python ]]`
+
+2. **Si el venv existe** → verificar PyMuPDF con el Python del venv (ver Deteccion abajo). Si PyMuPDF falla, reinstalar con el pip del venv (ver Instalacion). No preguntar al usuario.
+
+3. **Si el venv NO existe → informar al usuario con una sola pregunta:**
+   > "El entorno de PDF no esta configurado. Para procesar archivos PDF (Camino B) creo un entorno virtual con PyMuPDF. ¿Desea que lo configure automaticamente? Si prefiere hacerlo manual, ejecute el script de setup. Si no desea soporte PDF, continuare solo con el Camino A (pegar el texto del CV)."
+
+4. **Segun la respuesta:**
+   - **Aceptar setup automatico** → ejecutar el script de la plataforma:
+     - Windows: `pwsh -File cv-pilot-agent/scripts/setup.ps1` (o `.\scripts\setup.ps1` desde `cv-pilot-agent/`)
+     - Unix: `bash cv-pilot-agent/scripts/setup.sh`
+     - Si el setup falla, informar el error y ofrecer el Camino A como fallback. No insistir.
+   - **Preferir manual** → mostrar el comando del script correspondiente para que el usuario lo ejecute. Continuar la sesion en Camino A hasta que el venv exista.
+   - **No desea soporte PDF** → deshabilitar el Camino B para esta sesion y todas las futuras. Solo ofrecer Camino A (texto). Anotar en `data/preferencias.md`: `pdf_soporte: false`.
+
+### Deteccion de PyMuPDF (usando el interprete resuelto)
+
+```powershell
+# Windows, venv existe
+cv-pilot-agent\.venv\Scripts\python.exe -c "import fitz; print('OK')" 2>&1
+# Windows, sin venv (fallback)
+python -c "import fitz; print('OK')" 2>&1
+```
+
+```bash
+# Unix, venv existe
+cv-pilot-agent/.venv/bin/python -c "import fitz; print('OK')" 2>&1
+# Unix, sin venv (fallback)
+python3 -c "import fitz; print('OK')" 2>&1
+```
+
+Si el comando imprime `OK`, PyMuPDF esta listo. Si muestra `ModuleNotFoundError`, no esta instalado.
+
+### Instalacion de PyMuPDF (usando el pip del venv)
+
+Si el venv existe pero PyMuPDF no esta instalado, reinstalar con el pip del venv (nunca con el pip del sistema):
+
+```powershell
+# Windows, venv existe
+cv-pilot-agent\.venv\Scripts\pip.exe install pymupdf
+```
+
+```bash
+# Unix, venv existe
+cv-pilot-agent/.venv/bin/pip install pymupdf
+```
+
+Si el venv no existe (fallback), usar el pip del sistema como antes:
+
+```powershell
+# Windows, sin venv
+pip install pymupdf
+```
+
+```bash
+# Unix, sin venv
+pip3 install pymupdf
+```
+
+### Nota sobre permisos
+En el modo fallback (sin venv) algunos sistemas Linux/macOS pueden requerir `pip install --user pymupdf` o `pip3 install pymupdf`. En Windows con PowerShell, `pip install pymupdf` funciona sin modificaciones adicionales. Cuando el venv existe, el pip del venv no requiere `--user` ni permisos extra.
+
 ## Objetivo
 Guiar al usuario, mediante una conversación, para recolectar su CV, datos de contacto, ejemplos de correos y preferencias. El agente extrae la información, la verifica con el usuario y la persiste en archivos Markdown dentro de `data/`.
 
@@ -43,13 +135,21 @@ Mensaje al usuario (neutral, sin voseo, sin jerga regional):
 
 ## Paso 3: Recolección del CV
 
-Ofrecer dos caminos simultáneamente:
+Antes de ofrecer los caminos, ejecutar la detección de PyMuPDF (ver sección 0. Requisitos).
 
-- **Camino A (texto):** El usuario pega el contenido del CV en el chat.
-- **Camino B (PDF):** El usuario sube un archivo PDF. El agente ejecuta `scripts/pdf_parser.py` para extraer texto y enlaces.
+Ofrecer los caminos disponibles según el resultado:
+
+- **Camino A (texto):** Siempre disponible. El usuario pega el contenido del CV en el chat.
+- **Camino B (PDF):** Solo disponible si PyMuPDF está instalado. El usuario sube un archivo PDF. El agente ejecuta `scripts/pdf_parser.py` para extraer texto y enlaces.
+
+Si PyMuPDF no está instalado, ofrecer solo el Camino A y mencionar que el soporte para PDF estará disponible cuando se instale la dependencia.
 
 ### Manejo del Camino B
-1. Ejecutar: `python scripts/pdf_parser.py <ruta_al_pdf>`
+1. Ejecutar usando el interprete resuelto (seccion 0. Requisitos):
+   - Windows, venv existe: `cv-pilot-agent\.venv\Scripts\python.exe scripts\pdf_parser.py <ruta_al_pdf>`
+   - Windows, sin venv: `python scripts/pdf_parser.py <ruta_al_pdf>`
+   - Unix, venv existe: `cv-pilot-agent/.venv/bin/python scripts/pdf_parser.py <ruta_al_pdf>`
+   - Unix, sin venv: `python3 scripts/pdf_parser.py <ruta_al_pdf>`
 2. Leer la salida JSON:
    - `ok: true` → usar `text` y `links`.
    - `ok: false` → informar al usuario que no se pudo procesar el PDF y ofrecer el Camino A (pegar texto) o pegar enlaces manualmente.

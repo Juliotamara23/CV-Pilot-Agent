@@ -1,7 +1,14 @@
 """Extracción de texto y enlaces desde un PDF usando PyMuPDF (fitz).
 
 Uso:
+    # Con venv (recomendado), Windows:
+    cv-pilot-agent\\.venv\\Scripts\\python.exe pdf_parser.py <ruta_al_pdf>
+    # Con venv (recomendado), Unix:
+    cv-pilot-agent/.venv/bin/python pdf_parser.py <ruta_al_pdf>
+    # Sin venv (fallback), Windows:
     python pdf_parser.py <ruta_al_pdf>
+    # Sin venv (fallback), Unix:
+    python3 pdf_parser.py <ruta_al_pdf>
 
 Salida (JSON a stdout):
     {
@@ -34,7 +41,9 @@ def extract(pdf_path: str) -> dict:
     """
     if fitz is None:
         return {"text": "", "links": [], "ok": False,
-                "error": "PyMuPDF no instalado. Ejecute: pip install pymupdf"}
+                "error": "PyMuPDF no instalado. Ejecute el script de setup "
+                         "(scripts/setup.ps1 o scripts/setup.sh) para crear el venv, "
+                         "o manualmente: pip install pymupdf"}
 
     path = Path(pdf_path)
     if not path.exists() or not path.is_file():

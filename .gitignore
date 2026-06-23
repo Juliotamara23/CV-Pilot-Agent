@@ -9,3 +9,4 @@ test/scenarios/agent-mode/__pycache__/
 openspec/
 cv-pilot-agent/db/
 cv-pilot-agent/data/
+cv-pilot-agent/.venv/
