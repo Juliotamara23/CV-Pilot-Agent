@@ -172,6 +172,7 @@ A partir del CV (texto o PDF) y de los enlaces extraídos, el agente identifica:
 - GitHub (de los enlaces o del texto)
 - WhatsApp / teléfono
 - Correo electrónico
+- Link al CV (Drive, repositorio, etc.) — opcional
 - Experiencia (puestos, empresas, periodos, logros)
 - Educación
 - Skills técnicos

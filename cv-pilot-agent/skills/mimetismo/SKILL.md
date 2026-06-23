@@ -15,9 +15,10 @@ Para que cualquier respuesta sea de alto impacto, el agente debe:
 2. **Cruzar con Logros:** Seleccionar del CV los logros más cercanos a ese dolor.
 3. **Mimetismo de Estilo:** Extraer la estructura y patrones de `data/correos.md`.
 4. **Filtro de Humildad:** Usar "He implementado", "Tengo experiencia con" en lugar de "Soy un experto en".
+5. **Link al CV:** Si `data/perfil.md` contiene un link al CV (Drive, repositorio), incluirlo en el correo. Si no existe, incluir al menos LinkedIn y GitHub.
 
 ## Aplicación
-Esta skill debe ser aplicada tanto en borradores formales (Protocolo 3) como en respuestas a cuestionarios técnicos de portales.
+Esta skill se aplica en cualquier comunicación saliente: correos de postulación, cartas de presentación y respuestas a cuestionarios técnicos de portales.
 
 ## Salida estructurada (cuando gmail_drafts: sí)
 Tras redactar un correo, leer `data/preferencias.md`.
