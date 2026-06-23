@@ -206,6 +206,10 @@ Pedir ejemplos de correos y preferencias:
 > - Tono (formal, cercano, técnico)
 > - Idioma de postulación (español, inglés)
 
+> ¿Querés que guarde los correos generados como borradores en Gmail? Así podrás revisarlos antes de enviarlos. (sí/no)
+
+Guardar la respuesta en `data/preferencias.md` como `gmail_drafts: sí` o `gmail_drafts: no`.
+
 Si el usuario omite los correos, escribir `data/correos.md` con una nota indicando que no se proporcionaron ejemplos.
 
 ## Paso 7: Backup y Escritura

@@ -19,4 +19,23 @@ Para que cualquier respuesta sea de alto impacto, el agente debe:
 ## Aplicación
 Esta skill debe ser aplicada tanto en borradores formales (Protocolo 3) como en respuestas a cuestionarios técnicos de portales.
 
+## Salida estructurada (cuando gmail_drafts: sí)
+Tras redactar un correo, leer `data/preferencias.md`.
+
+- Si `gmail_drafts: sí`, emitir el correo con marcadores estructurados para que la skill de Gmail pueda extraer los campos:
+
+```
+---TO: rrhh@empresa.com
+---SUBJECT: Postulación: Cargo
+---BODY:
+Cuerpo del correo...
+```
+
+  El cuerpo continúa hasta el final del bloque del correo.
+
+- Si el usuario indica "sin borrador" para este correo, omitir los marcadores y mostrar el correo en el chat. La preferencia global se mantiene para futuros correos.
+
+## Hook posterior a la generación
+Tras redactar el correo, si `data/preferencias.md` tiene `gmail_drafts: sí`, invocar `skills/gmail/SKILL.md` para guardar el correo como borrador en Gmail (previa confirmación del usuario). La skill de Gmail se encarga de la detección de `gws`, la extracción de campos, la confirmación y la creación del borrador.
+
 

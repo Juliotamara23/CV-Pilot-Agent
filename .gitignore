@@ -10,3 +10,6 @@ openspec/
 cv-pilot-agent/db/
 cv-pilot-agent/data/
 cv-pilot-agent/.venv/
+skills/gws-*/
+skills/persona-*/
+skills/recipe-*/

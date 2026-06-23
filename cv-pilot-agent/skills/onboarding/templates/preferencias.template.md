@@ -18,5 +18,8 @@ scope: ONBOARDING
 ## Idioma de postulación
 - [Idioma preferido para correos y respuestas, por ejemplo: español, inglés]
 
+## Borradores en Gmail
+gmail_drafts: [sí / no]
+
 ## Notas adicionales
 - [Cualquier preferencia relevante para la búsqueda de trabajo]
