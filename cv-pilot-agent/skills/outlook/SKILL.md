@@ -83,7 +83,7 @@ $token = m365 util accesstoken get --resource "https://graph.microsoft.com" --ou
 ```
 
 **Paso 5.2 — Construir el JSON del cuerpo:**
-Escribir el JSON en un archivo temporal para evitar problemas de escape con caracteres especiales (tildes, saltos de línea, comillas). El JSON debe seguir esta estructura:
+Escribir el JSON en un archivo temporal con codificación UTF-8. Esto evita problemas de escape con caracteres especiales y garantiza que tildes y eñes se conserven intactas. El JSON debe seguir esta estructura:
 
 ```json
 {
@@ -93,12 +93,26 @@ Escribir el JSON en un archivo temporal para evitar problemas de escape con cara
 }
 ```
 
+Guardarlo usando `Out-File` con `-Encoding utf8` o `Set-Content` con `-Encoding UTF8`:
+```powershell
+$bodyJson = @{
+  subject = "<asunto>"
+  body = @{ contentType = "Text"; content = "<cuerpo>" }
+  toRecipients = @(@{ emailAddress = @{ address = "<destinatario>" } })
+} | ConvertTo-Json -Depth 3
+$bodyJson | Out-File -FilePath "$env:TEMP\cvpilot_outlook.json" -Encoding utf8
+```
+
 **Paso 5.3 — Crear el borrador vía Graph API:**
 
 *PowerShell (Windows):*
 ```powershell
-$bodyJson = Get-Content -Path "<ruta_archivo_json>" -Raw
-Invoke-RestMethod -Uri "https://graph.microsoft.com/v1.0/me/messages" -Method Post -Headers @{Authorization="Bearer $token"; "Content-Type"="application/json"} -Body $bodyJson
+$bodyJson = Get-Content -Path "$env:TEMP\cvpilot_outlook.json" -Raw -Encoding UTF8
+Invoke-RestMethod -Uri "https://graph.microsoft.com/v1.0/me/messages" `
+  -Method Post `
+  -ContentType "application/json; charset=utf-8" `
+  -Headers @{Authorization = "Bearer $token"} `
+  -Body $bodyJson
 ```
 
 *Bash (Linux/Mac):*
@@ -106,8 +120,8 @@ Invoke-RestMethod -Uri "https://graph.microsoft.com/v1.0/me/messages" -Method Po
 token=$(m365 util accesstoken get --resource "https://graph.microsoft.com" --output text)
 curl -X POST "https://graph.microsoft.com/v1.0/me/messages" \
   -H "Authorization: Bearer $token" \
-  -H "Content-Type: application/json" \
-  -d @<ruta_archivo_json>
+  -H "Content-Type: application/json; charset=utf-8" \
+  -d @/tmp/cvpilot_outlook.json
 ```
 
 **Nota:** `m365 request --method post --body` no se usa porque la CLI no auto-detecta el content-type para POST con body. Este enfoque con token + HTTP directo es la alternativa soportada.
