@@ -75,19 +75,15 @@ Mostrar una vista previa:
 Solo ejecutar `m365` si el usuario responde "sí". Ante cualquier otra respuesta, conservar el correo en el chat y no ejecutar la escritura.
 
 ### 5. Crear el borrador
-A través de `m365 request`, hacer un `POST` a Microsoft Graph en el endpoint `me/messages`. Un mensaje creado sin enviar queda automáticamente como borrador en la carpeta Borradores.
+A través de Microsoft Graph. Un mensaje creado sin enviar queda automáticamente como borrador en la carpeta Borradores.
 
-Para cuerpos de una sola línea:
-```bash
-m365 request --url "me/messages" --method POST --body "{\"subject\":\"<subject>\",\"body\":{\"contentType\":\"Text\",\"content\":\"<body>\"},\"toRecipients\":[{\"emailAddress\":{\"address\":\"<to>\"}}]}"
+**Paso 5.1 — Obtener token de acceso:**
+```powershell
+$token = m365 util accesstoken get --resource "https://graph.microsoft.com" --output text
 ```
 
-Para cuerpos multilínea o con caracteres especiales, escribir el JSON en un archivo temporal y pasarlo con `@`:
-```bash
-m365 request --url "me/messages" --method POST --body "@<ruta_al_archivo_json>"
-```
-
-El JSON debe seguir esta estructura:
+**Paso 5.2 — Construir el JSON del cuerpo:**
+Escribir el JSON en un archivo temporal para evitar problemas de escape con caracteres especiales (tildes, saltos de línea, comillas). El JSON debe seguir esta estructura:
 
 ```json
 {
@@ -97,7 +93,24 @@ El JSON debe seguir esta estructura:
 }
 ```
 
-Esta es una operación de **escritura**, confirmada en el paso 4. La URL `me/messages` es relativa y m365 la resuelve contra la base de Graph (`https://graph.microsoft.com/v1.0/`).
+**Paso 5.3 — Crear el borrador vía Graph API:**
+
+*PowerShell (Windows):*
+```powershell
+$bodyJson = Get-Content -Path "<ruta_archivo_json>" -Raw
+Invoke-RestMethod -Uri "https://graph.microsoft.com/v1.0/me/messages" -Method Post -Headers @{Authorization="Bearer $token"; "Content-Type"="application/json"} -Body $bodyJson
+```
+
+*Bash (Linux/Mac):*
+```bash
+token=$(m365 util accesstoken get --resource "https://graph.microsoft.com" --output text)
+curl -X POST "https://graph.microsoft.com/v1.0/me/messages" \
+  -H "Authorization: Bearer $token" \
+  -H "Content-Type: application/json" \
+  -d @<ruta_archivo_json>
+```
+
+**Nota:** `m365 request --method post --body` no se usa porque la CLI no auto-detecta el content-type para POST con body. Este enfoque con token + HTTP directo es la alternativa soportada.
 
 ### 6. Manejo de errores
 
