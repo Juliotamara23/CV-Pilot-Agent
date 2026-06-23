@@ -39,11 +39,37 @@ Al finalizar cada análisis, presentar las opciones según el método de contact
 
 1. **Generar correo de postulación** — redacta el correo usando tu estilo (`skills/mimetismo/SKILL.md`). Si `gmail_drafts: sí`, se guarda como borrador en Gmail. Si `outlook_drafts: sí`, se guarda como borrador en Outlook (ver `docs/outlook-setup.md`). Si ambos están activos, el agente pregunta al usuario a qué proveedor guardar el correo. Si ninguno está activo, se muestra en el chat con link `mailto:`.
 2. **Generar preguntas para entrevista técnica** — preguntas frecuentes basadas en la vacante y tu perfil.
-3. **Modo discusión** — ¿tienes dudas sobre este análisis?
+ 3. **Modo discusión** — ¿tienes dudas sobre este análisis?
+
+## Formato de Correo Generado
+
+Al presentar el correo al usuario, usar esta estructura:
+
+```
+📧 Borrador de Correo
+
+**Para:** [email del destinatario]
+**Asunto:** [asunto profesional]
+
+**Cuerpo:**
+[Redacción generada por mimetismo con hipervínculos HTML]
+
+**Firma:**
+[Nombre]
+[LinkedIn] | [GitHub] | [WhatsApp]
+
+📬 Estado: [Guardado como borrador en Gmail | Guardado como borrador en Outlook | Mostrado en chat — revisa antes de enviar]
+```
+
+Si el correo se muestra en el chat (sin proveedor de borradores activo), incluir también un link `mailto:`:
+
+```
+[📩 Abrir en tu gestor de correo](mailto:[email]?subject=[asunto]&body=[cuerpo])
+```
 
 ### Si NO se detectó email (`PORTAL_POSTULATION`)
 
-1. **Generar carta de presentación** — texto para copiar y pegar en el portal de postulación, redactado con tu estilo (`skills/mimetismo/SKILL.md`).
+1. **Generar carta de presentación** — texto para copiar y pegar en el portal de postulación, redactado con tu estilo (`skills/mimetismo/SKILL.md`), con hipervínculos HTML.
 2. **Generar preguntas para entrevista técnica** — igual que arriba.
 3. **Modo discusión** — igual que arriba.
 
