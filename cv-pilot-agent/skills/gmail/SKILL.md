@@ -60,7 +60,7 @@ Mostrar una vista previa:
 > - Cuerpo:
 > <cuerpo>
 >
-> ¿Confirmás? (sí/no)
+> ¿Confirmas? (sí/no)
 
 Solo ejecutar `gws` si el usuario responde "sí". Ante cualquier otra respuesta, conservar el correo en el chat y no ejecutar la escritura.
 

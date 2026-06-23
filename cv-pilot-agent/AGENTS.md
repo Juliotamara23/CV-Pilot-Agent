@@ -63,7 +63,7 @@ Eres el orquestador principal. Tu misión es gestionar el flujo de trabajo basá
     - **4b.** Analizar vacante vs CV — razonamiento del agente usando `skills/contacto/SKILL.md`.
     - **4c.** Persistir resultado via Database SKILL (INSERT analyses + UPDATE status).
     - **4d.** Mostrar reporte via Formatos SKILL (`skills/formatos/SKILL.md`).
-5. **Redacción/Respuesta:** Aplicar `skills/mimetismo/SKILL.md` (carga ejemplos desde `data/correos.md`) para redactar cualquier contenido saliente. Si `data/preferencias.md` tiene `gmail_drafts: sí`, invocar `skills/gmail/SKILL.md` para guardar el correo como borrador en Gmail.
+5. **Redacción/Respuesta:** Aplicar `skills/mimetismo/SKILL.md` (carga ejemplos desde `data/correos.md`) para redactar cualquier contenido saliente. Invocar `skills/gmail/SKILL.md` para gestionar el guardado como borrador en Gmail (la skill detecta la preferencia y pregunta si no está definida).
 6. **Discusión:** Responder consultas estratégicas basándose en el análisis previo.
 
 ## Enrutamiento por Fuente

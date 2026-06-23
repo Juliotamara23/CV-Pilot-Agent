@@ -35,7 +35,4 @@ Cuerpo del correo...
 
 - Si el usuario indica "sin borrador" para este correo, omitir los marcadores y mostrar el correo en el chat. La preferencia global se mantiene para futuros correos.
 
-## Hook posterior a la generación
-Tras redactar el correo, si `data/preferencias.md` tiene `gmail_drafts: sí`, invocar `skills/gmail/SKILL.md` para guardar el correo como borrador en Gmail (previa confirmación del usuario). La skill de Gmail se encarga de la detección de `gws`, la extracción de campos, la confirmación y la creación del borrador.
-
 
