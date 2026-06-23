@@ -41,7 +41,7 @@ El agente NUNCA crea el venv ni instalaPyMuPDF sin permiso explicito. Seguir est
 2. **Si el venv existe** → verificar PyMuPDF con el Python del venv (ver Deteccion abajo). Si PyMuPDF falla, reinstalar con el pip del venv (ver Instalacion). No preguntar al usuario.
 
 3. **Si el venv NO existe → informar al usuario con una sola pregunta:**
-   > "El entorno de PDF no esta configurado. Para procesar archivos PDF (Camino B) creo un entorno virtual con PyMuPDF. ¿Desea que lo configure automaticamente? Si prefiere hacerlo manual, ejecute el script de setup. Si no desea soporte PDF, continuare solo con el Camino A (pegar el texto del CV)."
+   > "El entorno de PDF no está configurado. Para procesar archivos PDF (Camino B) creo un entorno virtual con PyMuPDF. ¿Desea que lo configure automáticamente? Si prefiere hacerlo manual, ejecute el script de setup. Si no desea soporte PDF, continuaré solo con el Camino A (pegar el texto del CV)."
 
 4. **Segun la respuesta:**
    - **Aceptar setup automatico** → ejecutar el script de la plataforma:
@@ -49,7 +49,7 @@ El agente NUNCA crea el venv ni instalaPyMuPDF sin permiso explicito. Seguir est
      - Unix: `bash cv-pilot-agent/scripts/setup.sh`
      - Si el setup falla, informar el error y ofrecer el Camino A como fallback. No insistir.
    - **Preferir manual** → mostrar el comando del script correspondiente para que el usuario lo ejecute. Continuar la sesion en Camino A hasta que el venv exista.
-   - **No desea soporte PDF** → deshabilitar el Camino B para esta sesion y todas las futuras. Solo ofrecer Camino A (texto). Anotar en `data/preferencias.md`: `pdf_soporte: false`.
+   - **No desea soporte PDF** → deshabilitar el Camino B para esta sesión y todas las futuras. Solo ofrecer Camino A (texto). Anotar en `data/preferencias.md`: `pdf_soporte: false`.
 
 ### Deteccion de PyMuPDF (usando el interprete resuelto)
 
@@ -67,11 +67,11 @@ cv-pilot-agent/.venv/bin/python -c "import fitz; print('OK')" 2>&1
 python3 -c "import fitz; print('OK')" 2>&1
 ```
 
-Si el comando imprime `OK`, PyMuPDF esta listo. Si muestra `ModuleNotFoundError`, no esta instalado.
+Si el comando imprime `OK`, PyMuPDF está listo. Si muestra `ModuleNotFoundError`, no está instalado.
 
 ### Instalacion de PyMuPDF (usando el pip del venv)
 
-Si el venv existe pero PyMuPDF no esta instalado, reinstalar con el pip del venv (nunca con el pip del sistema):
+Si el venv existe pero PyMuPDF no está instalado, reinstalar con el pip del venv (nunca con el pip del sistema):
 
 ```powershell
 # Windows, venv existe
@@ -206,7 +206,7 @@ Pedir ejemplos de correos y preferencias:
 > - Tono (formal, cercano, técnico)
 > - Idioma de postulación (español, inglés)
 
-> ¿Querés que guarde los correos generados como borradores en Gmail? Así podrás revisarlos antes de enviarlos. (sí/no)
+> ¿Quieres que guarde los correos generados como borradores en Gmail? Así podrás revisarlos antes de enviarlos. (sí/no)
 
 Guardar la respuesta en `data/preferencias.md` como `gmail_drafts: sí` o `gmail_drafts: no`.
 
