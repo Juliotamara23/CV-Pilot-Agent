@@ -80,3 +80,6 @@ Si el correo se muestra en el chat (sin proveedor de borradores activo), incluir
 - **ID:** Usar el `analysis_id` (UUID) generado al persistir el análisis.
 - **Comparativa:** Cada línea usa el formato `- [Requisito] | Análisis: [evaluación]` con pipe literal.
 - **CV Link:** Si `data/perfil.md` contiene link al CV, LinkedIn o GitHub, incluirlos como hipervínculos HTML (`<a href="...">texto</a>`) en el correo o carta generados, no como URLs crudas.
+
+## Scripts de Respaldo
+*(Vacío — si un script generado resuelve un vacío permanente, se documenta aquí con su propósito y uso.)*

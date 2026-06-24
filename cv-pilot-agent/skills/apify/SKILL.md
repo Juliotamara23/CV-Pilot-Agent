@@ -135,3 +135,6 @@ Mapear campos según el platform SKILL → normalizar según Database SKILL → 
 - **Agente:** "¿En qué plataforma? Indeed ($0.003/job), LinkedIn ($0.001/job) o Computrabajo ($0.00199/job)."
 - **Usuario:** "LinkedIn"
 - **Agente:** (Consulta precio real, calcula, confirma, ejecuta)
+
+## Scripts de Respaldo
+*(Vacío — si un script generado resuelve un vacío permanente, se documenta aquí con su propósito y uso.)*

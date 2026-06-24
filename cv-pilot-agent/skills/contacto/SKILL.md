@@ -27,3 +27,5 @@ Sin email → "PORTAL_POSTULATION"
 ## Instrucciones para el Orquestador
 - Usar el resultado de esta skill en `skills/formatos/SKILL.md` para decidir qué opciones de postulación mostrar (correo vs carta de presentación).
 - Si la extracción falla y no es posible la auto-sanación, informar al usuario el campo faltante.
+## Scripts de Respaldo
+*(Vacío — si un script generado resuelve un vacío permanente, se documenta aquí con su propósito y uso.)*

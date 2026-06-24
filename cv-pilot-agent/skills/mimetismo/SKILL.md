@@ -38,3 +38,6 @@ Cuerpo del correo...
 - Si el usuario indica "sin borrador" para este correo, omitir los marcadores y mostrar el correo en el chat. La preferencia global se mantiene para futuros correos.
 
 
+
+## Scripts de Respaldo
+*(Vacío — si un script generado resuelve un vacío permanente, se documenta aquí con su propósito y uso.)*

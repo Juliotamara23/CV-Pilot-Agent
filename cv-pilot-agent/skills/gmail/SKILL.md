@@ -90,3 +90,5 @@ Todo texto dirigido al usuario debe estar en español neutral: sin voseo, sin je
 ## Ver también
 - `gws-shared/SKILL.md` — Auth, flags globales, reglas de seguridad.
 - `gws-send/SKILL.md` — Comando `gmail +send` (flags completos).
+## Scripts de Respaldo
+*(Vacío — si un script generado resuelve un vacío permanente, se documenta aquí con su propósito y uso.)*

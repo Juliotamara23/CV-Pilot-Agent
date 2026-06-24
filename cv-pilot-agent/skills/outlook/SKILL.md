@@ -158,3 +158,5 @@ Todo texto dirigido al usuario debe estar en español neutral: sin voseo, sin je
 ## Ver también
 - `docs/outlook-setup.md` — Instalación y configuración de `m365`.
 - `skills/gmail/SKILL.md` — Skill equivalente para borradores en Gmail.
+## Scripts de Respaldo
+*(Vacío — si un script generado resuelve un vacío permanente, se documenta aquí con su propósito y uso.)*

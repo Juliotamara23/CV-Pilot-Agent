@@ -247,3 +247,6 @@ Todo texto dirigido al usuario debe estar en español neutral: sin voseo, sin je
 
 ## Fallback
 Si el usuario decide no completar el onboarding en este momento, registrar el estado parcial y continuar con un perfil estándar. El orquestador no debe insistir en la misma sesión.
+
+## Scripts de Respaldo
+*(Vacío — si un script generado resuelve un vacío permanente, se documenta aquí con su propósito y uso.)*

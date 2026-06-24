@@ -159,3 +159,6 @@ SELECT * FROM jobs WHERE status = 'new'
 - **Silencio Operativo:** NUNCA mostrar sentencias SQL al usuario. Solo reportar éxito o fallo en lenguaje natural.
 - **Atomicidad:** No dejar conexiones abiertas. Siempre cerrar después de cada operación.
 - **Integridad:** Validar que `job_hash` exista en `jobs` antes de insertar en `analyses`.
+
+## Scripts de Respaldo
+*(Vacío — si un script generado resuelve un vacío permanente, se documenta aquí con su propósito y uso.)*
