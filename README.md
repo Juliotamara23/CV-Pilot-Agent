@@ -1,33 +1,48 @@
-<h1 align="center">🤖 CV-Pilot Agentic Evolution</h1>
+<h1 align="center">🤖 CV-Pilot Agent</h1>
 
-**CV-Pilot Agent** es la evolución del [CV Pilot (n8n)](https://github.com/Juliotamara23/CV-Pilot), llevando el análisis de compatibilidad laboral a entornos con agentes de IA. Busca, analiza y evalúa vacantes contra tu perfil técnico en OpenCode, Antigravity, Claude Code, ChatGPT y cualquier entorno con agentes.
+**CV-Pilot Agent** es un orquestador inteligente de reclutamiento que busca, analiza y evalúa vacantes contra tu perfil técnico. Funciona en OpenCode, Antigravity, Claude Code y cualquier entorno con agentes de IA. Es la evolución del [CV Pilot (n8n)](https://github.com/Juliotamara23/CV-Pilot), ahora con onboarding conversacional y borradores multi-proveedor.
 
 ## ✨ Qué hace
 
+- **Onboarding conversacional**: el agente chatea contigo, extrae tu CV (texto o PDF con PyMuPDF), verifica los datos y genera tu perfil automáticamente. Nunca más repetir el setup.
 - **Búsqueda automática multi-plataforma**: Indeed, LinkedIn y Computrabajo con un presupuesto desde $5 USD/mes.
 - **Análisis técnico riguroso**: compara cada vacante contra tu CV real, tecnología por tecnología.
+- **Borradores en tu correo**: guarda las postulaciones como borrador en Gmail (`gws`) u Outlook (`m365` / Microsoft Graph) para que las revises antes de enviar. HTML con hipervínculos, sin URLs crudas.
 - **Reportes accionables**: porcentaje de compatibilidad, veredicto, carta de presentación o borrador de email.
-- **Privacidad total**: tus datos se almacenan localmente en SQLite. Compatible con LLMs locales.
+- **Privacidad total**: tus datos se almacenan localmente en `data/`. Compatible con LLMs locales.
 
 ## 🚀 Empezar
 
 | Modalidad | Para quién | Guía |
 |----------|-----------|------|
 | **Web** | Usas Gemini, sin instalar nada | [docs/web.md](docs/web.md) |
-| **Agent** | Usas OpenCode o terminal, con búsqueda automática | [docs/agent.md](docs/agent.md) |
+| **Agent** | Usas OpenCode o terminal, con búsqueda automática y borradores | [docs/agent.md](docs/agent.md) |
+
+### Configuración de proveedores de correo
+
+| Proveedor | Guía |
+|-----------|------|
+| **Gmail** (gws) | [docs/gws-setup.md](docs/gws-setup.md) |
+| **Outlook** (m365) | [docs/outlook-setup.md](docs/outlook-setup.md) |
 
 ## 🧠 Arquitectura
 
 ```
-skills/apify/          → Scraping multi-plataforma (Indeed, LinkedIn, Computrabajo)
-skills/database/       → Persistencia y deduplicación en SQLite
-skills/contacto/       → Extracción de datos y auto-sanación
-skills/formatos/       → Reportes estructurados
-skills/mimetismo/      → Redacción personalizada
+skills/onboarding/      → Onboarding conversacional y persistencia del perfil
+skills/apify/           → Scraping multi-plataforma (Indeed, LinkedIn, Computrabajo)
+skills/database/        → Persistencia y deduplicación en SQLite
+skills/contacto/        → Extracción de datos y auto-sanación
+skills/formatos/        → Reportes estructurados y opciones de postulación
+skills/mimetismo/       → Redacción personalizada con estilo del usuario
+skills/gmail/           → Borradores en Gmail vía gws CLI
+skills/outlook/         → Borradores en Outlook vía Microsoft Graph
+scripts/                → pdf_parser (PyMuPDF), setup (.venv), init (DB)
+data/                   → Perfil, correos de ejemplo y preferencias (local, gitignored)
 ```
 
 ## 📦 Versiones
 
 | Versión | Fecha | Cambios |
 |---------|-------|---------|
+| **v2.0.0** | Junio 2026 | Onboarding conversacional, borradores Gmail + Outlook, venv aislado, skills modernizadas |
 | **v1.0.0** | Junio 2026 | Búsqueda multi-plataforma, SQLite, Apify, tests automatizados |
