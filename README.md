@@ -13,10 +13,25 @@
 
 ## 🚀 Empezar
 
-| Modalidad | Para quién | Guía |
-|----------|-----------|------|
-| **Web** | Usas Gemini, sin instalar nada | [docs/web.md](docs/web.md) |
-| **Agent** | Usas OpenCode o terminal, con búsqueda automática y borradores | [docs/agent.md](docs/agent.md) |
+¿Cuál necesitas?
+
+| | ☁️ Web | 🤖 Agent |
+|---|---|---|
+| **Sin instalar nada** | ✅ Solo el navegador | ❌ Requiere terminal |
+| **Búsqueda automática** (Indeed, LinkedIn, Computrabajo) | ❌ | ✅ |
+| **Onboarding conversacional** | ❌ Manual | ✅ El agente te guía |
+| **PDF con links intactos** | ❌ | ✅ PyMuPDF |
+| **Borradores en Gmail** | ❌ | ✅ `gws` CLI |
+| **Borradores en Outlook** | ❌ | ✅ `m365` + Graph |
+| **Perfil persistente** | ❌ Cada sesión | ✅ `data/` automático |
+| **Setup** | Cero | `setup.ps1` / `setup.sh` |
+
+> **Regla simple**: si solo quieres analizar vacantes rápido desde Gemini → **Web**. Si quieres automatización completa, búsqueda en plataformas y borradores en tu correo → **Agent**.
+
+| Modalidad | Guía |
+|----------|------|
+| ☁️ **Web** | [docs/web.md](docs/web.md) |
+| 🤖 **Agent** | [docs/agent.md](docs/agent.md) |
 
 ### Configuración de proveedores de correo
 
