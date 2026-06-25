@@ -60,6 +60,21 @@ class TestAnalysisInsert:
         assert a.percentage == 85.5
         assert a.tldr == "t"
 
+    def test_contact_method_defaults_none(self):
+        a = AnalysisInsert(
+            job_hash="h", percentage=85.5, comparativa="c",
+            observaciones="o", verdict="v", tldr="t",
+        )
+        assert a.contact_method is None
+
+    def test_contact_method_accepted(self):
+        a = AnalysisInsert(
+            job_hash="h", percentage=85.5, comparativa="c",
+            observaciones="o", verdict="v", tldr="t",
+            contact_method="email",
+        )
+        assert a.contact_method == "email"
+
     def test_missing_required_percentage(self):
         with pytest.raises(ValidationError):
             AnalysisInsert(
@@ -83,3 +98,18 @@ class TestAnalysis:
         )
         assert a.analysis_id == "id"
         assert a.created_at is None
+
+    def test_contact_method_defaults_none(self):
+        a = Analysis(
+            analysis_id="id", job_hash="h", percentage=50.0,
+            comparativa="c", observaciones="o", verdict="v", tldr="t",
+        )
+        assert a.contact_method is None
+
+    def test_contact_method_accepted(self):
+        a = Analysis(
+            analysis_id="id", job_hash="h", percentage=50.0,
+            comparativa="c", observaciones="o", verdict="v", tldr="t",
+            contact_method="portal",
+        )
+        assert a.contact_method == "portal"

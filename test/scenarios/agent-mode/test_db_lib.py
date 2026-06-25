@@ -1,5 +1,7 @@
 """Unit tests for `_lib/db.py` using an in-process SQLite file (CV_PILOT_DB)."""
 
+import sqlite3
+
 import pytest
 
 from _lib import db
@@ -213,6 +215,25 @@ class TestInsertAnalysis:
         got = db.get_job(h)["job"]
         assert got["status"] == "analyzed"
 
+    def test_insert_with_contact_method_persists(self, tmp_db):
+        h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
+        db.insert_analysis(AnalysisInsert(
+            job_hash=h, percentage=85.5, comparativa="c",
+            observaciones="o", verdict="v", tldr="t",
+            contact_method="email",
+        ))
+        got = db.get_analysis(h)["analysis"]
+        assert got["contact_method"] == "email"
+
+    def test_insert_without_contact_method_defaults_none(self, tmp_db):
+        h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
+        db.insert_analysis(AnalysisInsert(
+            job_hash=h, percentage=85.5, comparativa="c",
+            observaciones="o", verdict="v", tldr="t",
+        ))
+        got = db.get_analysis(h)["analysis"]
+        assert got["contact_method"] is None
+
     def test_job_not_found(self, tmp_db):
         with pytest.raises(JobNotFoundError):
             db.insert_analysis(AnalysisInsert(
@@ -232,9 +253,52 @@ class TestGetAnalysis:
         assert result["ok"] is True
         assert result["analysis"]["percentage"] == 85.5
 
+    def test_returns_contact_method(self, tmp_db):
+        h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
+        db.insert_analysis(AnalysisInsert(
+            job_hash=h, percentage=70.0, comparativa="c",
+            observaciones="o", verdict="v", tldr="t",
+            contact_method="portal",
+        ))
+        analysis = db.get_analysis(h)["analysis"]
+        assert analysis["contact_method"] == "portal"
+
     def test_not_found_raises(self, tmp_db):
         with pytest.raises(JobNotFoundError):
             db.get_analysis("missing")
+
+
+class TestContactMethodAutoMigration:
+    """The schema in conftest.SCHEMA_SQL intentionally lacks contact_method.
+
+    Every ``get_connection()`` call runs ``_ensure_schema`` which ALTERs the
+    column into existence. These tests prove that migration explicitly.
+    """
+
+    def test_column_missing_before_first_connection(self, tmp_db):
+        # tmp_db creates the DB with the old schema (no contact_method).
+        conn = sqlite3.connect(str(tmp_db))
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(analyses)")}
+        conn.close()
+        assert "contact_method" not in cols
+
+    def test_column_added_after_connection(self, tmp_db):
+        # Triggering any db operation opens a connection → _ensure_schema runs.
+        db.insert_job(JobInsert(company="A", position="P", location="L"))
+        conn = sqlite3.connect(str(tmp_db))
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(analyses)")}
+        conn.close()
+        assert "contact_method" in cols
+
+    def test_contact_method_round_trip_after_migration(self, tmp_db):
+        h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
+        db.insert_analysis(AnalysisInsert(
+            job_hash=h, percentage=80.0, comparativa="c",
+            observaciones="o", verdict="v", tldr="t",
+            contact_method="email",
+        ))
+        got = db.get_analysis(h)["analysis"]
+        assert got["contact_method"] == "email"
 
 
 class TestUpdateStatus:

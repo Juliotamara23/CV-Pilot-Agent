@@ -12,7 +12,7 @@ import sys
 
 import pytest
 
-from tests.conftest import SCHEMA_SQL
+from conftest import SCHEMA_SQL
 
 
 def _run(query_script, env, *args):
@@ -96,6 +96,7 @@ class TestCliEndToEnd:
             "--job-hash", job_hash, "--percentage", "87.5",
             "--comparativa", "Strong", "--observaciones", "Good fit",
             "--verdict", "Apto", "--tldr", "Apply now",
+            "--contact-method", "email",
         )
         assert proc.returncode == 0, proc.stderr
         analysis = json.loads(proc.stdout)
@@ -105,6 +106,13 @@ class TestCliEndToEnd:
         # job status should now be 'analyzed'
         proc = _run(query_script, env, "job", "get", "--hash", job_hash)
         assert json.loads(proc.stdout)["job"]["status"] == "analyzed"
+
+        # analysis get should return contact_method
+        proc = _run(query_script, env, "analysis", "get", "--job-hash", job_hash)
+        assert proc.returncode == 0, proc.stderr
+        fetched = json.loads(proc.stdout)
+        assert fetched["ok"] is True
+        assert fetched["analysis"]["contact_method"] == "email"
 
         # 4. status set
         proc = _run(
@@ -146,3 +154,51 @@ class TestCliEndToEnd:
         assert proc.returncode == 1
         payload = json.loads(proc.stderr)
         assert payload["code"] == "INVALID_STATUS"
+
+
+class TestCliContactMethod:
+    """Verify --contact-method persists and is returned by `analysis get`."""
+
+    def test_contact_method_portal_round_trip(self, query_script, tmp_db):
+        env = os.environ.copy()
+        proc = _run(
+            query_script, env, "job", "insert",
+            "--company", "Globex", "--position", "Engineer", "--location", "Berlin",
+        )
+        job_hash = json.loads(proc.stdout)["hash"]
+
+        proc = _run(
+            query_script, env, "analysis", "insert",
+            "--job-hash", job_hash, "--percentage", "70",
+            "--comparativa", "c", "--observaciones", "o",
+            "--verdict", "Apto con reservas", "--tldr", "t",
+            "--contact-method", "portal",
+        )
+        assert proc.returncode == 0, proc.stderr
+        assert json.loads(proc.stdout)["ok"] is True
+
+        proc = _run(query_script, env, "analysis", "get", "--job-hash", job_hash)
+        assert proc.returncode == 0, proc.stderr
+        analysis = json.loads(proc.stdout)["analysis"]
+        assert analysis["contact_method"] == "portal"
+
+    def test_contact_method_defaults_to_none(self, query_script, tmp_db):
+        env = os.environ.copy()
+        proc = _run(
+            query_script, env, "job", "insert",
+            "--company", "Initech", "--position", "Dev", "--location", "Remote",
+        )
+        job_hash = json.loads(proc.stdout)["hash"]
+
+        proc = _run(
+            query_script, env, "analysis", "insert",
+            "--job-hash", job_hash, "--percentage", "90",
+            "--comparativa", "c", "--observaciones", "o",
+            "--verdict", "Apto", "--tldr", "t",
+        )
+        assert proc.returncode == 0, proc.stderr
+
+        proc = _run(query_script, env, "analysis", "get", "--job-hash", job_hash)
+        assert proc.returncode == 0, proc.stderr
+        analysis = json.loads(proc.stdout)["analysis"]
+        assert analysis["contact_method"] is None
