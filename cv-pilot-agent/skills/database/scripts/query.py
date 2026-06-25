@@ -188,6 +188,9 @@ def analysis_insert(
     observaciones: str = typer.Option(..., help="Observaciones field."),
     verdict: str = typer.Option(..., help="Verdict field."),
     tldr: str = typer.Option(..., help="Short summary (tldr) field."),
+    contact_method: Optional[str] = typer.Option(
+        None, help="Contact method (email|portal)."
+    ),
 ) -> None:
     """Insert one analysis and mark its job ``analyzed``."""
     analysis = AnalysisInsert(
@@ -197,6 +200,7 @@ def analysis_insert(
         observaciones=observaciones,
         verdict=verdict,
         tldr=tldr,
+        contact_method=contact_method,
     )
     _run(lambda: _emit(db.insert_analysis(analysis)))
 

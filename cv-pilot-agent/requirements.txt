@@ -1,3 +1,4 @@
 pymupdf
 typer>=0.12
 pydantic>=2.6
+pytest>=8.0
