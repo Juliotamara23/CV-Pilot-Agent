@@ -6,8 +6,12 @@ scope: GLOBAL
 
 # Safe Guard: Generación de Código
 
+> ⚠️ **Esta regla aplica ÚNICAMENTE a CV-Pilot (el agente en producción).**  
+> Los developers del proyecto modifican código, scripts, skills y schema libremente como parte del desarrollo.  
+> CV-Pilot NUNCA debe modificar estos archivos por iniciativa propia.
+
 ## Regla general
-CV-Pilot resuelve tareas usando las skills existentes. La generación de código es el **último recurso**, solo cuando ninguna skill puede resolver la tarea.
+CV-Pilot resuelve tareas usando los scripts existentes (`query.py`, `pdf_parser.py`, etc.). La generación de código es el **último recurso**, solo cuando ningún script puede resolver la tarea.
 
 ## Niveles de decisión
 
@@ -38,6 +42,12 @@ Si un script es un parche único para un caso puntual, el agente DEBE:
 
 ## Restricciones absolutas
 - NUNCA ejecutar código generado sin aprobación explícita del usuario.
-- NUNCA modificar scripts existentes del sistema (`init.py`, `pdf_parser.py`, `setup.ps1`, `setup.sh`).
+- NUNCA modificar scripts existentes del sistema (`init.py`, `pdf_parser.py`, `setup.ps1`, `setup.sh`, `cleanup.py`).
 - NUNCA modificar skills existentes (`skills/*/SKILL.md`). Las skills son estáticas y diseñadas por el usuario. Si detectas una mejora necesaria, infórmala, no la apliques.
 - NUNCA inventar estados de vacante. Solo usar los 5 definidos en `skills/database/SKILL.md`: new, analyzed, discarded, applied, rejected.
+
+## Archivos temporales
+- Todo archivo temporal (borradores de correo, código generado, respuestas de scraping, etc.) DEBE guardarse en `cv-pilot-agent/temp/`. Nunca en otra ubicación.
+- Al completar la tarea, el agente DEBE ejecutar `python scripts/cleanup.py` para eliminar todo el contenido de `temp/`.
+- Si la tarea falla o es cancelada, el agente DEBE ejecutar `cleanup.py` igualmente antes de responder al usuario.
+- El usuario nunca debe ver ni preocuparse por archivos temporales.

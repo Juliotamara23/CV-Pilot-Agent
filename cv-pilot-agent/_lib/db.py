@@ -13,7 +13,7 @@ Database path resolution:
     * ``$CV_PILOT_DB`` env var overrides the default path (used in tests).
     * default: ``<cv-pilot-agent>/db/cv-pilot.db`` (mirrors ``scripts/init.py:5``).
 
-The schema itself lives in ``scripts/init.py`` (protected by code-guard.md); this
+The schema itself lives in ``scripts/init.py`` (protected by code_guard.md); this
 module never runs DDL. Callers (including tests) must initialise the schema first.
 """
 
@@ -40,8 +40,26 @@ def _resolve_db_path() -> str:
     return str(DEFAULT_DB_PATH)
 
 
+def _ensure_schema(conn: sqlite3.Connection) -> None:
+    """Idempotent schema migrations — adds missing columns to existing DBs.
+
+    New users get the full schema from ``scripts/init.py``. Existing DBs
+    opened by this module get missing columns added automatically, so
+    ``init.py`` never needs to be modified for additive changes.
+    """
+    try:
+        conn.execute("ALTER TABLE analyses ADD COLUMN contact_method TEXT")
+    except sqlite3.OperationalError:
+        # Column already exists — safe to ignore.
+        pass
+
+
 def get_connection() -> sqlite3.Connection:
-    """Open a connection configured for the contract (WAL, FK=ON, Row)."""
+    """Open a connection configured for the contract (WAL, FK=ON, Row).
+
+    Applies idempotent schema migrations on every connect so existing
+    databases stay compatible without touching ``scripts/init.py``.
+    """
     path = _resolve_db_path()
     try:
         conn = sqlite3.connect(path)
@@ -56,6 +74,7 @@ def get_connection() -> sqlite3.Connection:
     except sqlite3.OperationalError:
         # In-memory / read-only filesystems reject WAL — fall back silently.
         pass
+    _ensure_schema(conn)
     return conn
 
 
@@ -330,7 +349,7 @@ def insert_analysis(analysis: AnalysisInsert) -> dict[str, Any]:
             conn.execute(
                 "INSERT INTO analyses "
                 "(analysis_id, job_hash, percentage, comparativa, observaciones, "
-                "verdict, tldr) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "verdict, tldr, contact_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     analysis_id,
                     analysis.job_hash,
@@ -339,6 +358,7 @@ def insert_analysis(analysis: AnalysisInsert) -> dict[str, Any]:
                     analysis.observaciones,
                     analysis.verdict,
                     analysis.tldr,
+                    analysis.contact_method,
                 ),
             )
             conn.execute(
@@ -378,6 +398,7 @@ def get_analysis(job_hash: str) -> dict[str, Any]:
                 "observaciones": row["observaciones"],
                 "verdict": row["verdict"],
                 "tldr": row["tldr"],
+                "contact_method": row["contact_method"],
                 "created_at": row["created_at"],
             },
         }
