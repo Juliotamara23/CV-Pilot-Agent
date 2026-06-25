@@ -40,4 +40,4 @@ Si un script es un parche único para un caso puntual, el agente DEBE:
 - NUNCA ejecutar código generado sin aprobación explícita del usuario.
 - NUNCA modificar scripts existentes del sistema (`init.py`, `pdf_parser.py`, `setup.ps1`, `setup.sh`).
 - NUNCA modificar skills existentes (`skills/*/SKILL.md`). Las skills son estáticas y diseñadas por el usuario. Si detectas una mejora necesaria, infórmala, no la apliques.
-- NUNCA generar código por iniciativa propia sin informar al usuario primero.
+- NUNCA inventar estados de vacante. Solo usar los 5 definidos en `skills/database/SKILL.md`: new, analyzed, discarded, applied, rejected.

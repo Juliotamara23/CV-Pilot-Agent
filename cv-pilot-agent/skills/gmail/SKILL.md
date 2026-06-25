@@ -72,6 +72,11 @@ gws gmail +send --to "<to>" --subject "<subject>" --body "<body>" --html --draft
 
 El flag `--html` indica que el cuerpo contiene HTML. Los saltos de línea se representan con `<br>` y los links con etiquetas `<a href="...">texto</a>`.
 
+Al crear el borrador exitosamente, actualizar el estado de la vacante:
+```sql
+UPDATE jobs SET status = 'applied' WHERE job_hash = '<hash>'
+```
+
 Esta es una operación de **escritura** (ver `gws-shared/SKILL.md` — Security Rules), confirmada en el paso 4.
 
 ### 6. Manejo de errores

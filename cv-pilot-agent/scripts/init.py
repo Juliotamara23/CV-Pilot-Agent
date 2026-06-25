@@ -12,7 +12,7 @@ def init():
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
-        # Tabla jobs — incluye source para distinguir Apify vs manual
+        # Tabla jobs — validación estricta de estados
         cursor.execute('''CREATE TABLE IF NOT EXISTS jobs (
             job_hash TEXT PRIMARY KEY,
             external_id TEXT,
@@ -23,7 +23,7 @@ def init():
             location TEXT,
             salary TEXT,
             description TEXT,
-            status TEXT DEFAULT 'new',
+            status TEXT DEFAULT 'new' CHECK(status IN ('new','analyzed','discarded','applied','rejected')),
             source TEXT DEFAULT 'manual'
         )''')
         

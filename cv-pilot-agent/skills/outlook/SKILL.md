@@ -77,6 +77,11 @@ Solo ejecutar `m365` si el usuario responde "sí". Ante cualquier otra respuesta
 ### 5. Crear el borrador
 A través de Microsoft Graph. Un mensaje creado sin enviar queda automáticamente como borrador en la carpeta Borradores.
 
+Al crear el borrador exitosamente, actualizar el estado de la vacante:
+```sql
+UPDATE jobs SET status = 'applied' WHERE job_hash = '<hash>'
+```
+
 **Paso 5.1 — Obtener token de acceso:**
 ```powershell
 $token = m365 util accesstoken get --resource "https://graph.microsoft.com" --output text

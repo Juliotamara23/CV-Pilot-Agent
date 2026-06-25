@@ -94,7 +94,24 @@ IFS="@@" read -r f1 f2 <<< "$result"
 ## 1. Ubicación de la DB
 `cv-pilot-agent/db/cv-pilot.db`
 
-## 2. Normalización de Inputs
+## 2. Estados de Vacante (enum cerrado)
+
+⚠️ **Solo se permiten estos 5 estados. NUNCA inventar estados adicionales.**
+
+| Estado | Significado | Cuándo se asigna |
+|--------|------------|-----------------|
+| `new` | Pendiente de análisis | Al hacer scraping o ingreso manual |
+| `analyzed` | Análisis completado | Al persistir el análisis en la DB |
+| `discarded` | Descartada sin análisis completo | No matchea, spam, duplicado, irrelevante |
+| `applied` | Usuario ya postuló | Al crear borrador (Gmail/Outlook) o enviar correo |
+| `rejected` | Usuario decidió no postular | Después del análisis, si el usuario rechaza |
+
+El CHECK constraint en `init.py` fuerza estos valores a nivel de DB:
+```sql
+CHECK(status IN ('new','analyzed','discarded','applied','rejected'))
+```
+
+## 3. Normalización de Inputs
 El agente DEBE normalizar los campos antes de cualquier operación. Los alias (snake_case) permiten mapear desde cualquier fuente (Apify, texto manual, URL):
 
 | Input Key o Alias | DB Column | Regla |
@@ -109,7 +126,7 @@ El agente DEBE normalizar los campos antes de cualquier operación. Los alias (s
 | `posted_at` / `public_date` / `postedAt` / `fecha` | public_date | Preserve as-is |
 | `source` | source | `'manual'`, `'apify-indeed'`, `'apify-linkedin'`, `'apify-computrabajo'` (default: `'manual'`) |
 
-## 3. Deduplicación (Business Key)
+## 4. Deduplicación (Business Key)
 Calcular hash antes de insertar:
 ```
 job_hash = SHA256(normalized_company + normalized_position + normalized_location)
