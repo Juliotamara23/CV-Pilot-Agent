@@ -1,181 +1,52 @@
 ---
 name: Skill Database Manager
-description: Gestión del estado de las ofertas y persistencia de análisis mediante SQLite.
+description: Persistencia y deduplicación de vacantes mediante el CLI query.py (SQLite).
 scope: GLOBAL
 ---
 
 # Skill: Database Manager
 
-## 0. Requisitos
-
-- **SQLite CLI** (`sqlite3`) — necesario para operaciones directas desde consola.
-- Compatible con Windows (PowerShell), Linux y macOS (bash).
-
-### Protocolo de instalación (consentimiento obligatorio)
-
-El agente NUNCA instala sqlite3 sin permiso explícito. Seguir este protocolo:
-
-1. **Detectar** si `sqlite3` está disponible (ver detección cross-platform abajo).
-2. **Si no está disponible → informar al usuario:**
-   > "SQLite CLI no está instalado. Es necesario para operaciones de base de datos.
-   > ¿Desea que lo instale automáticamente o prefiere hacerlo manualmente?"
-3. **Según la respuesta:**
-   - Si acepta instalación automática → ejecutar comando según el OS detectado.
-   - Si prefiere hacerlo manual → mostrar los comandos de instalación para su OS.
-   - Si dice que no → cancelar la operación que requiere la DB.
-
-### Detección cross-platform
-
-```powershell
-# PowerShell (Windows)
-$sqlite = if (Get-Command sqlite3 -ErrorAction SilentlyContinue) {
-    "sqlite3"
-} else {
-    # Ruta fallback si winget instaló pero no actualizó PATH
-    "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\SQLite.SQLite_Microsoft.Winget.Source_8wekyb3d8bbwe\sqlite3.exe"
-}
-```
-
-```bash
-# bash (Linux / macOS)
-SQLITE=$(command -v sqlite3 || echo "")
-if [ -z "$SQLITE" ]; then
-  echo "sqlite3 no está instalado"
-else
-  echo "sqlite3 encontrado en: $SQLITE"
-fi
-```
-
-### Instalación por OS (solo con consentimiento)
-
-| OS | Comando |
-|----|---------|
-| Windows (winget) | `winget install -e --id SQLite.SQLite` |
-| macOS (Homebrew) | `brew install sqlite3` |
-| Debian/Ubuntu | `sudo apt install sqlite3` |
-| Fedora | `sudo dnf install sqlite` |
-| Arch Linux | `sudo pacman -S sqlite` |
-| Alpine | `apk add sqlite` |
-
-> **Nota Windows:** Después de winget, reiniciar la terminal o usar la ruta completa de fallback (ver detección arriba).
-
-### Regla crítica: separador
-
-**Siempre** usar `-separator "@@"` en todos los comandos CLI, sin importar el OS. El separador por defecto de sqlite3 (`|`) causa dos problemas:
-1. **Pipe en datos:** las descripciones de vacantes contienen `|` que rompe el parsing del resultado.
-2. **Encoding:** PowerShell y algunas terminales interpretan pipes en la salida, corrompiendo caracteres UTF-8 como ñ o tildes.
-
-Usar `@@` como separador evita ambos problemas en simultáneo.
-
-### Patterns de consulta CLI
-
-```powershell
-# PowerShell — leer un campo individual
-$campo = & $sqlite -separator "@@" $db "SELECT field FROM table WHERE condition;"
-
-# PowerShell — leer múltiples campos y dividirlos
-$result = & $sqlite -separator "@@" $db "SELECT field1, field2 FROM table;"
-$partes = $result -split "@@"
-# $partes[0] = field1, $partes[1] = field2
-```
-
-```bash
-# bash — leer un campo individual
-campo=$(sqlite3 -separator "@@" "$db" "SELECT field FROM table WHERE condition;")
-
-# bash — leer múltiples campos y dividirlos
-result=$(sqlite3 -separator "@@" "$db" "SELECT field1, field2 FROM table;")
-IFS="@@" read -r f1 f2 <<< "$result"
-# $f1 = field1, $f2 = field2
-```
-
-> **Nota para Linux/Mac:** En estos sistemas `sqlite3` suele estar en PATH por defecto o es fácil de instalar. No requiere ruta fallback.
+Toda interacción con la base de datos se realiza mediante un único CLI Python
+determinista. **No generar SQL ad-hoc.**
 
 ## 1. Ubicación de la DB
-`cv-pilot-agent/db/cv-pilot.db`
+`cv-pilot-agent/db/cv-pilot.db` (creada por `cv-pilot-agent/scripts/init.py`).
 
-## 2. Estados de Vacante (enum cerrado)
-
-⚠️ **Solo se permiten estos 5 estados. NUNCA inventar estados adicionales.**
-
-| Estado | Significado | Cuándo se asigna |
-|--------|------------|-----------------|
-| `new` | Pendiente de análisis | Al hacer scraping o ingreso manual |
-| `analyzed` | Análisis completado | Al persistir el análisis en la DB |
-| `discarded` | Descartada sin análisis completo | No matchea, spam, duplicado, irrelevante |
-| `applied` | Usuario ya postuló | Al crear borrador (Gmail/Outlook) o enviar correo |
-| `rejected` | Usuario decidió no postular | Después del análisis, si el usuario rechaza |
-
-El CHECK constraint en `init.py` fuerza estos valores a nivel de DB:
-```sql
-CHECK(status IN ('new','analyzed','discarded','applied','rejected'))
+## 2. Invocación del CLI
 ```
-
-## 3. Normalización de Inputs
-El agente DEBE normalizar los campos antes de cualquier operación. Los alias (snake_case) permiten mapear desde cualquier fuente (Apify, texto manual, URL):
-
-| Input Key o Alias | DB Column | Regla |
-|---|---|---|
-| `company` / `company_name` / `empresa` | company | Strip whitespace, title case |
-| `position` / `position_name` / `title` / `cargo` | position | Strip whitespace |
-| `location` / `ubicacion` / `locality` | location | Strip whitespace |
-| `salary` / `salario` / `compensation` | salary | Strip whitespace, preserving original format |
-| `description` / `descripcion` / `body` | description | Preserve as-is |
-| `url` / `link` / `source_url` | url | Validate URL format |
-| `id` / `indeed_id` / `ref_id` / `external_id` | external_id | Strip whitespace |
-| `posted_at` / `public_date` / `postedAt` / `fecha` | public_date | Preserve as-is |
-| `source` | source | `'manual'`, `'apify-indeed'`, `'apify-linkedin'`, `'apify-computrabajo'` (default: `'manual'`) |
-
-## 4. Deduplicación (Business Key)
-Calcular hash antes de insertar:
+python cv-pilot-agent/skills/database/scripts/query.py <app> <command> [options]
 ```
-job_hash = SHA256(normalized_company + normalized_position + normalized_location)
-```
+`app` ∈ `job`, `analysis`, `status`. Cada comando imprime un envelope JSON a
+stdout: `{"ok": true, ...}` en éxito, y `{"ok": false, "error": "...", "code": "..."}`
+a stderr con salida non-zero en error.
 
-## 4. Templates de Inserción (Parametrizados)
+## 3. Comandos
 
-### Insertar job (idempotente)
-```python
-INSERT OR IGNORE INTO jobs (job_hash, external_id, public_date, url, company, position, location, salary, description, status, source)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?)
-```
+| Comando | Propósito |
+|--------|-----------|
+| `job insert` | Insertar/refresh de una vacante (dedup por SHA256 de company+position+location). |
+| `job insert-batch --file path.json` | Insertar un array JSON de vacantes. |
+| `job list [--status S] [--limit N]` | Listar vacantes (default limit 10). |
+| `job get --hash H` | Obtener una vacante por hash. |
+| `job delete --status S \| --hash H [--dry-run]` | Borrar; `--dry-run` solo previewea. |
+| `analysis insert --job-hash H --percentage ... --comparativa ... --observaciones ... --verdict ... --tldr ...` | Inserta análisis y marca `status='analyzed'`. |
+| `analysis get --job-hash H` | Recupera el análisis de una vacante. |
+| `status set --hash H --status S` | Actualiza el estado de una vacante. |
 
-### Insertar análisis
-```python
-INSERT INTO analyses (analysis_id, job_hash, percentage, comparativa, observaciones, verdict, tldr)
-VALUES (?, ?, ?, ?, ?, ?, ?)
-```
+## 4. Estados (enum cerrado)
+`new`, `analyzed`, `discarded`, `applied`, `rejected`. El CLI valida; lanzar
+`INVALID_STATUS` si se pasa un valor fuera del enum.
 
-### Actualizar estado del job
-```python
-UPDATE jobs SET status = 'analyzed' WHERE job_hash = ?
-```
+## 5. Deduplicación / Refresh
+- Hash ausente → insert (`is_new=true`).
+- Hash presente y `public_date` entrante **estrictamente mayor** → borrar análisis
+  previo, resetear `status='new'`, actualizar `public_date`/`url`/`salary`/`description` (`refreshed=true`).
+- Caso contrario → no-op (`is_duplicate=true`).
 
-## 5. Selección de Pendientes
-```python
-SELECT * FROM jobs WHERE status = 'new'
-```
+## 6. Borrado y FK
+`delete_jobs` borra primero las `analyses` referenciadas y luego los `jobs` en
+una misma transacción (no hay `ON DELETE CASCADE`).
 
-## 6. Persistencia de Análisis
-1. Generar UUID: `str(uuid.uuid4())`
-2. Ejecutar INSERT en `analyses` con los 7 campos
-3. Ejecutar UPDATE en `jobs` para marcar `status = 'analyzed'`
-4. Validar que `job_hash` exista antes de insertar en `analyses`
-
-## 7. Manejo de Errores
-
-| Error | Mensaje al Usuario |
-|-------|-------------------|
-| DB no encontrada | "No se encontró la base de datos. Ejecutá la inicialización primero." |
-| sqlite3 CLI no instalado | "SQLite CLI no está instalado. ¿Desea que lo instale automáticamente o prefiere hacerlo manualmente?" (seguir protocolo de consentimiento) |
-| Error de escritura | "Error al guardar. Verificá permisos o espacio en disco." |
-| Error de consulta | "Error al consultar la base de datos." |
-| Duplicado | Omitir silenciosamente (INSERT OR IGNORE) |
-
-## 8. Reglas de Operación
-- **Silencio Operativo:** NUNCA mostrar sentencias SQL al usuario. Solo reportar éxito o fallo en lenguaje natural.
-- **Atomicidad:** No dejar conexiones abiertas. Siempre cerrar después de cada operación.
-- **Integridad:** Validar que `job_hash` exista en `jobs` antes de insertar en `analyses`.
-
-## Scripts de Respaldo
-*(Vacío — si un script generado resuelve un vacío permanente, se documenta aquí con su propósito y uso.)*
+## 7. Reglas operativas
+- **Silencio operativo:** no mostrar SQL; solo reportar éxito/fallo en lenguaje natural.
+- **Atomicidad:** el CLI maneja transacciones; cerrar conexiones tras cada comando.
