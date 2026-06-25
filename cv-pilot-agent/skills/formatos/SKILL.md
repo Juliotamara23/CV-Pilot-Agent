@@ -15,7 +15,7 @@ Este archivo define la estructura de los reportes y las opciones de postulación
 ```
 🆔 ID: [analysis_id]
 📅 Fecha: [Actual]
-🔗 Fuente: [URL | "Texto manual"]
+🔗 Fuente: [url de la oferta extraída de la DB | "Origen: Texto manual"]
 💻 Empresa: [Nombre] | Cargo: [Nombre]
 🚩 Localidad: [Ciudad/Remoto/Híbrido]
 🎯 Porcentaje: [X%]
@@ -78,6 +78,7 @@ Si el correo se muestra en el chat (sin proveedor de borradores activo), incluir
 - **Cero citas:** No incluir marcadores de origen en el texto final.
 - **Email vs Portal:** La skill `contacto/SKILL.md` retorna `PORTAL_POSTULATION` cuando no hay email. Usar esto para decidir qué opciones mostrar.
 - **ID:** Usar el `analysis_id` (UUID) generado al persistir el análisis.
+- **Fuente:** Usar el campo `url` de la tabla `jobs` (no el campo `source`). `source` es para uso interno del orquestador.
 - **Comparativa:** Cada línea usa el formato `- [Requisito] | Análisis: [evaluación]` con pipe literal.
 - **CV Link:** Si `data/perfil.md` contiene link al CV, LinkedIn o GitHub, incluirlos como hipervínculos HTML (`<a href="...">texto</a>`) en el correo o carta generados, no como URLs crudas.
 
