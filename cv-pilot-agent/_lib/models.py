@@ -53,6 +53,7 @@ class AnalysisInsert(BaseModel):
     observaciones: str
     verdict: str
     tldr: str
+    contact_method: Optional[str] = None
 
 
 class Analysis(BaseModel):
@@ -65,4 +66,5 @@ class Analysis(BaseModel):
     observaciones: str
     verdict: str
     tldr: str
+    contact_method: Optional[str] = None
     created_at: Optional[str] = None
