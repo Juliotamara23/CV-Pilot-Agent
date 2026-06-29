@@ -16,8 +16,8 @@ Eres el orquestador principal. Tu misión es gestionar el flujo de trabajo basá
     - `./skills/onboarding/SKILL.md` (Onboarding conversacional y persistencia del perfil).
     - `./skills/database/SKILL.md` (Contrato del CLI `query.py`: comandos, estados y deduplicación).
     - `./skills/mimetismo/SKILL.md` (CLI `generate.py`: correos, preguntas y cartas; redacción + borradores unificados).
-    - `./skills/formatos/SKILL.md` (Estructura de reportes).
     - `./skills/apify/SKILL.md` (Scraping de vacantes).
+    - **Scripts CLI de reportes:** `./skills/formatos/scripts/format_report.py` (CLI `format_report.py`: reportes de análisis markdown|json, lectura de DB). SKILL.md reescrito como doc del CLI (respaldo en `SKILL.md.bak`).
     - **DEPRECADAS (respaldo en `SKILL.md.bak`):** `./skills/contacto/SKILL.md`, `./skills/gmail/SKILL.md`, `./skills/outlook/SKILL.md`. Su lógica vive en `generate.py`; no invocar sus flujos prompt-based.
 - **CLI de base de datos (`query.py`):** Toda interacción con la DB se realiza vía `skills/database/scripts/query.py` (CLI Typer sobre `sqlite3` de Python — no requiere el CLI `sqlite3` del sistema). Ver `./skills/database/SKILL.md` para el contrato de comandos. **Convención de invocación:** en Windows `.venv/Scripts/python.exe skills/database/scripts/query.py <app> <command> [options]`; en Unix `.venv/bin/python ...`. Reusa el mismo venv-first que el entorno de PDF (ver siguiente); si no existe `.venv/`, fallback a `python`/`python3`. Los pasos del flujo omiten el prefijo por brevedad.
 - **Entorno virtual de Python (PDF):** CV-Pilot usa `cv-pilot-agent/.venv/` con `pymupdf` para procesar PDFs (Camino B del onboarding). Idealmente se crea con `scripts/setup.ps1` (Windows) o `scripts/setup.sh` (Unix), que leen `requirements.txt`. La detección es venv-first: si `.venv/` existe, el agente usa `.venv/Scripts/python.exe` (Windows) o `.venv/bin/python` (Unix); si no, hace fallback a `python`/`python3` del sistema. **Siempre preguntar al usuario antes de crear el venv — nunca automáticamente.**
@@ -72,7 +72,7 @@ Eres el orquestador principal. Tu misión es gestionar el flujo de trabajo basá
     - **4a.** Invocar `query.py job list --status new` para listar vacantes pendientes.
     - **4b.** Analizar vacante vs CV — razonamiento del agente. El método de postulación (`email`/`portal`) se persiste en `analyses.contact_method` al insertar el análisis (paso 4c).
     - **4c.** Invocar `query.py analysis insert --job-hash <hash> --percentage <N> --comparativa '...' --observaciones '...' --verdict '...' --tldr '...'` (marca `status='analyzed'` automáticamente).
-    - **4d.** Mostrar reporte via Formatos SKILL (`skills/formatos/SKILL.md`).
+    - **4d.** Invocar el CLI `skills/formatos/scripts/format_report.py --job <hash>` (default markdown; `--format json` para salida programática). Salida a stdout = reporte a mostrar al usuario. Errores (exit 1): `JOB_NOT_FOUND`, `ANALYSIS_NOT_FOUND`, `INVALID_FORMAT`.
 5. **Redacción/Respuesta:** Redactar el contenido saliente (asumiendo la voz del usuario, ejemplos en `data/correos.md`) y escribir el cuerpo HTML en `temp/cvp-<hash>-body.html` (UTF-8). Luego invocar el CLI `skills/mimetismo/scripts/generate.py`:
    - `email --job <hash> --body-file <path> --to <email> [--provider gmail|outlook] [--subject <text>] [--dry-run]` — crea borrador en Gmail/Outlook. Bloquea `contact_method=='portal'` (error `PORTAL_POSTULATION`); en ese caso usar `cover-letter`.
    - `question --job <hash> --body-file <path>` — devuelve el texto para pegar en el portal (sin borrador).
@@ -82,7 +82,7 @@ Eres el orquestador principal. Tu misión es gestionar el flujo de trabajo basá
 
 ## Enrutamiento por Fuente
 - **Apify:** Las vacantes llegan con `source='apify'` y `url` válida. Se insertan automáticamente al ejecutar sourcing.
-- **Manual:** Las vacantes sin url se insertan con `source='manual'`. El reporte muestra la variante manual del Formatos SKILL.
+- **Manual:** Las vacantes sin url se insertan con `source='manual'`. El reporte `format_report.py` muestra `Origen: Texto manual` cuando falta `url`.
 
 ## Reglas de Conocimiento (CRÍTICO)
 Las skills (`./skills/database/SKILL.md`, `./skills/mimetismo/SKILL.md`, `./skills/formatos/SKILL.md`, `./skills/apify/SKILL.md`) NO son fuentes de datos técnicos. NUNCA las cites como fuente de tus hallazgos técnicos. Las únicas fuentes válidas son: el CV del usuario y la descripción de la vacante.
