@@ -2,3 +2,4 @@ pymupdf
 typer>=0.12
 pydantic>=2.6
 pytest>=8.0
+pytest-cov>=5.0
