@@ -1,43 +1,47 @@
 ---
-name: Skills Mimetismo Estratégico
-description: Gestión de voz del usuario para cualquier comunicación saliente.
+name: Mimetismo — Generate CLI
+description: Documentación del CLI generate.py para correos, preguntas y cartas. Reemplaza los flujos prompt-based de mimetismo/contacto/gmail/outlook.
 scope: GLOBAL
 ---
 
-# Guía de Mimetismo Estratégico
+# Mimetismo — `generate.py` CLI
 
-## Objetivo
-Configurar el estilo de redacción para CUALQUIER comunicación saliente (correos, respuestas a preguntas técnicas de portales, cartas de presentación). El agente debe redactar asumiendo la voz del usuario, manteniendo un tono profesional, estratégico y humilde.
+La redacción (voz del usuario) la hace el agente; el envío la hace un script determinista.
 
-## Estrategia de Contenido (Anti-Genérico)
-Para que cualquier respuesta sea de alto impacto, el agente debe:
-1. **Identificar el "Pain Point":** ¿Qué es lo más difícil que pide la oferta?
-2. **Cruzar con Logros:** Seleccionar del CV los logros más cercanos a ese dolor.
-3. **Mimetismo de Estilo:** Extraer la estructura y patrones de `data/correos.md`.
-4. **Filtro de Humildad:** Usar "He implementado", "Tengo experiencia con" en lugar de "Soy un experto en".
-5. **Links formateados:** Si `data/perfil.md` contiene link al CV (Drive, repositorio), LinkedIn o GitHub, incluirlos como hipervínculos HTML en el cuerpo del correo. Por ejemplo:
-   `Mi <a href="https://github.com/Juliotamara23">GitHub</a>` en lugar de la URL cruda. Esto aplica tanto para correos en Gmail (--html) como en Outlook (contentType: HTML).
+## Invocación
 
-## Aplicación
-Esta skill se aplica en cualquier comunicación saliente: correos de postulación, cartas de presentación y respuestas a cuestionarios técnicos de portales.
-
-## Salida estructurada (cuando borradores están activados)
-Tras redactar un correo, leer `data/preferencias.md`.
-
-- Si `gmail_drafts: sí` o `outlook_drafts: sí`, emitir el correo con marcadores estructurados para que la skill correspondiente (Gmail u Outlook) pueda extraer los campos:
-
-```
----TO: rrhh@empresa.com
----SUBJECT: Postulación: Cargo
----BODY:
-Cuerpo del correo...
+```bash
+.venv/Scripts/python.exe skills/mimetismo/scripts/generate.py <command> [options]
 ```
 
-  El cuerpo continúa hasta el final del bloque del correo.
+**Convención:** venv-first (`.venv/Scripts/python.exe` en Windows, `.venv/bin/python` en Unix); fallback a `python`/`python3` si no hay `.venv/`.
 
-- Si el usuario indica "sin borrador" para este correo, omitir los marcadores y mostrar el correo en el chat. La preferencia global se mantiene para futuros correos.
+## Comandos
 
+- `email --job <hash> --body-file <path> --to <email> [--provider gmail|outlook] [--subject <text>] [--dry-run]`
+  Crea un borrador en Gmail/Outlook. **Bloqueado** si `analyses.contact_method == "portal"` (error `PORTAL_POSTULATION`, usar `cover-letter`). Actualiza `jobs.status = 'applied'`.
+- `question --job <hash> --body-file <path>`
+  Devuelve el texto formateado para copiar/pegar en el portal. **No crea borrador.** Error `EMPTY_QUESTION` si el cuerpo está vacío.
+- `cover-letter --job <hash> --body-file <path> [--provider gmail|outlook] [--to <email>] [--subject <text>] [--dry-run]`
+  Funciona siempre. Con provider + `--to` crea borrador y marca `applied`. Sin provider (o sin `--to`) devuelve el texto.
 
+## Contrato de body HTML
+
+El agente escribe el cuerpo en `temp/cvp-{hash}-body.html` (UTF-8) y pasa la ruta con `--body-file`. El script:
+
+1. Reemplaza marcadores `[github]`, `[linkedin]`, `[cv]`, `[whatsapp]` por `<a href>` desde `data/perfil.md`.
+2. Agrega la firma (nombre + links de perfil) al final.
+3. Detecta el provider desde `data/preferencias.md` (`gmail_drafts: sí` / `outlook_drafts: sí`); `--provider` sobrescribe. Tolerante a `sí`/`si`/`yes`/`true`.
+4. Al final de cada ejecución (éxito o error) ejecuta `scripts/cleanup.py`.
+
+## Output
+
+JSON en stdout (éxito) o stderr (error) con `{"ok": true|false, ..., "code": "..."}`. Códigos: `JOB_NOT_FOUND`, `ANALYSIS_NOT_FOUND`, `PORTAL_POSTULATION`, `NO_PROVIDER`, `BODY_FILE_MISSING`, `PROVIDER_CLI_MISSING`, `DRAFT_FAILED`, `EMPTY_QUESTION`, `VALIDATION_ERROR`.
+
+## Proveedores
+
+- **Gmail:** `gws gmail +send --html --draft` (ver `docs/gws-setup.md`).
+- **Outlook:** PowerShell heredoc + Microsoft Graph (ver `docs/outlook-setup.md`).
 
 ## Scripts de Respaldo
 *(Vacío — si un script generado resuelve un vacío permanente, se documenta aquí con su propósito y uso.)*
