@@ -232,6 +232,27 @@ class TestBuildMarkdown:
         md = format_report._build_markdown(job, analysis, {})
         assert "83%" in md
 
+    def test_markdown_syntax_chars_preserved(self, tmp_db):
+        """* _ # [ ] in observaciones and tldr must not break formatting."""
+        h = _seed_job()
+        _seed_analysis(
+            h,
+            observaciones="Usa *patrones* y [referencias]_con_guion. Ver #123.",
+            tldr="Stack [moderno] con _énfasis_ y *destreza*.",
+        )
+        job, analysis = _load(h)
+        md = format_report._build_markdown(job, analysis, {})
+        # Literal chars preserved verbatim
+        assert "*patrones*" in md
+        assert "[referencias]_con_guion" in md
+        assert "#123" in md
+        assert "[moderno]" in md
+        assert "_énfasis_" in md
+        assert "*destreza*" in md
+        # Section headers still intact (no formatting leak)
+        assert "🆔 ID:" in md
+        assert "⚖️ Comparativa" in md
+
 
 class TestBuildProfile:
     def test_parses_name_and_links(self, tmp_path, monkeypatch):
