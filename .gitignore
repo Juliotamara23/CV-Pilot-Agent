@@ -10,6 +10,8 @@ openspec/
 cv-pilot-agent/db/
 cv-pilot-agent/data/
 cv-pilot-agent/.venv/
+cv-pilot-agent/scratch/
+cv-pilot-agent/sdd/
 __pycache__/
 cv-pilot-agent/temp/*
 !cv-pilot-agent/temp/.gitkeep

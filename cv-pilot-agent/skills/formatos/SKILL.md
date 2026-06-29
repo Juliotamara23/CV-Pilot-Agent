@@ -1,86 +1,50 @@
 ---
 name: Skill Formatos
-description: Estructuras de salida para análisis de vacantes y opciones de postulación.
+description: CLI `format_report.py` — genera reportes de análisis (markdown | json) deterministas. Lectura de DB.
 scope: STRUCTURAL_ONLY
-version: 3.0
+version: 4.0
 ---
 
 # Formatos de Salida
 
-## ATENCIÓN
-Este archivo define la estructura de los reportes y las opciones de postulación. No es fuente de conocimiento técnico. NUNCA lo cites para fundamentar análisis de habilidades.
+Este skill es ahora un script determinista. El agente NO redacta el reporte — lo genera el CLI.
 
-## Reporte de Análisis
+## CLI: `skills/formatos/scripts/format_report.py`
 
-```
-🆔 ID: [analysis_id]
-📅 Fecha: [Actual]
-🔗 Fuente: [url de la oferta extraída de la DB | "Origen: Texto manual"]
-💻 Empresa: [Nombre] | Cargo: [Nombre]
-🚩 Localidad: [Ciudad/Remoto/Híbrido]
-🎯 Porcentaje: [X%]
+Lectura de `jobs` + `analyses` (vía `_lib.db`) y `data/perfil.md`. Salida a stdout.
 
-⚖️ Comparativa Técnica:
-[Por cada requisito de la vacante, evaluar contra el CV del usuario]
-- [Requisito] | Análisis: [evaluación concreta]
-
-💡 Observaciones y Riesgos:
-[Análisis del stack, infraestructura, metodologías y dominio. Explicar impacto de las brechas.]
-
-✅ Veredicto: [Apto | Apto con reservas | No apto]
-🌟 TL;DR: [Resumen ejecutivo — máximo 3 líneas]
-```
-
-## Opciones de Postulación
-
-Al finalizar cada análisis, presentar las opciones según el método de contacto detectado por `skills/contacto/SKILL.md`. NUNCA ejecutar automáticamente — el usuario elige.
-
-### Si se detectó email de contacto
-
-1. **Generar correo de postulación** — redacta el correo usando tu estilo (`skills/mimetismo/SKILL.md`). Si `gmail_drafts: sí`, se guarda como borrador en Gmail. Si `outlook_drafts: sí`, se guarda como borrador en Outlook (ver `docs/outlook-setup.md`). Si ambos están activos, el agente pregunta al usuario a qué proveedor guardar el correo. Si ninguno está activo, se muestra en el chat con link `mailto:`.
-2. **Generar preguntas para entrevista técnica** — preguntas frecuentes basadas en la vacante y tu perfil.
- 3. **Modo discusión** — ¿tienes dudas sobre este análisis?
-
-## Formato de Correo Generado
-
-Al presentar el correo al usuario, usar esta estructura:
+### Uso
 
 ```
-📧 Borrador de Correo
-
-**Para:** [email del destinatario]
-**Asunto:** [asunto profesional]
-
-**Cuerpo:**
-[Redacción generada por mimetismo con hipervínculos HTML]
-
-**Firma:**
-[Nombre]
-[LinkedIn] | [GitHub] | [WhatsApp]
-
-📬 Estado: [Guardado como borrador en Gmail | Guardado como borrador en Outlook | Mostrado en chat — revisa antes de enviar]
+python skills/formatos/scripts/format_report.py --job <hash> [--format markdown|json]
 ```
 
-Si el correo se muestra en el chat (sin proveedor de borradores activo), incluir también un link `mailto:`:
+- `--job <hash>` (obligatorio): SHA256 del trabajo analizado (tabla `jobs`).
+- `--format` (opcional): `markdown` (default, legible) o `json` (programático).
 
-```
-[📩 Abrir en tu gestor de correo](mailto:[email]?subject=[asunto]&body=[cuerpo])
-```
+### Synopsis del flujo (AGENTS.md paso 4d)
 
-### Si NO se detectó email (`PORTAL_POSTULATION`)
+1. El agente pasa el `job_hash` persistido en el paso 4c.
+2. El CLI genera el reporte — campos ausentes (`salary`, `url`, `public_date`[→ `created_at`]) se degradan con defaults; `None` nunca aparece en el reporte markdown.
+3. El agente muestra la salida del CLI al usuario como reporte final.
+4. El agente NO añade texto propio al reporte — es output determinista del script.
 
-1. **Generar carta de presentación** — texto para copiar y pegar en el portal de postulación, redactado con tu estilo (`skills/mimetismo/SKILL.md`), con hipervínculos HTML.
-2. **Generar preguntas para entrevista técnica** — igual que arriba.
-3. **Modo discusión** — igual que arriba.
+### Salida markdown — secciones (en orden)
 
-## Instrucciones para el Agente
+`ID · Fecha · Fuente · Empresa/Cargo · Localidad · Porcentaje · Comparativa Técnica · Observaciones y Riesgos · Veredicto · TL;DR · (links perfil HTML)`
 
-- **Cero citas:** No incluir marcadores de origen en el texto final.
-- **Email vs Portal:** La skill `contacto/SKILL.md` retorna `PORTAL_POSTULATION` cuando no hay email. Usar esto para decidir qué opciones mostrar.
-- **ID:** Usar el `analysis_id` (UUID) generado al persistir el análisis.
-- **Fuente:** Usar el campo `url` de la tabla `jobs` (no el campo `source`). `source` es para uso interno del orquestador.
-- **Comparativa:** Cada línea usa el formato `- [Requisito] | Análisis: [evaluación]` con pipe literal.
-- **CV Link:** Si `data/perfil.md` contiene link al CV, LinkedIn o GitHub, incluirlos como hipervínculos HTML (`<a href="...">texto</a>`) en el correo o carta generados, no como URLs crudas.
+- **Fuente:** campo `url` de `jobs`; si falta → `Origen: Texto manual`.
+- **Comparativa:** bullets `- Requisito | Análisis: evaluación` (pipe literal).
+- **Links perfil:** si `data/perfil.md` trae CV/LinkedIn/GitHub, se añaden como `<a href="...">texto</a>` al final del reporte.
+- **Cero citas:** ver `rules/integridad.md`.
+
+### Errores (exit 1, envelope JSON a stderr)
+
+| code | causa |
+|------|-------|
+| `INVALID_FORMAT` | `--format` no es `markdown`/`json` |
+| `JOB_NOT_FOUND` (heredado) | `--job` no existe en `jobs` |
+| `ANALYSIS_NOT_FOUND` (heredado) | el job no tiene análisis asociado |
 
 ## Scripts de Respaldo
-*(Vacío — si un script generado resuelve un vacío permanente, se documenta aquí con su propósito y uso.)*
+- `skills/formatos/scripts/format_report.py` — generador de reportes (este skill). Reemplaza el template prompt-based previo (respaldo en `SKILL.md.bak`).
