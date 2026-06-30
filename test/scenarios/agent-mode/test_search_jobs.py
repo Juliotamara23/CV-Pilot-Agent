@@ -170,6 +170,10 @@ def _make_run(info=INFO_JSON, dataset=INDEED_RAW, persist=PERSIST_JSON, calls=No
 def _has_apify(monkeypatch):
     monkeypatch.setattr(search_jobs.shutil, "which",
                         lambda name: "/usr/bin/apify" if name == "apify" else None)
+    # Also patch the apify_client module where actual CLI checks happen
+    import _apify_internal.apify_client as ac_mod
+    monkeypatch.setattr(ac_mod.shutil, "which",
+                        lambda name: "/usr/bin/apify" if name == "apify" else None)
 
 
 def test_cli_help_exits_zero():

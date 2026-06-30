@@ -19,6 +19,7 @@ All output is a single JSON envelope on stdout; errors go to stderr as
 from __future__ import annotations
 
 import json
+import shutil
 import sys
 from pathlib import Path
 from typing import Optional
