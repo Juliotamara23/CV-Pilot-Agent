@@ -77,9 +77,6 @@ def build_markdown(job: dict, analysis: dict, profile: dict) -> str:
         f"🌟 TL;DR: {(analysis.get('tldr') or '').strip()}",
     ]
     body = "\n".join(sections)
-    links = links_html(profile)
-    if links:
-        body += "\n\n" + links
     return body
 
 
