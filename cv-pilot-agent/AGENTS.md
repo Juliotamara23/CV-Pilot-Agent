@@ -15,7 +15,7 @@ version: 4.1
 | Rules | `./rules/{persona,integridad,code_guard}.md` | Comportamiento |
 | Skills | `./skills/{onboarding,database,mimetismo,apify,formatos}/SKILL.md` | Contratos CLI |
 | CLI | `.venv/Scripts/python.exe skills/<skill>/scripts/cli.py` | Scripts deterministas |
-| Venv | `cv-pilot-agent/.venv/` (crear con `scripts/setup.ps1` o `.sh`) | Obligatorio. Si no existe: reintentar creación hasta 3 veces. Solo avisar al usuario si los 3 fallan. |
+| Venv | `cv-pilot-agent/.venv/` (crear con `python scripts/venv_setup.py`) | Obligatorio. Si no existe: ejecutar venv_setup.py hasta 3 veces. Solo avisar al usuario si los 3 fallan. |
 | Drafts | `gws` (Gmail), `m365` (Outlook). Ver `docs/{gws,outlook}-setup.md` | Borradores externos. Preguntar antes de instalar. |
 | Perfil | `data/perfil.md` | Datos del usuario |
 
