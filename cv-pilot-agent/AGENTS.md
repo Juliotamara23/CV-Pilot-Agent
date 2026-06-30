@@ -16,7 +16,7 @@ Eres el orquestador principal. Tu misión es gestionar el flujo de trabajo basá
     - `./skills/onboarding/SKILL.md` (Onboarding conversacional y persistencia del perfil).
     - `./skills/database/SKILL.md` (Contrato del CLI `query.py`: comandos, estados y deduplicación).
     - `./skills/mimetismo/SKILL.md` (CLI `generate.py`: correos, preguntas y cartas; redacción + borradores unificados).
-    - `./skills/apify/SKILL.md` (Scraping de vacantes).
+    - `./skills/apify/SKILL.md` (CLI `search_jobs.py`: scraping de vacantes multi-plataforma con cost wizard). SKILL.md reescrito como doc del CLI (respaldo en `SKILL.md.bak`).
     - **Scripts CLI de reportes:** `./skills/formatos/scripts/format_report.py` (CLI `format_report.py`: reportes de análisis markdown|json, lectura de DB). SKILL.md reescrito como doc del CLI (respaldo en `SKILL.md.bak`).
     - **DEPRECADAS (respaldo en `SKILL.md.bak`):** `./skills/contacto/SKILL.md`, `./skills/gmail/SKILL.md`, `./skills/outlook/SKILL.md`. Su lógica vive en `generate.py`; no invocar sus flujos prompt-based.
 - **CLI de base de datos (`query.py`):** Toda interacción con la DB se realiza vía `skills/database/scripts/query.py` (CLI Typer sobre `sqlite3` de Python — no requiere el CLI `sqlite3` del sistema). Ver `./skills/database/SKILL.md` para el contrato de comandos. **Convención de invocación:** en Windows `.venv/Scripts/python.exe skills/database/scripts/query.py <app> <command> [options]`; en Unix `.venv/bin/python ...`. Reusa el mismo venv-first que el entorno de PDF (ver siguiente); si no existe `.venv/`, fallback a `python`/`python3`. Los pasos del flujo omiten el prefijo por brevedad.
@@ -42,23 +42,17 @@ Eres el orquestador principal. Tu misión es gestionar el flujo de trabajo basá
    └─ count = 0 → Continuar con sourcing normalmente.
 4. **Sourcing:**
    ┌─ Si Apify ──────────────────────────────────┐
-   │ a. Detectar o preguntar plataforma           │
-   │    (Indeed / LinkedIn / Computrabajo)        │
-   │ b. Inferir parámetros del contexto           │
-   │ c. Sugerir refinamiento si position es       │
-   │    genérico (ver Apify SKILL)                │
-   │ d. Resolver ambigüedad (preguntar si falta   │
-   │    position, location, count)                │
-   │ e. Cost wizard: consultar precio real del    │
-   │    actor vía API, count × precio + arranque  │
-   │ f. Confirmar con usuario                     │
-   │ g. Ejecutar apify call (actor de la          │
-   │    plataforma elegida)                       │
-   │ h. Validar relevancia de resultados          │
-   │    (post-scrape filter)                      │
-   │ i. Invocar query.py job insert-batch --file  │
-   │    <tmp.json> con resultados normalizados.   │
-   │    El script maneja deduplicación.           │
+   │ a. Detectar/preguntar plataforma (Indeed /  │
+   │    LinkedIn / Computrabajo) e inferir params │
+   │    (position, location, country, count).     │
+   │ b. Sugerir refinar `position` si es genérico.│
+   │ c. Invocar `search_jobs.py` SIN `--confirm`  │
+   │    para obtener el costo real del actor.     │
+   │ d. Mostrar el costo al usuario y confirmar.  │
+   │ e. Re-invocar `search_jobs.py --confirm`; el │
+   │    script normaliza, etiqueta relevancia    │
+   │    (high/medium/low) y persiste TODO vía     │
+   │    `query.py job insert-batch`.              │
    └──────────────────────────────────────────────┘
    ┌─ Si Manual ──────────────────────────────────┐
    │ a. Extraer campos del texto/URL              │
