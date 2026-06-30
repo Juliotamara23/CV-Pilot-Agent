@@ -97,8 +97,14 @@ def _patch_environment(monkeypatch, root: Path, *, which=None, run=None):
     monkeypatch.setattr(generate, "_AGENT_ROOT", root)
     if which is not None:
         monkeypatch.setattr(generate.shutil, "which", which)
+        # Also patch shutil in the drafts module where actual CLI checks happen
+        import _mimetismo_internal.drafts as drafts_mod
+        monkeypatch.setattr(drafts_mod.shutil, "which", which)
     if run is not None:
         monkeypatch.setattr(generate.subprocess, "run", run)
+        # Also patch subprocess in the drafts module
+        import _mimetismo_internal.drafts as drafts_mod
+        monkeypatch.setattr(drafts_mod.subprocess, "run", run)
 
 
 # --------------------------------------------------------------------------- #
