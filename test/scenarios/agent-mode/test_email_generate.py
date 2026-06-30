@@ -1,4 +1,4 @@
-"""Tests for `skills/mimetismo/scripts/generate.py`.
+"""Tests for `skills/mimetismo/scripts/cli.py`.
 
 Unit tests target the pure helpers (_load_profile, _load_preferences,
 _format_links, _detect_provider, _signature_footer); error tests cover the
@@ -19,14 +19,17 @@ from typer.testing import CliRunner
 from _lib import db
 from _lib.models import AnalysisInsert, JobInsert
 
-# Import the generate module (it lives in a scripts dir without a parent
+# Import the cli module (it lives in a scripts dir without a parent
 # package on sys.path, so insert it explicitly).
 _AGENT_ROOT = Path(__file__).resolve().parent.parent.parent.parent / "cv-pilot-agent"
 _GEN_DIR = _AGENT_ROOT / "skills" / "mimetismo" / "scripts"
 if str(_GEN_DIR) not in sys.path:
     sys.path.insert(0, str(_GEN_DIR))
 
-import generate  # type: ignore  # noqa: E402
+import cli as generate  # type: ignore  # noqa: E402
+from _lib.links import format_links as _format_links, signature_footer as _signature_footer  # noqa: E402
+from _lib.providers import detect_provider_optional as _detect_provider_optional, detect_provider as _detect_provider  # noqa: E402
+from _lib.shared.profile_loader import load_profile as _load_profile  # noqa: E402
 
 
 runner = CliRunner()
@@ -90,7 +93,7 @@ def _fake_run_factory(calls: list):
 
 
 def _patch_environment(monkeypatch, root: Path, *, which=None, run=None):
-    """Point generate.py at a tmp agent root + stub provider/shell helpers."""
+    """Point cli.py at a tmp agent root + stub provider/shell helpers."""
     monkeypatch.setattr(generate, "_AGENT_ROOT", root)
     if which is not None:
         monkeypatch.setattr(generate.shutil, "which", which)
@@ -104,8 +107,7 @@ def _patch_environment(monkeypatch, root: Path, *, which=None, run=None):
 class TestLoadProfile:
     def test_parses_contact_fields(self, tmp_path, monkeypatch):
         root = _write_data(tmp_path)
-        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
-        profile = generate._load_profile()
+        profile = _load_profile(root)
         assert profile["name"] == "Julio Andrés Támara Hernández"
         assert profile["linkedin"] == "https://linkedin.com/in/example"
         assert profile["github"] == "https://github.com/example"
@@ -116,8 +118,7 @@ class TestLoadProfile:
     def test_missing_file_returns_none_profile(self, tmp_path, monkeypatch):
         root = tmp_path / "no-data-root"
         root.mkdir()
-        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
-        profile = generate._load_profile()
+        profile = _load_profile(root)
         assert profile["name"] is None
         assert profile["github"] is None
 
@@ -151,23 +152,23 @@ class TestLoadPreferences:
 
 class TestDetectProvider:
     def test_override_wins(self):
-        assert generate._detect_provider_optional(
+        assert _detect_provider_optional(
             {"gmail_drafts": True, "outlook_drafts": True}, "outlook"
         ) == "outlook"
 
     def test_gmail_preferred_when_both_true(self):
-        assert generate._detect_provider_optional(
+        assert _detect_provider_optional(
             {"gmail_drafts": True, "outlook_drafts": True}, None
         ) == "gmail"
 
     def test_only_outlook(self):
-        assert generate._detect_provider_optional(
+        assert _detect_provider_optional(
             {"gmail_drafts": False, "outlook_drafts": True}, None
         ) == "outlook"
 
     def test_none_raises_no_provider(self):
         with pytest.raises(Exception) as exc:
-            generate._detect_provider({"gmail_drafts": False, "outlook_drafts": False}, None)
+            _detect_provider({"gmail_drafts": False, "outlook_drafts": False}, None)
         assert "NO_PROVIDER" in exc.value.code
 
 
@@ -178,7 +179,7 @@ class TestFormatLinks:
             "cv_url": "https://drive.google.com/cv", "whatsapp": "+57 320 1",
         }
         body = "Visita [github] y [linkedin]; mi [cv] o [whatsapp]."
-        out = generate._format_links(body, profile)
+        out = _format_links(body, profile)
         assert '[github]' not in out and '[linkedin]' not in out
         assert '[cv]' not in out and '[whatsapp]' not in out
         assert '<a href="https://github.com/x">GitHub</a>' in out
@@ -187,11 +188,11 @@ class TestFormatLinks:
         assert '<a href="+57 320 1">WhatsApp</a>' in out
 
     def test_missing_url_falls_back_to_label(self):
-        out = generate._format_links("link [github]", {"github": None})
+        out = _format_links("link [github]", {"github": None})
         assert out == "link GitHub"
 
     def test_special_chars_preserved(self):
-        out = generate._format_links("ñ &aacute; &lt;script&gt; [cv]", {"cv_url": None})
+        out = _format_links("ñ &aacute; &lt;script&gt; [cv]", {"cv_url": None})
         assert "ñ" in out and "&aacute;" in out and "&lt;script&gt;" in out
 
 
@@ -201,7 +202,7 @@ class TestSignatureFooter:
             "name": "Julio", "github": "https://g", "linkedin": "https://l",
             "cv_url": "https://cv", "whatsapp": None,
         }
-        footer = generate._signature_footer(profile)
+        footer = _signature_footer(profile)
         assert "Julio" in footer
         assert '<a href="https://g">GitHub</a>' in footer
         assert '<a href="https://l">LinkedIn</a>' in footer
@@ -209,7 +210,7 @@ class TestSignatureFooter:
         assert "WhatsApp" not in footer  # whatsapp URL was None
 
     def test_no_name_no_links(self):
-        assert generate._signature_footer({}) == "<br><br>Saludos cordiales,<br>"
+        assert _signature_footer({}) == "<br><br>Saludos cordiales,<br>"
 
 
 # --------------------------------------------------------------------------- #

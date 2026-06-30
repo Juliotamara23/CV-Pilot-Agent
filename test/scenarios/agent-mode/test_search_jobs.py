@@ -1,4 +1,4 @@
-"""Tests for `skills/apify/scripts/search_jobs.py` and its platform adapters.
+"""Tests for `skills/apify/scripts/cli.py` and its platform adapters.
 
 Adapter tests (build_input / normalize_output / get_actor / source suffix /
 min_count) run with no network and no DB. CLI tests mock ``subprocess.run`` and
@@ -17,14 +17,14 @@ from pydantic import ValidationError
 from typer.testing import CliRunner
 
 # Make cv-pilot-agent/ importable (for _lib) and the scripts/ dir importable
-# (for `search_jobs` and the `platforms` package), mirroring test_format_report.
+# (for `cli` and the `platforms` package), mirroring test_format_report.
 _AGENT_ROOT = Path(__file__).resolve().parent.parent.parent.parent / "cv-pilot-agent"
 _SCRIPTS_DIR = _AGENT_ROOT / "skills" / "apify" / "scripts"
 for _p in (_AGENT_ROOT, _SCRIPTS_DIR):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-import search_jobs  # type: ignore  # noqa: E402
+import cli as search_jobs  # type: ignore  # noqa: E402
 from platforms.base import SearchParams  # noqa: E402
 from platforms.computrabajo import ComputrabajoAdapter  # noqa: E402
 from platforms.indeed import IndeedAdapter  # noqa: E402

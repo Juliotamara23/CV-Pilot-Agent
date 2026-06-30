@@ -1,4 +1,4 @@
-"""Tests for the onboarding CLI (`skills/onboarding/scripts/onboard.py`).
+"""Tests for the onboarding CLI (`skills/onboarding/scripts/cli.py`).
 
 Run with the venv Python:
     .venv/Scripts/python.exe -m pytest test/scenarios/agent-mode/test_onboard.py
@@ -16,11 +16,11 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-# Make the scripts dir importable so `import onboard` works from anywhere.
+# Make the scripts dir importable so `import cli` works from anywhere.
 _SCRIPTS_DIR = Path(__file__).resolve().parents[3] / "cv-pilot-agent" / "skills" / "onboarding" / "scripts"
 sys.path.insert(0, str(_SCRIPTS_DIR))
 
-import onboard  # noqa: E402
+import cli as onboard  # noqa: E402
 
 runner = CliRunner()
 
@@ -126,14 +126,14 @@ def test_render_template_missing_field_defaults_empty(tmp_path):
 
 
 def test_email_block_with_examples():
-    block = onboard._email_block({"email_examples": ["Hola", "Chau"]})
+    block = onboard.email_block({"email_examples": ["Hola", "Chau"]})
     assert "### Ejemplo 1" in block
     assert "### Ejemplo 2" in block
     assert "Hola" in block
 
 
 def test_email_block_without_examples():
-    block = onboard._email_block({})
+    block = onboard.email_block({})
     assert "No se proporcionaron" in block
 
 
