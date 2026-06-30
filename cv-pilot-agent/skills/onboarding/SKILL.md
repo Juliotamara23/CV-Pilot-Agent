@@ -9,10 +9,6 @@ version: 3.0
 
 Documentación del CLI `skills/onboarding/scripts/cli.py`. El agente conserva el **Paso 5 (verificación con el usuario)** como único paso conversacional.
 
-## Resolución del intérprete (venv-first)
-
-Usar `.venv/Scripts/python.exe` (Windows) o `.venv/bin/python` (Unix). Si no existe, crearlo con `python scripts/venv_setup.py` (reintentar hasta 3 veces). Solo informar al usuario si los 3 intentos fallan.
-
 ## Comandos
 
 Todos emiten JSON a stdout; exit `0` en `ok: true`, `1` en caso contrario.
