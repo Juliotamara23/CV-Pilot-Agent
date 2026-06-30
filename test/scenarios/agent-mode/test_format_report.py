@@ -26,7 +26,7 @@ if str(_FMT_DIR) not in sys.path:
     sys.path.insert(0, str(_FMT_DIR))
 
 import cli as format_report  # type: ignore  # noqa: E402
-from _internal.builders import (  # noqa: E402
+from _formatos_internal.builders import (  # noqa: E402
     build_json as _build_json,
     build_markdown as _build_markdown,
     format_comparativa as _format_comparativa,

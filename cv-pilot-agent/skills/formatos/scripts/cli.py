@@ -32,7 +32,7 @@ import typer  # noqa: E402
 from _lib import db  # noqa: E402
 from _lib.errors import CV_PilotError  # noqa: E402
 
-from _internal.builders import build_json, build_markdown  # noqa: E402
+from _formatos_internal.builders import build_json, build_markdown  # noqa: E402
 
 app = typer.Typer(
     name="format_report",

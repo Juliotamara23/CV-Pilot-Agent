@@ -27,8 +27,8 @@ if str(_GEN_DIR) not in sys.path:
     sys.path.insert(0, str(_GEN_DIR))
 
 import cli as generate  # type: ignore  # noqa: E402
-from _internal.links import format_links as _format_links, signature_footer as _signature_footer  # noqa: E402
-from _internal.providers import detect_provider_optional as _detect_provider_optional, detect_provider as _detect_provider  # noqa: E402
+from _mimetismo_internal.links import format_links as _format_links, signature_footer as _signature_footer  # noqa: E402
+from _mimetismo_internal.providers import detect_provider_optional as _detect_provider_optional, detect_provider as _detect_provider  # noqa: E402
 from _lib.shared.profile_loader import load_profile as _load_profile  # noqa: E402
 
 
