@@ -11,9 +11,7 @@ Documentación del CLI `skills/onboarding/scripts/onboard.py`. El agente conserv
 
 ## Resolución del intérprete (venv-first)
 
-Usar `.venv/Scripts/python.exe` (Windows) o `.venv/bin/python` (Unix). Si no
-existe `.venv/`, fallback a `python`/`python3`. Crear el venv solo con permiso
-explícito del usuario (ver `scripts/setup.ps1` / `setup.sh`).
+Usar `.venv/Scripts/python.exe` (Windows) o `.venv/bin/python` (Unix). Si no existe, solicitar permiso para crearlo (`scripts/setup.ps1` / `setup.sh`).
 
 ## Comandos
 
