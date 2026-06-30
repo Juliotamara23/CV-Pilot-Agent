@@ -14,8 +14,8 @@ version: 4.1
 |---|---|---|
 | Rules | `./rules/{persona,integridad,code_guard}.md` | Comportamiento |
 | Skills | `./skills/{onboarding,database,mimetismo,apify,formatos}/SKILL.md` | Contratos CLI |
-| CLI | `.venv/Scripts/python.exe skills/<skill>/scripts/cli.py` | Scripts deterministas |
-| Venv | `cv-pilot-agent/.venv/` (crear con `python scripts/venv_setup.py`) | Obligatorio. Si no existe: ejecutar venv_setup.py hasta 3 veces. Solo avisar al usuario si los 3 fallan. |
+| CLI | `.venv/Scripts/python.exe skills/<skill>/scripts/cli.py` | Scripts (database usa `query.py`) |
+| Venv | `cv-pilot-agent/.venv/` (`python scripts/venv_setup.py`) | Obligatorio. Si no existe: crear hasta 3 intentos. Avisar solo si fallan los 3. |
 | Drafts | `gws` (Gmail), `m365` (Outlook). Ver `docs/{gws,outlook}-setup.md` | Borradores externos. Preguntar antes de instalar. |
 | Perfil | `data/perfil.md` | Datos del usuario |
 
@@ -30,24 +30,24 @@ version: 4.1
 - Archivo adjunto → Manual
 
 **3. Verificar DB (OBLIGATORIO antes de sourcing):**
-- `query.py job list --status new`
+- `skills/database/scripts/query.py job list --status new`
 - Si count > 0: "Tengo N vacantes pendientes. ¿Analizo primero o busco nuevas?"
 - Si count = 0: continuar sourcing
 
 **4a. Sourcing — Apify:**
 - Detectar plataforma (Indeed/LinkedIn/Computrabajo), inferir params
-- `search_jobs.py` sin `--confirm` → mostrar costo → confirmar con usuario
-- `search_jobs.py --confirm` → normaliza, etiqueta relevancia (high/medium/low), persiste TODO
+- `skills/apify/scripts/cli.py` sin `--confirm` → mostrar costo → confirmar con usuario
+- `skills/apify/scripts/cli.py --confirm` → normaliza, etiqueta relevancia (high/medium/low), persiste TODO
 
 **4b. Sourcing — Manual:**
 - Extraer campos del texto/URL. Si faltan, preguntar.
-- `query.py job insert --company ... --position ... --source manual`
+- `skills/database/scripts/query.py job insert --company ... --position ... --source manual`
 
 **5. Análisis:**
-- `query.py job list --status new`
+- `skills/database/scripts/query.py job list --status new`
 - Analizar vacante vs CV (razonamiento del agente). Guardar `contact_method` (email/portal).
-- `query.py analysis insert --job-hash ... --percentage ... --comparativa ... --observaciones ... --verdict ... --tldr ... --contact-method ...`
-- `format_report.py --job <hash>` → mostrar reporte al usuario
+- `skills/database/scripts/query.py analysis insert --job-hash ... --percentage ... --comparativa ... --observaciones ... --verdict ... --tldr ... --contact-method ...`
+- `skills/formatos/scripts/cli.py --job <hash>` → mostrar reporte al usuario
 
 **6. Redacción/Respuesta:**
 - Redactar con mimetismo (`data/correos.md`), guardar HTML en `temp/cvp-<hash>-body.html`
@@ -68,7 +68,8 @@ version: 4.1
 - Las skills NO son fuentes de datos técnicos. Solo el CV y la vacante.
 - **Silencio operativo:** nunca mostrar archivos de configuración ni pasos internos.
 - **Cero citas:** no incluir marcadores de origen en el output.
-- **Reporte determinista:** el output de `format_report.py` es el reporte final. No agregar texto propio, resúmenes, ni formato adicional.
+- **Reporte determinista:** el output de `skills/formatos/scripts/cli.py` es el reporte final. No agregar texto propio, resúmenes, ni formato adicional.
+- **NUNCA ejecutar acciones sin confirmación del usuario** (análisis, borradores, envíos).
 
 ## Veredictos
 - Stack principal no coincide → No apto.
