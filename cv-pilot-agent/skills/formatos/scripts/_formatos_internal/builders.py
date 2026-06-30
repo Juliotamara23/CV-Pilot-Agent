@@ -53,7 +53,11 @@ def build_markdown(job: dict, analysis: dict, profile: dict) -> str:
     position = job.get("position") or ""
     location = job.get("location") or ""
     percentage = analysis.get("percentage")
-    pct = f"{float(percentage):.0f}" if percentage is not None else "0"
+    try:
+        raw = str(percentage).replace("%", "").strip()
+        pct = f"{float(raw):.0f}"
+    except (ValueError, TypeError):
+        pct = "0"
     observaciones = (analysis.get("observaciones") or "").strip()
     sections = [
         f"🆔 ID: {analysis.get('analysis_id') or ''}",
