@@ -1,6 +1,6 @@
 ---
 name: Skill Formatos
-description: CLI `format_report.py` — genera reportes de análisis (markdown | json) deterministas. Lectura de DB.
+description: CLI `cli.py` — genera reportes de análisis (markdown | json) deterministas. Lectura de DB.
 scope: STRUCTURAL_ONLY
 version: 4.0
 ---
@@ -9,14 +9,14 @@ version: 4.0
 
 Este skill es ahora un script determinista. El agente NO redacta el reporte — lo genera el CLI.
 
-## CLI: `skills/formatos/scripts/format_report.py`
+## CLI: `skills/formatos/scripts/cli.py`
 
 Lectura de `jobs` + `analyses` (vía `_lib.db`) y `data/perfil.md`. Salida a stdout.
 
 ### Uso
 
 ```
-python skills/formatos/scripts/format_report.py --job <hash> [--format markdown|json]
+python skills/formatos/scripts/cli.py --job <hash> [--format markdown|json]
 ```
 
 - `--job <hash>` (obligatorio): SHA256 del trabajo analizado (tabla `jobs`).
@@ -47,4 +47,4 @@ python skills/formatos/scripts/format_report.py --job <hash> [--format markdown|
 | `ANALYSIS_NOT_FOUND` (heredado) | el job no tiene análisis asociado |
 
 ## Scripts de Respaldo
-- `skills/formatos/scripts/format_report.py` — generador de reportes.
+- `skills/formatos/scripts/cli.py` — generador de reportes.

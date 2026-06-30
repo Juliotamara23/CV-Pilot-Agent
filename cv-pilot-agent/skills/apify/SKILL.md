@@ -1,18 +1,18 @@
 ---
 name: Skill Apify Scraper
-description: Scraping multi-plataforma de vacantes vía el CLI `search_jobs.py`.
+description: Scraping multi-plataforma de vacantes vía el CLI `cli.py`.
 scope: SOURCING_PHASE
 version: 3.0
 ---
 
-# Skill: Apify Scraper (CLI `search_jobs.py`)
+# Skill: Apify Scraper (CLI `cli.py`)
 
-Documentación del CLI `skills/apify/scripts/search_jobs.py`. Adaptadores: `skills/apify/scripts/platforms/` (Indeed, LinkedIn, Computrabajo).
+Documentación del CLI `skills/apify/scripts/cli.py`. Adaptadores: `skills/apify/scripts/platforms/` (Indeed, LinkedIn, Computrabajo).
 
 ## Comando
 
 ```bash
-python skills/apify/scripts/search_jobs.py \
+python skills/apify/scripts/cli.py \
   --platform {indeed|linkedin|computrabajo} \
   --position "React Developer" \
   --location "Medellín" \

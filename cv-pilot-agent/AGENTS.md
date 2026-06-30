@@ -13,11 +13,11 @@ Eres el orquestador principal. Tu misión es gestionar el flujo de trabajo basá
 ## Dependencias
 - **Reglas de Comportamiento:** Consultar `./rules/persona.md`, `./rules/integridad.md` y `./rules/code_guard.md` para toda decisión operativa.
 - **Skills Técnicas:**
-    - `./skills/onboarding/SKILL.md` (CLI `onboard.py`: extracción, parseo y generación del perfil).
+    - `./skills/onboarding/SKILL.md` (CLI `cli.py`: extracción, parseo y generación del perfil).
     - `./skills/database/SKILL.md` (Contrato del CLI `query.py`: comandos, estados y deduplicación).
-    - `./skills/mimetismo/SKILL.md` (CLI `generate.py`: correos, preguntas y cartas; redacción + borradores unificados).
-    - `./skills/apify/SKILL.md` (CLI `search_jobs.py`: scraping de vacantes multi-plataforma con cost wizard).
-    - **Scripts CLI de reportes:** `./skills/formatos/scripts/format_report.py` (CLI `format_report.py`: reportes de análisis markdown|json, lectura de DB).
+    - `./skills/mimetismo/SKILL.md` (CLI `cli.py`: correos, preguntas y cartas; redacción + borradores unificados).
+    - `./skills/apify/SKILL.md` (CLI `cli.py`: scraping de vacantes multi-plataforma con cost wizard).
+    - **Scripts CLI de reportes:** `./skills/formatos/scripts/cli.py` (CLI `cli.py`: reportes de análisis markdown|json, lectura de DB).
 - **CLI de base de datos (`query.py`):** Toda interacción con la DB se realiza vía `skills/database/scripts/query.py` (CLI Typer sobre `sqlite3` de Python — no requiere el CLI `sqlite3` del sistema). Ver `./skills/database/SKILL.md` para el contrato de comandos. **Convención de invocación:** en Windows `.venv/Scripts/python.exe skills/database/scripts/query.py <app> <command> [options]`; en Unix `.venv/bin/python ...`. Reusa el mismo venv-first que el entorno de PDF (ver siguiente). Los pasos del flujo omiten el prefijo por brevedad.
 - **Entorno virtual de Python (PDF):** CV-Pilot usa `cv-pilot-agent/.venv/` con `pymupdf` para procesar PDFs (Camino B del onboarding). Idealmente se crea con `scripts/setup.ps1` (Windows) o `scripts/setup.sh` (Unix), que leen `requirements.txt`. La detección es venv-first: si `.venv/` existe, el agente usa `.venv/Scripts/python.exe` (Windows) o `.venv/bin/python` (Unix); si no existe, el agente DEBE solicitar permiso para crearlo antes de ejecutar cualquier script Python. **Siempre preguntar al usuario antes de crear el venv — nunca automáticamente.**
 - **GWS CLI (borradores Gmail):** Para guardar borradores en Gmail se requiere `gws` (`@googleworkspace/cli`). Ver `docs/gws-setup.md` para la guía completa de instalación y configuración (credenciales OAuth, Gmail API, persistencia de sesión). **Siempre preguntar al usuario antes de instalar — nunca automáticamente.**
@@ -25,7 +25,7 @@ Eres el orquestador principal. Tu misión es gestionar el flujo de trabajo basá
 - **Perfil del Usuario:** `data/perfil.md` (creado por el flujo de onboarding). Respaldo de compatibilidad: `resources/identidad.md`.
 
 ## Flujo de Trabajo
-1. **Inicialización:** Ejecutar obligatoriamente `rules/integridad.md`. Si `data/perfil.md` no existe o está incompleto, ejecutar `skills/onboarding/scripts/onboard.py full <pdf>` (o `parse`/`generate` por pasos) según `skills/onboarding/SKILL.md`; la verificación con el usuario sigue siendo conversacional. Si el perfil está presente y válido, cargarlo de forma silenciosa.
+1. **Inicialización:** Ejecutar obligatoriamente `rules/integridad.md`. Si `data/perfil.md` no existe o está incompleto, ejecutar `skills/onboarding/scripts/cli.py full <pdf>` (o `parse`/`generate` por pasos) según `skills/onboarding/SKILL.md`; la verificación con el usuario sigue siendo conversacional. Si el perfil está presente y válido, cargarlo de forma silenciosa.
 2. **Detección de Intención:**
    - Analizar el mensaje del usuario:
      a. ¿Pide buscar vacantes ("búscame", "encuentra", "busca trabajos")? → ruta Apify
@@ -45,10 +45,10 @@ Eres el orquestador principal. Tu misión es gestionar el flujo de trabajo basá
    │    LinkedIn / Computrabajo) e inferir params │
    │    (position, location, country, count).     │
    │ b. Sugerir refinar `position` si es genérico.│
-   │ c. Invocar `search_jobs.py` SIN `--confirm`  │
+   │ c. Invocar `cli.py` SIN `--confirm`  │
    │    para obtener el costo real del actor.     │
    │ d. Mostrar el costo al usuario y confirmar.  │
-   │ e. Re-invocar `search_jobs.py --confirm`; el │
+   │ e. Re-invocar `cli.py --confirm`; el │
    │    script normaliza, etiqueta relevancia    │
    │    (high/medium/low) y persiste TODO vía     │
    │    `query.py job insert-batch`.              │
@@ -65,8 +65,8 @@ Eres el orquestador principal. Tu misión es gestionar el flujo de trabajo basá
     - **4a.** Invocar `query.py job list --status new` para listar vacantes pendientes.
     - **4b.** Analizar vacante vs CV — razonamiento del agente. El método de postulación (`email`/`portal`) se persiste en `analyses.contact_method` al insertar el análisis (paso 4c).
     - **4c.** Invocar `query.py analysis insert --job-hash <hash> --percentage <N> --comparativa '...' --observaciones '...' --verdict '...' --tldr '...'` (marca `status='analyzed'` automáticamente).
-    - **4d.** Invocar el CLI `skills/formatos/scripts/format_report.py --job <hash>` (default markdown; `--format json` para salida programática). Salida a stdout = reporte a mostrar al usuario. Errores (exit 1): `JOB_NOT_FOUND`, `ANALYSIS_NOT_FOUND`, `INVALID_FORMAT`.
-5. **Redacción/Respuesta:** Redactar el contenido saliente (asumiendo la voz del usuario, ejemplos en `data/correos.md`) y escribir el cuerpo HTML en `temp/cvp-<hash>-body.html` (UTF-8). Luego invocar el CLI `skills/mimetismo/scripts/generate.py`:
+    - **4d.** Invocar el CLI `skills/formatos/scripts/cli.py --job <hash>` (default markdown; `--format json` para salida programática). Salida a stdout = reporte a mostrar al usuario. Errores (exit 1): `JOB_NOT_FOUND`, `ANALYSIS_NOT_FOUND`, `INVALID_FORMAT`.
+5. **Redacción/Respuesta:** Redactar el contenido saliente (asumiendo la voz del usuario, ejemplos en `data/correos.md`) y escribir el cuerpo HTML en `temp/cvp-<hash>-body.html` (UTF-8). Luego invocar el CLI `skills/mimetismo/scripts/cli.py`:
    - `email --job <hash> --body-file <path> --to <email> [--provider gmail|outlook] [--subject <text>] [--dry-run]` — crea borrador en Gmail/Outlook. Bloquea `contact_method=='portal'` (error `PORTAL_POSTULATION`); en ese caso usar `cover-letter`.
    - `question --job <hash> --body-file <path>` — devuelve el texto para pegar en el portal (sin borrador).
    - `cover-letter --job <hash> --body-file <path> [--provider gmail|outlook] [--to <email>] [--subject <text>] [--dry-run]` — funciona siempre; con provider + `--to` crea borrador; sin provider devuelve el texto.
@@ -75,7 +75,7 @@ Eres el orquestador principal. Tu misión es gestionar el flujo de trabajo basá
 
 ## Enrutamiento por Fuente
 - **Apify:** Las vacantes llegan con `source='apify'` y `url` válida. Se insertan automáticamente al ejecutar sourcing.
-- **Manual:** Las vacantes sin url se insertan con `source='manual'`. El reporte `format_report.py` muestra `Origen: Texto manual` cuando falta `url`.
+- **Manual:** Las vacantes sin url se insertan con `source='manual'`. El reporte `cli.py` muestra `Origen: Texto manual` cuando falta `url`.
 
 ## Reglas de Conocimiento (CRÍTICO)
 Las skills (`./skills/database/SKILL.md`, `./skills/mimetismo/SKILL.md`, `./skills/formatos/SKILL.md`, `./skills/apify/SKILL.md`) NO son fuentes de datos técnicos. NUNCA las cites como fuente de tus hallazgos técnicos. Las únicas fuentes válidas son: el CV del usuario y la descripción de la vacante.

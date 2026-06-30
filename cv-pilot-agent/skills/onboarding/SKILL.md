@@ -1,13 +1,13 @@
 ---
 name: Onboarding (CLI determinista)
-description: CLI `onboard.py` — extrae, parsea y genera el perfil del usuario en data/.
+description: CLI `cli.py` — extrae, parsea y genera el perfil del usuario en data/.
 scope: GLOBAL
 version: 3.0
 ---
 
-# Onboarding (CLI `onboard.py`)
+# Onboarding (CLI `cli.py`)
 
-Documentación del CLI `skills/onboarding/scripts/onboard.py`. El agente conserva el **Paso 5 (verificación con el usuario)** como único paso conversacional.
+Documentación del CLI `skills/onboarding/scripts/cli.py`. El agente conserva el **Paso 5 (verificación con el usuario)** como único paso conversacional.
 
 ## Resolución del intérprete (venv-first)
 
@@ -18,10 +18,10 @@ Usar `.venv/Scripts/python.exe` (Windows) o `.venv/bin/python` (Unix). Si no exi
 Todos emiten JSON a stdout; exit `0` en `ok: true`, `1` en caso contrario.
 
 ```
-python skills/onboarding/scripts/onboard.py extract <pdf_path>
-python skills/onboarding/scripts/onboard.py parse <source> [--links URL ...]
-python skills/onboarding/scripts/onboard.py generate --fields-file <path> [--out-dir data] [--no-backup]
-python skills/onboarding/scripts/onboard.py full <pdf_path> [--fields-file <path>] [--out-dir data] [--no-backup]
+python skills/onboarding/scripts/cli.py extract <pdf_path>
+python skills/onboarding/scripts/cli.py parse <source> [--links URL ...]
+python skills/onboarding/scripts/cli.py generate --fields-file <path> [--out-dir data] [--no-backup]
+python skills/onboarding/scripts/cli.py full <pdf_path> [--fields-file <path>] [--out-dir data] [--no-backup]
 ```
 
 | Comando | Qué hace |

@@ -1,10 +1,10 @@
 ---
 name: Mimetismo — Generate CLI
-description: CLI generate.py para correos, preguntas y cartas.
+description: CLI cli.py para correos, preguntas y cartas.
 scope: GLOBAL
 ---
 
-# generate.py CLI
+# cli.py CLI
 
 La redacción la hace el agente; el envío, el script.
 
