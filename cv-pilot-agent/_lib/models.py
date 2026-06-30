@@ -14,6 +14,19 @@ Status = Literal["new", "analyzed", "discarded", "applied", "rejected"]
 VALID_STATUSES: tuple[str, ...] = ("new", "analyzed", "discarded", "applied", "rejected")
 
 
+def validate_status(value: str) -> str:
+    """Validate that *value* is a legal job status; raise ``ValueError`` otherwise.
+
+    Centralises the status-check so callers (db.py, query.py) do not duplicate
+    the ``if value not in VALID_STATUSES`` guard.
+    """
+    if value not in VALID_STATUSES:
+        raise ValueError(
+            f"Invalid status '{value}'. Must be one of: {', '.join(VALID_STATUSES)}"
+        )
+    return value
+
+
 class JobInsert(BaseModel):
     """Input shape for inserting a single job. Hash/computed fields excluded."""
 

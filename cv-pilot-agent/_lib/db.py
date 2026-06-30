@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from .errors import DatabaseError, JobNotFoundError, ValidationError
-from .models import VALID_STATUSES, AnalysisInsert, JobInsert
+from .models import VALID_STATUSES, AnalysisInsert, JobInsert, validate_status
 
 # Module-level default DB path: <this file>/../db/cv-pilot.db
 DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent / "db" / "cv-pilot.db"
@@ -214,13 +214,11 @@ def list_jobs(status: Optional[str] = None, limit: int = 10) -> dict[str, Any]:
     """List jobs, optionally filtered by status, with a row cap."""
     conn = get_connection()
     try:
-        if status is not None:
-            if status not in VALID_STATUSES:
-                raise ValidationError(
-                    f"Invalid status '{status}'. Must be one of: "
-                    f"{', '.join(VALID_STATUSES)}",
-                    code="INVALID_STATUS",
-                )
+    if status is not None:
+        try:
+            validate_status(status)
+        except ValueError as exc:
+            raise ValidationError(str(exc), code="INVALID_STATUS") from exc
             rows = conn.execute(
                 "SELECT * FROM jobs WHERE status = ? LIMIT ?", (status, limit)
             ).fetchall()
@@ -265,12 +263,11 @@ def delete_jobs(
     if job_hash is None and status is None:
         raise ValidationError("delete_jobs requires --hash or --status")
 
-    if status is not None and status not in VALID_STATUSES:
-        raise ValidationError(
-            f"Invalid status '{status}'. Must be one of: "
-            f"{', '.join(VALID_STATUSES)}",
-            code="INVALID_STATUS",
-        )
+    if status is not None:
+        try:
+            validate_status(status)
+        except ValueError as exc:
+            raise ValidationError(str(exc), code="INVALID_STATUS") from exc
 
     conn = get_connection()
     try:
@@ -393,12 +390,10 @@ def get_analysis(job_hash: str) -> dict[str, Any]:
 
 def update_status(job_hash: str, status: str) -> dict[str, Any]:
     """Update a job's status. Validates the enum and job existence."""
-    if status not in VALID_STATUSES:
-        raise ValidationError(
-            f"Invalid status '{status}'. Must be one of: "
-            f"{', '.join(VALID_STATUSES)}",
-            code="INVALID_STATUS",
-        )
+    try:
+        validate_status(status)
+    except ValueError as exc:
+        raise ValidationError(str(exc), code="INVALID_STATUS") from exc
 
     conn = get_connection()
     try:

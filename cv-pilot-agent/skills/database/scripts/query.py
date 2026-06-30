@@ -37,7 +37,7 @@ import typer  # noqa: E402
 
 from _lib import db  # noqa: E402
 from _lib.errors import CV_PilotError  # noqa: E402
-from _lib.models import VALID_STATUSES, AnalysisInsert, JobInsert  # noqa: E402
+from _lib.models import VALID_STATUSES, AnalysisInsert, JobInsert, validate_status  # noqa: E402
 
 app = typer.Typer(
     name="query",
@@ -166,12 +166,15 @@ def job_delete(
     if status is not None and hash is not None:
         _emit_error("Use --status OR --hash, not both.", "VALIDATION_ERROR")
         raise typer.Exit(code=1)
-    if status is not None and status not in VALID_STATUSES:
-        _emit_error(
-            f"Invalid status '{status}'. Must be one of: {', '.join(VALID_STATUSES)}",
-            "INVALID_STATUS",
-        )
-        raise typer.Exit(code=1)
+    if status is not None:
+        try:
+            validate_status(status)
+        except ValueError:
+            _emit_error(
+                f"Invalid status '{status}'. Must be one of: {', '.join(VALID_STATUSES)}",
+                "INVALID_STATUS",
+            )
+            raise typer.Exit(code=1)
     _run(lambda: _emit(db.delete_jobs(job_hash=hash, status=status, dry_run=dry_run)))
 
 
