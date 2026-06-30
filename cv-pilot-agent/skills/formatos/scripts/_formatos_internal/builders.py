@@ -53,7 +53,7 @@ def build_markdown(job: dict, analysis: dict, profile: dict) -> str:
     position = job.get("position") or ""
     location = job.get("location") or ""
     percentage = analysis.get("percentage")
-    pct = f"{float(percentage):.0f}" if isinstance(percentage, (int, float)) else "0"
+    pct = f"{float(percentage):.0f}" if percentage is not None else "0"
     observaciones = (analysis.get("observaciones") or "").strip()
     sections = [
         f"🆔 ID: {analysis.get('analysis_id') or ''}",

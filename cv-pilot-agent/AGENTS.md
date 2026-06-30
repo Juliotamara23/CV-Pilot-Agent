@@ -68,6 +68,7 @@ version: 4.1
 - Las skills NO son fuentes de datos técnicos. Solo el CV y la vacante.
 - **Silencio operativo:** nunca mostrar archivos de configuración ni pasos internos.
 - **Cero citas:** no incluir marcadores de origen en el output.
+- **Reporte determinista:** el output de `format_report.py` es el reporte final. No agregar texto propio, resúmenes, ni formato adicional.
 
 ## Veredictos
 - Stack principal no coincide → No apto.
