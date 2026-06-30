@@ -7,8 +7,8 @@ substitution, HTML wrapping, draft creation, status update and cleanup.
 
 Invoked by the orchestration layer (AGENTS.md) via subprocess::
 
-    python cv-pilot-agent/skills/mimetismo/scripts/generate.py --help
-    python cv-pilot-agent/skills/mimetismo/scripts/generate.py email \\
+    python cv-pilot-agent/skills/mimetismo/scripts/cli.py --help
+    python cv-pilot-agent/skills/mimetismo/scripts/cli.py email \\
         --job <hash> --body-file temp/cvp-<hash>-body.html --to rrhh@x.com
 
 Three subcommands: ``email``, ``question``, ``cover-letter``. Every command
@@ -22,14 +22,13 @@ from __future__ import annotations
 
 import json
 import re
-import shutil
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 from typing import Optional
 
 from _lib.shared.cli_utils import setup_syspath, setup_utf8
+from _lib.shared.profile_loader import load_profile
 
 # Force UTF-8 on the std streams so JSON output (ensure_ascii=False) and error
 # envelopes never depend on the host console codepage (e.g. Windows cp1252).
@@ -43,18 +42,21 @@ import typer  # noqa: E402
 from _lib import db  # noqa: E402
 from _lib.errors import CV_PilotError  # noqa: E402
 
+from _lib.drafts import create_draft_gmail, create_draft_outlook  # noqa: E402
+from _lib.links import format_links, signature_footer  # noqa: E402
+from _lib.providers import (  # noqa: E402
+    _TRUE,
+    detect_provider,
+    detect_provider_optional,
+)
+from _lib.subject import default_subject  # noqa: E402
+
 app = typer.Typer(
     name="generate",
     help="CV-Pilot email / cover-letter / question generation CLI.",
     add_completion=False,
     no_args_is_help=True,
 )
-
-# Value tokens accepted as a boolean "true" in preferencias.md.
-_TRUE = {"sí", "si", "yes", "true", "1"}
-# Profile/draft.json keys reused across link + footer builders.
-_LABELS = ("github", "linkedin", "cv_url", "whatsapp")
-_LABEL_TEXT = {"github": "GitHub", "linkedin": "LinkedIn", "cv_url": "CV", "whatsapp": "WhatsApp"}
 
 
 def _emit(payload: dict) -> None:
@@ -90,26 +92,6 @@ def _load_analysis(job_hash: str) -> dict:
     return db.get_analysis(job_hash)["analysis"]
 
 
-def _load_profile() -> dict:
-    path = _AGENT_ROOT / "data" / "perfil.md"
-    text = path.read_text(encoding="utf-8") if path.is_file() else ""
-    mapping = {
-        "Nombre completo": "name",
-        "LinkedIn": "linkedin",
-        "GitHub": "github",
-        "WhatsApp / Teléfono": "whatsapp",
-        "Correo electrónico": "email",
-        "Link al CV": "cv_url",
-    }
-    profile = {key: None for key in mapping.values()}
-    pattern = re.compile(r"^-\s*\*\*(.+?)\s*:\*\*\s*(.+?)\s*$", re.MULTILINE)
-    for label, value in pattern.findall(text):
-        key = mapping.get(label)
-        if key:
-            profile[key] = value.strip()
-    return profile
-
-
 def _load_preferences() -> dict:
     path = _AGENT_ROOT / "data" / "preferencias.md"
     prefs = {"gmail_drafts": False, "outlook_drafts": False}
@@ -123,27 +105,6 @@ def _load_preferences() -> dict:
     return prefs
 
 
-def _detect_provider_optional(prefs: dict, override: Optional[str]) -> Optional[str]:
-    if override:
-        return override
-    if prefs.get("gmail_drafts"):
-        return "gmail"
-    if prefs.get("outlook_drafts"):
-        return "outlook"
-    return None
-
-
-def _detect_provider(prefs: dict, override: Optional[str]) -> str:
-    prov = _detect_provider_optional(prefs, override)
-    if prov is None:
-        raise CV_PilotError(
-            "No provider configured. Set gmail_drafts/outlook_drafts in "
-            "preferencias.md or pass --provider.",
-            code="NO_PROVIDER",
-        )
-    return prov
-
-
 def _read_body_file(body_file: str) -> str:
     path = Path(body_file)
     if not path.is_file():
@@ -151,103 +112,13 @@ def _read_body_file(body_file: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def _format_links(body: str, profile: dict) -> str:
-    for key, marker in (("github", "[github]"), ("linkedin", "[linkedin]"),
-                        ("cv_url", "[cv]"), ("whatsapp", "[whatsapp]")):
-        url = profile.get(key)
-        label = _LABEL_TEXT[key]
-        tag = f'<a href="{url}">{label}</a>' if url else label
-        body = body.replace(marker, tag)
-    return body
-
-
-def _signature_footer(profile: dict) -> str:
-    links = [
-        f'<a href="{profile[key]}">{_LABEL_TEXT[key]}</a>'
-        for key in _LABELS if profile.get(key)
-    ]
-    name = profile.get("name") or ""
-    footer = "<br><br>Saludos cordiales,<br>"
-    if name:
-        footer += f"{name}<br>"
-    if links:
-        footer += " | ".join(links)
-    return footer
-
-
 def _wrap_gmail(body: str, profile: dict) -> str:
-    return _format_links(body, profile) + _signature_footer(profile)
+    return format_links(body, profile) + signature_footer(profile)
 
 
 def _wrap_outlook(body: str, profile: dict) -> str:
     # Outlook uses the same HTML body (contentType: HTML) as Gmail.
-    return _format_links(body, profile) + _signature_footer(profile)
-
-
-# --------------------------------------------------------------------------- #
-# Draft creation
-# --------------------------------------------------------------------------- #
-def _create_draft_gmail(to: str, subject: str, body_html: str) -> str:
-    if shutil.which("gws") is None:
-        raise CV_PilotError(
-            "gws CLI not found. Install and authenticate gws (see docs/gws-setup.md).",
-            code="PROVIDER_CLI_MISSING",
-        )
-    proc = subprocess.run(
-        ["gws", "gmail", "+send", "--to", to, "--subject", subject,
-         "--body", body_html, "--html", "--draft"],
-        capture_output=True, text=True, encoding="utf-8",
-    )
-    if proc.returncode != 0:
-        raise CV_PilotError(
-            f"Gmail draft creation failed: {proc.stderr.strip()}", code="DRAFT_FAILED"
-        )
-    return (proc.stdout.strip().splitlines() or [""])[0] or "draft"
-
-
-def _create_draft_outlook(to: str, subject: str, body_html: str) -> str:
-    if shutil.which("m365") is None:
-        raise CV_PilotError(
-            "m365 CLI not found. Install and login to m365 (see docs/outlook-setup.md).",
-            code="PROVIDER_CLI_MISSING",
-        )
-    shell = shutil.which("pwsh") or shutil.which("powershell")
-    if shell is None:
-        raise CV_PilotError(
-            "PowerShell not found (need pwsh or powershell for the Graph API call).",
-            code="PROVIDER_CLI_MISSING",
-        )
-    payload = json.dumps(
-        {"subject": subject, "body": {"contentType": "HTML", "content": body_html},
-         "toRecipients": [{"emailAddress": {"address": to}}]},
-        ensure_ascii=False,
-    )
-    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as fh:
-        body_path = fh.name
-        fh.write(payload)
-    script = (
-        "$ErrorActionPreference='Stop';"
-        "$token = m365 util accesstoken get --resource "
-        "'https://graph.microsoft.com' --output text;"
-        f"$body = Get-Content -Path '{body_path}' -Raw -Encoding UTF8;"
-        "$resp = Invoke-RestMethod -Uri "
-        "'https://graph.microsoft.com/v1.0/me/messages' -Method Post "
-        "-ContentType 'application/json; charset=utf-8' "
-        "-Headers @{Authorization = \"Bearer $token\"} -Body $body;"
-        "Write-Output $resp.id"
-    )
-    try:
-        proc = subprocess.run(
-            [shell, "-NoProfile", "-Command", script],
-            capture_output=True, text=True, encoding="utf-8",
-        )
-    finally:
-        Path(body_path).unlink(missing_ok=True)
-    if proc.returncode != 0:
-        raise CV_PilotError(
-            f"Outlook draft creation failed: {proc.stderr.strip()}", code="DRAFT_FAILED"
-        )
-    return (proc.stdout.strip().splitlines() or [""])[0] or "draft"
+    return format_links(body, profile) + signature_footer(profile)
 
 
 def _cleanup() -> None:
@@ -261,13 +132,6 @@ def _cleanup() -> None:
     except OSError:
         # Cleanup is non-blocking — never surface failures to the user.
         pass
-
-
-def _default_subject(prefix: str, job: dict) -> str:
-    position = (job.get("position") or "").strip()
-    company = (job.get("company") or "").strip()
-    suffix = f"{position} — {company}"
-    return f"{prefix}: {suffix}".strip(" —")
 
 
 # --------------------------------------------------------------------------- #
@@ -292,15 +156,15 @@ def email_cmd(
             )
         body = _read_body_file(body_file)
         prefs = _load_preferences()
-        prov = _detect_provider(prefs, provider)
-        profile = _load_profile()
+        prov = detect_provider(prefs, provider)
+        profile = load_profile(_AGENT_ROOT)
         html = _wrap_gmail(body, profile) if prov == "gmail" else _wrap_outlook(body, profile)
-        subj = subject or _default_subject("Postulación", job_row)
+        subj = subject or default_subject("Postulación", job_row)
         if dry_run:
             _emit({"ok": True, "mode": "email", "dry_run": True, "provider": prov,
                    "to": to, "subject": subj, "html": html, "job_hash": job})
             return
-        drafter = _create_draft_gmail if prov == "gmail" else _create_draft_outlook
+        drafter = create_draft_gmail if prov == "gmail" else create_draft_outlook
         draft_id = drafter(to, subj, html)
         db.update_status(job, "applied")
         _emit({"ok": True, "mode": "email", "provider": prov, "draft_id": draft_id,
@@ -340,18 +204,18 @@ def cover_letter_cmd(
         job_row = _load_job(job)
         _load_analysis(job)
         body = _read_body_file(body_file)
-        profile = _load_profile()
+        profile = load_profile(_AGENT_ROOT)
         prefs = _load_preferences()
         # Cover letter is the portal fallback — no PORTAL_POSTULATION block.
-        prov = _detect_provider_optional(prefs, provider)
-        wrapped = _format_links(body, profile) + _signature_footer(profile)
-        subj = subject or _default_subject("Carta de presentación", job_row)
+        prov = detect_provider_optional(prefs, provider)
+        wrapped = format_links(body, profile) + signature_footer(profile)
+        subj = subject or default_subject("Carta de presentación", job_row)
         if dry_run:
             _emit({"ok": True, "mode": "cover-letter", "dry_run": True,
                    "provider": prov, "html": wrapped, "job_hash": job})
             return
         if prov is not None and to:
-            drafter = _create_draft_gmail if prov == "gmail" else _create_draft_outlook
+            drafter = create_draft_gmail if prov == "gmail" else create_draft_outlook
             draft_id = drafter(to, subj, wrapped)
             db.update_status(job, "applied")
             _emit({"ok": True, "mode": "cover-letter", "provider": prov,
