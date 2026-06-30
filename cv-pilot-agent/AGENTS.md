@@ -13,7 +13,7 @@ Eres el orquestador principal. Tu misión es gestionar el flujo de trabajo basá
 ## Dependencias
 - **Reglas de Comportamiento:** Consultar `./rules/persona.md`, `./rules/integridad.md` y `./rules/code_guard.md` para toda decisión operativa.
 - **Skills Técnicas:**
-    - `./skills/onboarding/SKILL.md` (Onboarding conversacional y persistencia del perfil).
+    - `./skills/onboarding/SKILL.md` (CLI `onboard.py`: extracción, parseo y generación del perfil. SKILL.md reescrito como doc del CLI, respaldo en `SKILL.md.bak`).
     - `./skills/database/SKILL.md` (Contrato del CLI `query.py`: comandos, estados y deduplicación).
     - `./skills/mimetismo/SKILL.md` (CLI `generate.py`: correos, preguntas y cartas; redacción + borradores unificados).
     - `./skills/apify/SKILL.md` (CLI `search_jobs.py`: scraping de vacantes multi-plataforma con cost wizard). SKILL.md reescrito como doc del CLI (respaldo en `SKILL.md.bak`).
@@ -25,7 +25,7 @@ Eres el orquestador principal. Tu misión es gestionar el flujo de trabajo basá
 - **Perfil del Usuario:** `data/perfil.md` (creado por el flujo de onboarding). Respaldo de compatibilidad: `resources/identidad.md`.
 
 ## Flujo de Trabajo
-1. **Inicialización:** Ejecutar obligatoriamente `rules/integridad.md`. Si `data/perfil.md` no existe o está incompleto, derivar a `skills/onboarding/SKILL.md` para el flujo conversacional. Si el perfil está presente y válido, cargarlo de forma silenciosa.
+1. **Inicialización:** Ejecutar obligatoriamente `rules/integridad.md`. Si `data/perfil.md` no existe o está incompleto, ejecutar `skills/onboarding/scripts/onboard.py full <pdf>` (o `parse`/`generate` por pasos) según `skills/onboarding/SKILL.md`; la verificación con el usuario sigue siendo conversacional. Si el perfil está presente y válido, cargarlo de forma silenciosa.
 2. **Detección de Intención:**
    - Analizar el mensaje del usuario:
      a. ¿Pide buscar vacantes ("búscame", "encuentra", "busca trabajos")? → ruta Apify
