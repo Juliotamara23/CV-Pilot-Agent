@@ -19,14 +19,13 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from _lib.shared.cli_utils import setup_syspath, setup_utf8
+
 # Force UTF-8 on std streams so emoji/unicode never depend on host codepage.
-for _stream in (sys.stdout, sys.stderr):
-    if hasattr(_stream, "reconfigure"):
-        _stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+setup_utf8()
 
 # Make `cv-pilot-agent/` importable when the script is run by path.
-_AGENT_ROOT = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(_AGENT_ROOT))
+_AGENT_ROOT = setup_syspath(levels_up=3)
 
 import typer  # noqa: E402
 
