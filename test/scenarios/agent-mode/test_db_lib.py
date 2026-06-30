@@ -268,29 +268,21 @@ class TestGetAnalysis:
             db.get_analysis("missing")
 
 
-class TestContactMethodAutoMigration:
-    """The schema in conftest.SCHEMA_SQL intentionally lacks contact_method.
+class TestContactMethodSchema:
+    """contact_method is now part of the canonical schema in conftest and init.py.
 
-    Every ``get_connection()`` call runs ``_ensure_schema`` which ALTERs the
-    column into existence. These tests prove that migration explicitly.
+    The _ensure_schema migration was moved from db.py to scripts/init.py.
+    Tests verify that contact_method works correctly with the full schema.
     """
 
-    def test_column_missing_before_first_connection(self, tmp_db):
-        # tmp_db creates the DB with the old schema (no contact_method).
-        conn = sqlite3.connect(str(tmp_db))
-        cols = {row[1] for row in conn.execute("PRAGMA table_info(analyses)")}
-        conn.close()
-        assert "contact_method" not in cols
-
-    def test_column_added_after_connection(self, tmp_db):
-        # Triggering any db operation opens a connection → _ensure_schema runs.
-        db.insert_job(JobInsert(company="A", position="P", location="L"))
+    def test_contact_method_column_exists(self, tmp_db):
+        """The conftest schema includes contact_method (matches init.py)."""
         conn = sqlite3.connect(str(tmp_db))
         cols = {row[1] for row in conn.execute("PRAGMA table_info(analyses)")}
         conn.close()
         assert "contact_method" in cols
 
-    def test_contact_method_round_trip_after_migration(self, tmp_db):
+    def test_contact_method_round_trip(self, tmp_db):
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
         db.insert_analysis(AnalysisInsert(
             job_hash=h, percentage=80.0, comparativa="c",

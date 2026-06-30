@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS analyses (
     observaciones TEXT,
     verdict TEXT,
     tldr TEXT,
+    contact_method TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(job_hash) REFERENCES jobs(job_hash)
 );

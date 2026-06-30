@@ -4,6 +4,22 @@ from pathlib import Path
 # Ubicación de la base de datos
 db_path = Path(__file__).parent.parent / "db" / "cv-pilot.db"
 
+
+def _ensure_schema(conn: sqlite3.Connection) -> None:
+    """Idempotent schema migrations — adds missing columns to existing DBs.
+
+    New users get the full schema from the CREATE TABLE statements below.
+    Existing DBs opened by this function get missing columns added
+    automatically so the init script never needs to be modified for
+    additive changes.
+    """
+    try:
+        conn.execute("ALTER TABLE analyses ADD COLUMN contact_method TEXT")
+    except sqlite3.OperationalError:
+        # Column already exists — safe to ignore.
+        pass
+
+
 def init():
     try:
         # Crear directorio db/ si no existe
@@ -42,6 +58,10 @@ def init():
         )''')
         
         conn.commit()
+
+        # Run idempotent migrations for existing databases
+        _ensure_schema(conn)
+
         conn.close()
         print("DB Ready")
     except Exception as e:

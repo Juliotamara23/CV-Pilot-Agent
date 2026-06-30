@@ -40,20 +40,6 @@ def _resolve_db_path() -> str:
     return str(DEFAULT_DB_PATH)
 
 
-def _ensure_schema(conn: sqlite3.Connection) -> None:
-    """Idempotent schema migrations — adds missing columns to existing DBs.
-
-    New users get the full schema from ``scripts/init.py``. Existing DBs
-    opened by this module get missing columns added automatically, so
-    ``init.py`` never needs to be modified for additive changes.
-    """
-    try:
-        conn.execute("ALTER TABLE analyses ADD COLUMN contact_method TEXT")
-    except sqlite3.OperationalError:
-        # Column already exists — safe to ignore.
-        pass
-
-
 def get_connection() -> sqlite3.Connection:
     """Open a connection configured for the contract (WAL, FK=ON, Row).
 
@@ -74,7 +60,6 @@ def get_connection() -> sqlite3.Connection:
     except sqlite3.OperationalError:
         # In-memory / read-only filesystems reject WAL — fall back silently.
         pass
-    _ensure_schema(conn)
     return conn
 
 
