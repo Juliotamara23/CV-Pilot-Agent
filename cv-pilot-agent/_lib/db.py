@@ -214,11 +214,11 @@ def list_jobs(status: Optional[str] = None, limit: int = 10) -> dict[str, Any]:
     """List jobs, optionally filtered by status, with a row cap."""
     conn = get_connection()
     try:
-    if status is not None:
-        try:
-            validate_status(status)
-        except ValueError as exc:
-            raise ValidationError(str(exc), code="INVALID_STATUS") from exc
+        if status is not None:
+            try:
+                validate_status(status)
+            except ValueError as exc:
+                raise ValidationError(str(exc), code="INVALID_STATUS") from exc
             rows = conn.execute(
                 "SELECT * FROM jobs WHERE status = ? LIMIT ?", (status, limit)
             ).fetchall()

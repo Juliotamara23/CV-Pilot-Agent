@@ -9,7 +9,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from _lib.renderer import email_block, render_template
+from _internal.renderer import email_block, render_template
 
 TEMPLATES_DIR = Path(__file__).resolve().parents[2] / "templates"
 

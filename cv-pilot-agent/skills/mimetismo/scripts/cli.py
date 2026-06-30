@@ -42,14 +42,14 @@ import typer  # noqa: E402
 from _lib import db  # noqa: E402
 from _lib.errors import CV_PilotError  # noqa: E402
 
-from _lib.drafts import create_draft_gmail, create_draft_outlook  # noqa: E402
-from _lib.links import format_links, signature_footer  # noqa: E402
-from _lib.providers import (  # noqa: E402
+from _internal.drafts import create_draft_gmail, create_draft_outlook  # noqa: E402
+from _internal.links import format_links, signature_footer  # noqa: E402
+from _internal.providers import (  # noqa: E402
     _TRUE,
     detect_provider,
     detect_provider_optional,
 )
-from _lib.subject import default_subject  # noqa: E402
+from _internal.subject import default_subject  # noqa: E402
 
 app = typer.Typer(
     name="generate",

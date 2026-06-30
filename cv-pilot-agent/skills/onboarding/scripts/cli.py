@@ -34,10 +34,10 @@ sys.path.insert(0, str(_AGENT_ROOT / "scripts"))
 import typer  # noqa: E402
 from pdf_parser import extract as extract_pdf  # noqa: E402
 
-from _lib.extractor import read_text  # noqa: E402
-from _lib.parser import REQUIRED, parse_text  # noqa: E402
-from _lib.renderer import email_block, render_template  # noqa: E402
-from _lib.generator import generate_files  # noqa: E402
+from _internal.extractor import read_text  # noqa: E402
+from _internal.parser import REQUIRED, parse_text  # noqa: E402
+from _internal.renderer import email_block, render_template  # noqa: E402
+from _internal.generator import generate_files  # noqa: E402
 
 app = typer.Typer(
     name="onboard",

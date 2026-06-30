@@ -41,13 +41,13 @@ from platforms import (  # noqa: E402
 )
 from platforms.base import PlatformAdapter, SearchParams  # noqa: E402
 
-from _lib.apify_client import (  # noqa: E402
+from _internal.apify_client import (  # noqa: E402
     actor_cost,
     call_actor,
     check_apify_cli,
     persist_jobs,
 )
-from _lib.relevance import GENERIC_POSITIONS, label_relevance  # noqa: E402
+from _internal.relevance import GENERIC_POSITIONS, label_relevance  # noqa: E402
 
 app = typer.Typer(
     name="search_jobs",
