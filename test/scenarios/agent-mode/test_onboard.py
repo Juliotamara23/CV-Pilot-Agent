@@ -20,7 +20,11 @@ from typer.testing import CliRunner
 _SCRIPTS_DIR = Path(__file__).resolve().parents[3] / "cv-pilot-agent" / "skills" / "onboarding" / "scripts"
 sys.path.insert(0, str(_SCRIPTS_DIR))
 
-import cli as onboard  # noqa: E402
+import importlib.util as _ilu
+_spec = _ilu.spec_from_file_location("onboard_cli", str(_SCRIPTS_DIR / "cli.py"))
+onboard = _ilu.module_from_spec(_spec)
+sys.modules["onboard_cli"] = onboard
+_spec.loader.exec_module(onboard)
 
 runner = CliRunner()
 

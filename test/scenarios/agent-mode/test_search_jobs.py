@@ -24,7 +24,11 @@ for _p in (_AGENT_ROOT, _SCRIPTS_DIR):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-import cli as search_jobs  # type: ignore  # noqa: E402
+import importlib.util as _ilu
+_spec = _ilu.spec_from_file_location("search_jobs_cli", str(_SCRIPTS_DIR / "cli.py"))
+search_jobs = _ilu.module_from_spec(_spec)
+sys.modules["search_jobs_cli"] = search_jobs
+_spec.loader.exec_module(search_jobs)
 from platforms.base import SearchParams  # noqa: E402
 from platforms.computrabajo import ComputrabajoAdapter  # noqa: E402
 from platforms.indeed import IndeedAdapter  # noqa: E402

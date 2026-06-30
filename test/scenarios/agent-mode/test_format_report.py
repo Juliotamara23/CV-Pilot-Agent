@@ -25,7 +25,11 @@ _FMT_DIR = _AGENT_ROOT / "skills" / "formatos" / "scripts"
 if str(_FMT_DIR) not in sys.path:
     sys.path.insert(0, str(_FMT_DIR))
 
-import cli as format_report  # type: ignore  # noqa: E402
+import importlib.util as _ilu
+_spec = _ilu.spec_from_file_location("format_report_cli", str(_FMT_DIR / "cli.py"))
+format_report = _ilu.module_from_spec(_spec)
+sys.modules["format_report_cli"] = format_report
+_spec.loader.exec_module(format_report)
 from _formatos_internal.builders import (  # noqa: E402
     build_json as _build_json,
     build_markdown as _build_markdown,
