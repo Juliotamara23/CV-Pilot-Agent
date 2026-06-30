@@ -3,7 +3,7 @@
 Replaces the prompt-driven `skills/apify/SKILL.md` flow with a deterministic
 script invoked by the orchestrator (AGENTS.md) via subprocess::
 
-    python skills/apify/scripts/search_jobs.py --platform linkedin \
+    python skills/apify/scripts/cli.py --platform linkedin \
         --position "React Developer" --location "Medellín" --count 5
 
 Two-phase cost wizard: without ``--confirm`` the actor is *not* called — only
@@ -19,11 +19,7 @@ All output is a single JSON envelope on stdout; errors go to stderr as
 from __future__ import annotations
 
 import json
-import re
-import shutil
-import subprocess
 import sys
-import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -45,6 +41,14 @@ from platforms import (  # noqa: E402
 )
 from platforms.base import PlatformAdapter, SearchParams  # noqa: E402
 
+from _lib.apify_client import (  # noqa: E402
+    actor_cost,
+    call_actor,
+    check_apify_cli,
+    persist_jobs,
+)
+from _lib.relevance import GENERIC_POSITIONS, label_relevance  # noqa: E402
+
 app = typer.Typer(
     name="search_jobs",
     help="Multi-platform job scraping CLI via Apify actors.",
@@ -58,13 +62,7 @@ ADAPTERS: dict[str, type[PlatformAdapter]] = {
     "computrabajo": ComputrabajoAdapter,
 }
 
-# Single-word positions tend to yield noisy, low-relevance results.
-GENERIC_POSITIONS = {
-    "developer", "desarrollador", "ingeniero", "engineer", "trabajo",
-    "designer", "diseñador", "programador", "programmer", "analista", "analyst",
-}
-
-_QUERY_PY = _AGENT_ROOT / "skills" / "database" / "scripts" / "query.py"
+_QUERY_PY = str(_AGENT_ROOT / "skills" / "database" / "scripts" / "query.py")
 
 
 def _emit(payload: dict) -> None:
@@ -89,124 +87,6 @@ def _resolve_adapter(platform: str) -> PlatformAdapter:
     return cls()
 
 
-def _check_apify_cli() -> None:
-    if shutil.which("apify") is None:
-        _emit_error(
-            "Apify CLI not found on PATH. Install it and configure APIFY_TOKEN.",
-            "APIFY_CLI_MISSING",
-        )
-        raise typer.Exit(code=1)
-
-
-def _actor_cost(actor: str, count: int) -> float:
-    proc = subprocess.run(
-        ["apify", "actors", "info", actor, "--json"],
-        capture_output=True, text=True, encoding="utf-8",
-    )
-    if proc.returncode != 0:
-        _emit_error(
-            f"apify actors info failed: {proc.stderr.strip() or proc.stdout.strip()}",
-            "APIFY_INFO_FAILED",
-        )
-        raise typer.Exit(code=1)
-    info = json.loads(proc.stdout)
-    pricing = info.get("currentPricingInfo") or (info.get("pricingInfos") or [{}])[0] or info
-    events = (pricing.get("pricingPerEvent") or {}).get("actorChargeEvents") or {}
-    item = float(events.get("apify-default-dataset-item", {}).get("eventPriceUsd") or 0)
-    start = float(events.get("apify-actor-start", {}).get("eventPriceUsd") or 0)
-    return round(count * item + start, 6)
-
-
-def _parse_dataset(stdout: str) -> list[dict]:
-    text = stdout.strip()
-    if not text:
-        return []
-    try:
-        data = json.loads(text)
-        if isinstance(data, list):
-            return data
-        if isinstance(data, dict):
-            for key in ("items", "data"):
-                if isinstance(data.get(key), list):
-                    return data[key]
-        return []
-    except json.JSONDecodeError:
-        # NDJSON fallback (one JSON object per line).
-        items: list[dict] = []
-        for line in text.splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                items.append(json.loads(line))
-            except json.JSONDecodeError:
-                continue
-        return items
-
-
-def _call_actor(actor: str, actor_input: dict) -> list[dict]:
-    proc = subprocess.run(
-        ["apify", "call", actor, "--input", json.dumps(actor_input),
-         "--silent", "--output-dataset"],
-        capture_output=True, text=True, encoding="utf-8",
-    )
-    if proc.returncode != 0:
-        _emit_error(
-            f"apify call failed: {proc.stderr.strip() or proc.stdout.strip()}",
-            "APIFY_CALL_FAILED",
-        )
-        raise typer.Exit(code=1)
-    return _parse_dataset(proc.stdout)
-
-
-def _persist(jobs: list) -> Optional[dict]:
-    if not jobs:
-        return None
-    payload = [j.model_dump() for j in jobs]
-    with tempfile.NamedTemporaryFile(
-        "w", suffix=".json", delete=False, encoding="utf-8"
-    ) as tf:
-        json.dump(payload, tf, ensure_ascii=False)
-        tmp_path = tf.name
-    try:
-        proc = subprocess.run(
-            [sys.executable, str(_QUERY_PY), "job", "insert-batch", "--file", tmp_path],
-            capture_output=True, text=True, encoding="utf-8",
-        )
-        if proc.returncode != 0:
-            _emit_error(
-                f"query.py insert-batch failed: {proc.stderr.strip() or proc.stdout.strip()}",
-                "PERSIST_FAILED",
-            )
-            raise typer.Exit(code=1)
-        return json.loads(proc.stdout)
-    finally:
-        Path(tmp_path).unlink(missing_ok=True)
-
-
-_TOKEN_RE = re.compile(r"[a-z0-9áéíóúñ]+")
-
-
-def _tokens(text: str) -> list[str]:
-    return _TOKEN_RE.findall((text or "").lower())
-
-
-def _label_relevance(jobs: list, position: str) -> dict:
-    pos_tokens = set(_tokens(position))
-    counts = {"high": 0, "medium": 0, "low": 0}
-    for job in jobs:
-        title_tokens = set(_tokens(job.position))
-        if not pos_tokens:
-            counts["low"] += 1
-        elif pos_tokens.issubset(title_tokens):
-            counts["high"] += 1
-        elif title_tokens & pos_tokens:
-            counts["medium"] += 1
-        else:
-            counts["low"] += 1
-    return counts
-
-
 @app.command()
 def search(
     platform: str = typer.Option(..., help="Target platform: indeed|linkedin|computrabajo."),
@@ -225,7 +105,7 @@ def search(
     ),
 ) -> None:
     """Run a two-phase Apify job search, normalize and persist every result."""
-    _check_apify_cli()
+    check_apify_cli()
     adapter = _resolve_adapter(platform)
 
     if position.strip().lower() in GENERIC_POSITIONS:
@@ -253,7 +133,7 @@ def search(
         params = params.model_copy(update={"count": min_c})
 
     actor = adapter.get_actor()
-    cost = _actor_cost(actor, params.count)
+    cost = actor_cost(actor, params.count)
 
     if not confirm:
         _emit({
@@ -263,10 +143,10 @@ def search(
         })
         return
 
-    raw = _call_actor(actor, adapter.build_input(params))
+    raw = call_actor(actor, adapter.build_input(params))
     jobs = adapter.normalize_output(raw)
-    relevance = _label_relevance(jobs, position)
-    persisted = _persist(jobs)
+    relevance = label_relevance(jobs, position)
+    persisted = persist_jobs(jobs, _QUERY_PY)
     _emit({
         "ok": True, "phase": "done", "platform": platform, "actor": actor,
         "count": len(jobs), "cost_usd": cost, "relevance": relevance,
