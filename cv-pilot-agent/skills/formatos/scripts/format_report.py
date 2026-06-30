@@ -21,10 +21,8 @@ from typing import Optional
 
 # Force UTF-8 on std streams so emoji/unicode never depend on host codepage.
 for _stream in (sys.stdout, sys.stderr):
-    try:
-        _stream.reconfigure(encoding="utf-8")
-    except (AttributeError, ValueError):
-        pass
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
 
 # Make `cv-pilot-agent/` importable when the script is run by path.
 _AGENT_ROOT = Path(__file__).resolve().parents[3]

@@ -27,10 +27,8 @@ from typing import Optional
 # Force UTF-8 on the std streams so JSON output (ensure_ascii=False) and error
 # envelopes never depend on the host console codepage (e.g. Windows cp1252).
 for _stream in (sys.stdout, sys.stderr):
-    try:
-        _stream.reconfigure(encoding="utf-8")
-    except (AttributeError, ValueError):
-        pass
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
 
 # Make `cv-pilot-agent/` importable when the script is run by path.
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
@@ -38,7 +36,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 import typer  # noqa: E402
 
 from _lib import db  # noqa: E402
-from _lib.errors import CV_PilotError, ValidationError  # noqa: E402
+from _lib.errors import CV_PilotError  # noqa: E402
 from _lib.models import VALID_STATUSES, AnalysisInsert, JobInsert  # noqa: E402
 
 app = typer.Typer(

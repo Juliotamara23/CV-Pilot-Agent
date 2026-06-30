@@ -29,10 +29,8 @@ from typing import Optional
 
 # Force UTF-8 on std streams so unicode never depends on the host codepage.
 for _stream in (sys.stdout, sys.stderr):
-    try:
-        _stream.reconfigure(encoding="utf-8")
-    except (AttributeError, ValueError):
-        pass
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
 
 # Make cv-pilot-agent/ importable (for _lib) when run by path.
 _AGENT_ROOT = Path(__file__).resolve().parents[3]

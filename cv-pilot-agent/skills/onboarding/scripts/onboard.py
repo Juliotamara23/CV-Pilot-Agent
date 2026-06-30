@@ -25,10 +25,8 @@ from typing import Optional
 
 # Force UTF-8 on std streams so unicode never depends on host codepage.
 for _stream in (sys.stdout, sys.stderr):
-    try:
-        _stream.reconfigure(encoding="utf-8")
-    except (AttributeError, ValueError):
-        pass
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
 
 # Make ``cv-pilot-agent/`` importable so ``from pdf_parser import extract``
 # works regardless of CWD when the script is run by path or as a module.
