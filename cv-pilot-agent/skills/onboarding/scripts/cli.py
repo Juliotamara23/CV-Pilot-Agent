@@ -21,14 +21,15 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from _lib.shared.cli_utils import setup_syspath, setup_utf8
-
 # Force UTF-8 on std streams so unicode never depends on host codepage.
-setup_utf8()
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
 
 # Make ``cv-pilot-agent/`` importable so ``from pdf_parser import extract``
 # works regardless of CWD when the script is run by path or as a module.
-_AGENT_ROOT = setup_syspath(levels_up=3)
+_AGENT_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(_AGENT_ROOT))
 sys.path.insert(0, str(_AGENT_ROOT / "scripts"))
 
 import typer  # noqa: E402
