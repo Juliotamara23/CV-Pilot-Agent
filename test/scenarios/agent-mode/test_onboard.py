@@ -17,7 +17,7 @@ import pytest
 from typer.testing import CliRunner
 
 # Make the scripts dir importable so `import onboard` works from anywhere.
-_SCRIPTS_DIR = Path(__file__).resolve().parents[3] / "skills" / "onboarding" / "scripts"
+_SCRIPTS_DIR = Path(__file__).resolve().parents[3] / "cv-pilot-agent" / "skills" / "onboarding" / "scripts"
 sys.path.insert(0, str(_SCRIPTS_DIR))
 
 import onboard  # noqa: E402
