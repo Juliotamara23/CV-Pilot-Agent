@@ -7,10 +7,7 @@ version: 3.0
 
 # Skill: Apify Scraper (CLI `search_jobs.py`)
 
-Este SKILL es ahora documentación del CLI determinista
-`skills/apify/scripts/search_jobs.py`. El flujo prompt-based está deprecado
-(respaldo en `SKILL.md.bak` y `platforms/*.md.bak`). Los adaptadores viven en
-`skills/apify/scripts/platforms/` (Indeed, LinkedIn, Computrabajo).
+Documentación del CLI `skills/apify/scripts/search_jobs.py`. Adaptadores: `skills/apify/scripts/platforms/` (Indeed, LinkedIn, Computrabajo).
 
 ## Comando
 

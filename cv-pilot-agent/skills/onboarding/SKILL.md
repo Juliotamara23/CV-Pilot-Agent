@@ -1,16 +1,13 @@
 ---
 name: Onboarding (CLI determinista)
-description: CLI `onboard.py` — extrae, parsea y genera el perfil del usuario en data/. Reemplaza el flujo conversacional. Respaldo del flujo previo en `SKILL.md.bak`.
+description: CLI `onboard.py` — extrae, parsea y genera el perfil del usuario en data/.
 scope: GLOBAL
 version: 3.0
 ---
 
 # Onboarding (CLI `onboard.py`)
 
-Este SKILL es ahora documentación del CLI determinista
-`skills/onboarding/scripts/onboard.py`. El flujo conversacional está deprecado
-(respaldo en `SKILL.md.bak`). El agente conserva el **Paso 5 (verificación con
-el usuario)** como único paso conversacional.
+Documentación del CLI `skills/onboarding/scripts/onboard.py`. El agente conserva el **Paso 5 (verificación con el usuario)** como único paso conversacional.
 
 ## Resolución del intérprete (venv-first)
 
@@ -33,7 +30,7 @@ python skills/onboarding/scripts/onboard.py full <pdf_path> [--fields-file <path
 |---|---|
 | `extract` | Extrae texto + links de un PDF vía `pdf_parser.extract` (library import). |
 | `parse` | Regex/heurísticas sobre texto (archivo, stdin `-`, o PDF). Devuelve `fields` + `missing`. |
-| `generate` | Renderiza `perfil.md`, `correos.md`, `preferencias.md` desde `--fields-file` (JSON). Backup `.bak` antes de sobrescribir. |
+| `generate` | Renderiza `perfil.md`, `correos.md`, `preferencias.md` desde `--fields-file` (JSON). |
 | `full` | extract → parse → generate en una pasada. `--fields-file` aporta extras (preferencias, ejemplos de correos). |
 
 ## Flujo del agente
@@ -42,7 +39,7 @@ python skills/onboarding/scripts/onboard.py full <pdf_path> [--fields-file <path
 2. **Recolección:** obtener el CV (PDF o texto pegado). Para PDF, ejecutar `full <pdf> --fields-file <extras.json>`. Para texto, `parse` → revisar `missing` → pedir campos faltantes al usuario → `generate`.
 3. **Verificación (conversacional, obligatoria):** presentar el resumen de `fields` al usuario y pedir confirmación explícita antes de escribir. NUNCA escribir sin confirmación.
 4. **Preferencias y correos:** recolectar sector, tono, idioma, borradores Gmail/Outlook y 2-3 ejemplos de correos. Pasarlos en el `--fields-file`.
-5. **Persistencia:** el CLI crea los `.bak` y escribe los tres archivos en `data/`.
+5. **Persistencia:** el CLI escribe los tres archivos en `data/`.
 
 ## Campos esenciales (reportados en `missing`)
 

@@ -47,4 +47,4 @@ python skills/formatos/scripts/format_report.py --job <hash> [--format markdown|
 | `ANALYSIS_NOT_FOUND` (heredado) | el job no tiene análisis asociado |
 
 ## Scripts de Respaldo
-- `skills/formatos/scripts/format_report.py` — generador de reportes (este skill). Reemplaza el template prompt-based previo (respaldo en `SKILL.md.bak`).
+- `skills/formatos/scripts/format_report.py` — generador de reportes.
