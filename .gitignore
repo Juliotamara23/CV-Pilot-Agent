@@ -13,6 +13,8 @@ cv-pilot-agent/.venv/
 cv-pilot-agent/scratch/
 cv-pilot-agent/sdd/
 __pycache__/
+.coverage
+.pytest_cache/
 cv-pilot-agent/temp/*
 !cv-pilot-agent/temp/.gitkeep
 skills/gws-*/
