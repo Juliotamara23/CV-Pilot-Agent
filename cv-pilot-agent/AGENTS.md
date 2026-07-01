@@ -41,7 +41,10 @@ version: 4.1
 
 **4b. Sourcing — Manual:**
 - Extraer campos del texto/URL. Si faltan, preguntar.
-- `skills/database/scripts/query.py job insert --company ... --position ... --source manual`
+- **Verificar duplicación ANTES de insertar:** `query.py job get --hash <hash>` (SHA256 de company+position+location).
+  - Si no existe → `query.py job insert ... --source manual`
+  - Si existe + fecha más nueva → `query.py job insert ...` (el script refresca automáticamente)
+  - Si existe + misma fecha → informar "esta vacante ya está registrada" y no insertar
 
 **5. Análisis:**
 - `skills/database/scripts/query.py job list --status new`
