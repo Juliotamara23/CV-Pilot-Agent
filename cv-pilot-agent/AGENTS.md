@@ -57,6 +57,7 @@ version: 4.1
   - `cover-letter --job <h> --body-file <p> [...]` → siempre funciona.
 - Provider auto-detectado de `preferencias.md`; `--provider` sobrescribe.
 - Cleanup automático al finalizar.
+- **Cambios de estado:** usar `skills/database/scripts/query.py status set --hash <h> --status <s>`. NUNCA escribir SQL.
 
 **7. Discusión:** Responder consultas estratégicas basadas en análisis previo.
 

@@ -363,7 +363,7 @@ def get_analysis(job_hash: str) -> dict[str, Any]:
     conn = get_connection()
     try:
         row = conn.execute(
-            "SELECT * FROM analyses WHERE job_hash = ?", (job_hash,)
+            "SELECT * FROM analyses WHERE job_hash = ? ORDER BY created_at DESC LIMIT 1", (job_hash,)
         ).fetchone()
         if row is None:
             raise JobNotFoundError(
