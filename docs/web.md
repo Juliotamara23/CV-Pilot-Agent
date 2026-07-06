@@ -13,11 +13,11 @@ CV-Pilot Web es un orquestador de reclutamiento que funciona dentro de una gema 
 
    **Paso 1 — Crear gema:** haz clic en "+ Nueva Gema".
 
-   <img src="images/Gem1.png" alt="Crear nueva gema" width="500" />
+   <img src="../images/Gem1.png" alt="Crear nueva gema" width="500" />
 
    **Paso 2 — Configurar:** asigna un nombre, descripción y sube los archivos en la sección "Conocimiento". En instrucciones escribe: "Sigue las instrucciones descritas en AGENTS.md".
 
-   <img src="images/Gem2.png" alt="Configurar gema" width="500" />
+   <img src="../images/Gem2.png" alt="Configurar gema" width="500" />
 
 5. Sube estos archivos en la sección "Conocimiento":
 
