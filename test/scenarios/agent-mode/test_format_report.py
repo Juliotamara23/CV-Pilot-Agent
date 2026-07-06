@@ -204,15 +204,17 @@ class TestBuildMarkdown:
         assert "_(Sin observaciones)_" in md
         assert analysis["created_at"] in md
 
-    def test_profile_links_appended(self, tmp_path, tmp_db):
+    def test_profile_links_not_appended(self, tmp_path, tmp_db):
+        # After commit eda461a, profile links no longer appear in the analysis
+        # report (they belong in emails/cover-letters, not in the job report).
         h = _seed_job()
         _seed_analysis(h)
         job, analysis = _load(h)
         profile = {"cv_url": "https://cv", "linkedin": "https://li", "github": "https://gh"}
         md = _build_markdown(job, analysis, profile)
-        assert '<a href="https://cv">CV</a><br>' in md
-        assert '<a href="https://li">LinkedIn</a><br>' in md
-        assert '<a href="https://gh">GitHub</a><br>' in md
+        assert '<a href="https://cv">CV</a>' not in md
+        assert '<a href="https://li">LinkedIn</a>' not in md
+        assert '<a href="https://gh">GitHub</a>' not in md
 
     def test_no_profile_links_no_section(self, tmp_db):
         h = _seed_job()
@@ -333,7 +335,7 @@ class TestCLI:
         assert "🆔 ID:" in out
         assert "Acme" in out and "82%" in out
         assert "Apto" in out
-        assert '<a href="https://linkedin.com/in/example">LinkedIn</a>' in out
+        assert '<a href="https://linkedin.com/in/example">LinkedIn</a>' not in out
 
     def test_explicit_json(self, tmp_db, tmp_path, monkeypatch):
         root = _write_perfil(tmp_path)
