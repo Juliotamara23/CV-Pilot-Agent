@@ -4,7 +4,7 @@
 
 ## ✨ Qué hace
 
-- **Onboarding conversacional**: el agente chatea contigo, extrae tu CV (texto o PDF con PyMuPDF), verifica los datos y genera tu perfil automáticamente. Nunca más repetir el setup.
+- **Onboarding conversacional**: el agente chatea contigo, ejecuta `onboard.py` para extraer tu CV (texto o PDF con PyMuPDF), verifica los datos y genera tu perfil automáticamente. Nunca más repetir el setup.
 - **Búsqueda automática multi-plataforma**: Indeed, LinkedIn y Computrabajo con un presupuesto desde $5 USD/mes.
 - **Análisis técnico riguroso**: compara cada vacante contra tu CV real, tecnología por tecnología.
 - **Borradores en tu correo**: guarda las postulaciones como borrador en Gmail (`gws`) u Outlook (`m365` / Microsoft Graph) para que las revises antes de enviar. HTML con hipervínculos, sin URLs crudas.
@@ -24,7 +24,7 @@
 | **Borradores en Gmail** | ❌ | ✅ `gws` CLI |
 | **Borradores en Outlook** | ❌ | ✅ `m365` + Graph |
 | **Perfil persistente** | ❌ Cada sesión | ✅ `data/` automático |
-| **Setup** | Cero | `setup.ps1` / `setup.sh` |
+| **Setup** | Cero | `scripts/venv_setup.py` |
 
 > **Regla simple**: si solo quieres analizar vacantes rápido desde Gemini → **Web**. Si quieres automatización completa, búsqueda en plataformas y borradores en tu correo → **Agent**.
 
@@ -43,21 +43,21 @@
 ## 🧠 Arquitectura
 
 ```
-skills/onboarding/      → Onboarding conversacional y persistencia del perfil
-skills/apify/           → Scraping multi-plataforma (Indeed, LinkedIn, Computrabajo)
-skills/database/        → Persistencia y deduplicación en SQLite
-skills/contacto/        → Extracción de datos y auto-sanación
-skills/formatos/        → Reportes estructurados y opciones de postulación
-skills/mimetismo/       → Redacción personalizada con estilo del usuario
-skills/gmail/           → Borradores en Gmail vía gws CLI
-skills/outlook/         → Borradores en Outlook vía Microsoft Graph
-scripts/                → pdf_parser (PyMuPDF), setup (.venv), init (DB)
-data/                   → Perfil, correos de ejemplo y preferencias (local, gitignored)
+skills/onboarding/        → CLI onboard.py (extract, parse, generate, full)
+                              Persistencia de perfil en data/
+skills/apify/             → CLI search_jobs.py con plugins por plataforma
+                              (indeed, linkedin, computrabajo)
+skills/database/          → CLI query.py (ORM: list, insert, status, analysis)
+                              Persistencia y deduplicación en SQLite
+skills/mimetismo/         → CLI mimetismo.py (email, question, cover-letter)
+                              Redacción con estilo del usuario + borradores
+                              en Gmail/Outlook (gws, m365) y extracción de contacto
+skills/formatos/          → CLI format_report.py (reporte determinista)
+                              Reportes estructurados con opciones de postulación
+cv-pilot-agent/scripts/   → venv_setup (obligatorio), pdf_parser (PyMuPDF),
+                              init (DB), cleanup (temp/)
+data/                     → Perfil, correos de ejemplo y preferencias
+                              (local, gitignored)
 ```
 
-## 📦 Versiones
-
-| Versión | Fecha | Cambios |
-|---------|-------|---------|
-| **v2.0.0** | Junio 2026 | Onboarding conversacional, borradores Gmail + Outlook, venv aislado, skills modernizadas |
-| **v1.0.0** | Junio 2026 | Búsqueda multi-plataforma, SQLite, Apify, tests automatizados |
+Las skills son **contratos CLI** que el agente invoca. Cada script encapsula la lógica y devuelve resultados estructurados en JSON, así el agente pasa de leer e interpretar instrucciones largas a ejecutar comandos cortos y deterministas.
