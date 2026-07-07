@@ -116,10 +116,65 @@ def test_computrabajo_remote_omits_location_segment():
 
 
 def test_computrabajo_normalize_supports_alias_variants():
-    raw = [{"jobTitle": "Dev", "companyName": "C", "date": "2026-05-01", "link": "https://l"}]
+    # The shahidirfan/computrabajo-jobs-scraper actor returns field names
+    # ``postedDate`` (not ``postedAt``/``date``) and ``descriptionText``
+    # (not ``description``). Earlier versions of the adapter used the wrong
+    # names and silently lost the data; the test below mirrors the actor's
+    # actual output shape.
+    raw = [{
+        "id": "F5DDB4D356B9B34A61373E686DCF3405",
+        "title": "Dev",
+        "companyName": "C",
+        "postedDate": "2026-05-01",
+        "descriptionText": "Plain text body",
+        "link": "https://l",
+    }]
     j = ComputrabajoAdapter().normalize_output(raw)[0]
     assert j.position == "Dev" and j.company == "C"
-    assert j.public_date == "2026-05-01" and j.source == "apify-computrabajo"
+    assert j.public_date == "2026-05-01"
+    assert j.description == "Plain text body"
+    assert j.source == "apify-computrabajo"
+
+
+def test_computrabajo_normalize_falls_back_to_legacy_field_names():
+    """Older actor output (or partial records) may still use the legacy names
+    ``postedAt``/``date`` for public_date and ``description`` for the body.
+    The adapter keeps those as fallbacks so historical data isn't lost.
+    """
+    # Only legacy fields present — every fallback must activate.
+    raw_legacy_date = [{
+        "title": "X", "company": "Y", "date": "2026-04-01", "description": "old body",
+    }]
+    j = ComputrabajoAdapter().normalize_output(raw_legacy_date)[0]
+    assert j.public_date == "2026-04-01"
+    assert j.description == "old body"
+
+    # ``postedAt`` (intermediate alias) also works.
+    raw_postedAt = [{
+        "title": "X", "company": "Y", "postedAt": "2026-03-15", "description": "y",
+    }]
+    j = ComputrabajoAdapter().normalize_output(raw_postedAt)[0]
+    assert j.public_date == "2026-03-15"
+
+    # ``descriptionHtml`` is preferred over the legacy ``description`` when
+    # ``descriptionText`` is missing.
+    raw_html = [{
+        "title": "X", "company": "Y",
+        "postedDate": "2026-02-20",
+        "descriptionHtml": "<p>rich</p>",
+    }]
+    j = ComputrabajoAdapter().normalize_output(raw_html)[0]
+    assert j.description == "<p>rich</p>"
+
+
+def test_computrabajo_normalize_missing_fields_returns_none_and_empty():
+    """If the actor returns no public_date/description, the adapter must not
+    silently invent data — leave them as None/empty.
+    """
+    raw = [{"title": "X", "company": "Y"}]  # no date or description fields
+    j = ComputrabajoAdapter().normalize_output(raw)[0]
+    assert j.public_date is None
+    assert j.description in (None, "")
 
 
 def test_search_params_validates_count_and_workplace():

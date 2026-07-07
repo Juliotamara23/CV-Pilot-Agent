@@ -60,10 +60,12 @@ class ComputrabajoAdapter(PlatformAdapter):
                     position=self._pick(raw, "title", "jobTitle"),
                     location=self._pick(raw, "location"),
                     external_id=str(ext_id) if ext_id is not None else None,
-                    public_date=raw.get("postedAt") or raw.get("date"),
+                    public_date=raw.get("postedDate") or raw.get("postedAt") or raw.get("date"),
                     url=raw.get("url") or raw.get("link"),
                     salary=raw.get("salary"),
-                    description=raw.get("description"),
+                    description=(raw.get("descriptionText")
+                                 or raw.get("descriptionHtml")
+                                 or raw.get("description")),
                     source=source,
                 )
             )
