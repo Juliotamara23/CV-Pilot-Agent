@@ -15,17 +15,49 @@ from _lib.errors import CV_PilotError
 
 
 def create_draft_gmail(to: str, subject: str, body_html: str) -> str:
-    """Create a Gmail draft via ``gws`` CLI. Returns the draft id string."""
-    if shutil.which("gws") is None:
+    """Create a Gmail draft via ``gws`` CLI. Returns the draft id string.
+
+    On Windows, ``gws`` is distributed as a wrapper script via npm
+    (``gws.CMD`` or ``gws.ps1``). Python's ``subprocess.run`` with a bare
+    program name does not auto-resolve ``.CMD``/``.BAT`` extensions on
+    Windows, and cannot execute ``.ps1`` at all — both cases must be wrapped
+    in the appropriate shell. On Linux/macOS, ``gws`` is a native binary
+    invoked directly.
+    """
+    gws_path = shutil.which("gws")
+    if gws_path is None:
         raise CV_PilotError(
             "gws CLI not found. Install and authenticate gws (see docs/gws-setup.md).",
             code="PROVIDER_CLI_MISSING",
         )
-    proc = subprocess.run(
-        ["gws", "gmail", "+send", "--to", to, "--subject", subject,
-         "--body", body_html, "--html", "--draft"],
-        capture_output=True, text=True, encoding="utf-8",
-    )
+    suffix = Path(gws_path).suffix.lower()
+    if suffix == ".ps1":
+        shell = shutil.which("pwsh") or shutil.which("powershell")
+        if shell is None:
+            raise CV_PilotError(
+                "PowerShell not found (need pwsh or powershell to run gws.ps1).",
+                code="PROVIDER_CLI_MISSING",
+            )
+        cmd = [shell, "-NoProfile", "-File", gws_path,
+               "gmail", "+send", "--to", to, "--subject", subject,
+               "--body", body_html, "--html", "--draft"]
+    elif suffix in (".cmd", ".bat"):
+        # Windows shell wrappers from npm: invoke via cmd.exe to ensure
+        # PATHEXT resolution and proper argument quoting.
+        cmd_path = shutil.which("cmd")
+        if cmd_path is None:
+            raise CV_PilotError(
+                "cmd.exe not found (required to run gws.CMD/gws.BAT wrappers).",
+                code="PROVIDER_CLI_MISSING",
+            )
+        cmd = [cmd_path, "/c", gws_path,
+               "gmail", "+send", "--to", to, "--subject", subject,
+               "--body", body_html, "--html", "--draft"]
+    else:
+        # Native binary on Linux/macOS, or .exe on Windows.
+        cmd = [gws_path, "gmail", "+send", "--to", to, "--subject", subject,
+               "--body", body_html, "--html", "--draft"]
+    proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
     if proc.returncode != 0:
         raise CV_PilotError(
             f"Gmail draft creation failed: {proc.stderr.strip()}", code="DRAFT_FAILED"

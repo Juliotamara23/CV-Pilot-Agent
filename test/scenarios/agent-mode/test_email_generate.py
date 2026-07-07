@@ -364,6 +364,111 @@ class TestIntegration:
         # status updated to applied
         assert db.get_job(h)["job"]["status"] == "applied"
 
+    def test_email_gmail_ps1_invokes_via_powershell(self, tmp_db, tmp_path, monkeypatch):
+        """On Windows, gws is a .ps1 script — must be invoked via pwsh/powershell.
+
+        Regression: previously the script called ``gws`` directly via
+        subprocess.run, which fails on Windows with FileNotFoundError because
+        Python can't execute .ps1 files without an explicit shell wrapper.
+        """
+        root = _write_data(tmp_path, preferencias="gmail_drafts: sí\n")
+        h = _seed_job(contact_method="email")
+        body = tmp_path / "body.html"
+        body.write_text("<p>Hola, visita mi [github].</p>", encoding="utf-8")
+        calls = []
+
+        def fake_which(name):
+            if name == "gws":
+                return "/fake/gws.ps1"
+            if name in ("pwsh", "powershell"):
+                return f"/fake/{name}"
+            return None
+
+        _patch_environment(monkeypatch, root, which=fake_which,
+                           run=_fake_run_factory(calls))
+        result = runner.invoke(generate.app, [
+            "email", "--job", h, "--body-file", str(body), "--to", "rrhh@acme.com",
+        ])
+        assert result.exit_code == 0, result.stderr
+        payload = json.loads(result.stdout)
+        assert payload["ok"] is True
+        assert payload["provider"] == "gmail"
+        # Find the gws invocation in the recorded calls; it must be wrapped
+        # as [pwsh/powershell, -NoProfile, -File, /fake/gws.ps1, gmail, +send, ...]
+        gws_call = next(
+            c for c in calls
+            if any("gws" in str(a) for a in c) and "gmail" in c
+        )
+        assert gws_call[0] in ("/fake/pwsh", "/fake/powershell")
+        assert gws_call[1] == "-NoProfile"
+        assert gws_call[2] == "-File"
+        assert gws_call[3] == "/fake/gws.ps1"
+        assert gws_call[4] == "gmail"
+        assert gws_call[5] == "+send"
+        assert db.get_job(h)["job"]["status"] == "applied"
+
+    def test_email_gmail_cmd_invokes_via_cmd_exe(self, tmp_db, tmp_path, monkeypatch):
+        """On Windows, npm installs gws as gws.CMD — must be invoked via cmd.exe.
+
+        Regression: previously the script called ``gws`` by name only, which
+        fails on Windows because Python's subprocess does not auto-resolve
+        ``.CMD`` extensions for the program name.
+        """
+        root = _write_data(tmp_path, preferencias="gmail_drafts: sí\n")
+        h = _seed_job(contact_method="email")
+        body = tmp_path / "body.html"
+        body.write_text("<p>Hola</p>", encoding="utf-8")
+        calls = []
+
+        def fake_which(name):
+            if name == "gws":
+                return "/fake/gws.CMD"
+            if name == "cmd":
+                return "/fake/cmd.exe"
+            return None
+
+        _patch_environment(monkeypatch, root, which=fake_which,
+                           run=_fake_run_factory(calls))
+        result = runner.invoke(generate.app, [
+            "email", "--job", h, "--body-file", str(body), "--to", "rrhh@acme.com",
+        ])
+        assert result.exit_code == 0, result.stderr
+        payload = json.loads(result.stdout)
+        assert payload["ok"] is True
+        assert payload["provider"] == "gmail"
+        # gws.CMD invocation wrapped as [cmd.exe, /c, gws.CMD, gmail, +send, ...]
+        gws_call = next(
+            c for c in calls
+            if any("gws" in str(a) for a in c) and "gmail" in c
+        )
+        assert gws_call[0] == "/fake/cmd.exe"
+        assert gws_call[1] == "/c"
+        assert gws_call[2] == "/fake/gws.CMD"
+        assert gws_call[3] == "gmail"
+        assert gws_call[4] == "+send"
+        assert db.get_job(h)["job"]["status"] == "applied"
+
+    def test_email_gmail_ps1_no_powershell_raises(self, tmp_db, tmp_path, monkeypatch):
+        """If gws is .ps1 but no PowerShell is available, fail with PROVIDER_CLI_MISSING."""
+        root = _write_data(tmp_path, preferencias="gmail_drafts: sí\n")
+        h = _seed_job(contact_method="email")
+        body = tmp_path / "body.html"; body.write_text("x", encoding="utf-8")
+
+        def fake_which(name):
+            if name == "gws":
+                return "/fake/gws.ps1"
+            return None  # no pwsh, no powershell
+
+        _patch_environment(monkeypatch, root, which=fake_which,
+                           run=_fake_run_factory([]))
+        result = runner.invoke(generate.app, [
+            "email", "--job", h, "--body-file", str(body), "--to", "r@x.com",
+        ])
+        assert result.exit_code == 1
+        payload = json.loads(result.stderr)
+        assert payload["code"] == "PROVIDER_CLI_MISSING"
+        assert "PowerShell" in payload["error"]
+
     def test_email_outlook_happy_path(self, tmp_db, tmp_path, monkeypatch):
         root = _write_data(tmp_path, preferencias="outlook_drafts: sí\n")
         h = _seed_job(contact_method="email")
