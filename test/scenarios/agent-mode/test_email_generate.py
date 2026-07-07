@@ -364,6 +364,67 @@ class TestIntegration:
         # status updated to applied
         assert db.get_job(h)["job"]["status"] == "applied"
 
+    def test_email_gmail_json_output_returns_top_level_id(self, tmp_db, tmp_path, monkeypatch):
+        """gws returns a multi-line JSON envelope; the top-level "id" is the draft id.
+
+        Regression: previously the parser took the first line of stdout, which
+        was the opening brace ``{`` of the JSON — yielding a useless draft_id.
+        """
+        root = _write_data(tmp_path, preferencias="gmail_drafts: sí\n")
+        h = _seed_job(contact_method="email")
+        body = tmp_path / "body.html"
+        body.write_text("<p>Hola</p>", encoding="utf-8")
+
+        json_stdout = (
+            '{\n'
+            '  "id": "r-8927261222089960502",\n'
+            '  "message": {\n'
+            '    "id": "19f3e459f4275060",\n'
+            '    "labelIds": ["DRAFT"],\n'
+            '    "threadId": "19f3e459f4275060"\n'
+            '  }\n'
+            '}\n'
+        )
+
+        def fake_which(name):
+            return f"/fake/{name}" if name == "gws" else None
+
+        def fake_run(args, **kwargs):
+            return subprocess.CompletedProcess(args, 0, stdout=json_stdout, stderr="")
+
+        _patch_environment(monkeypatch, root, which=fake_which, run=fake_run)
+        result = runner.invoke(generate.app, [
+            "email", "--job", h, "--body-file", str(body), "--to", "rrhh@acme.com",
+        ])
+        assert result.exit_code == 0, result.stderr
+        payload = json.loads(result.stdout)
+        assert payload["ok"] is True
+        assert payload["provider"] == "gmail"
+        # Top-level "id" is the draft id, NOT the opening brace of the JSON.
+        assert payload["draft_id"] == "r-8927261222089960502"
+
+    def test_email_gmail_json_without_id_falls_back_to_default(self, tmp_db, tmp_path, monkeypatch):
+        """If the JSON envelope has no top-level "id", fall back to default."""
+        root = _write_data(tmp_path, preferencias="gmail_drafts: sí\n")
+        h = _seed_job(contact_method="email")
+        body = tmp_path / "body.html"; body.write_text("<p>x</p>", encoding="utf-8")
+
+        json_stdout = '{"message": {"id": "x"}, "threadId": "y"}\n'
+
+        def fake_which(name):
+            return f"/fake/{name}" if name == "gws" else None
+
+        def fake_run(args, **kwargs):
+            return subprocess.CompletedProcess(args, 0, stdout=json_stdout, stderr="")
+
+        _patch_environment(monkeypatch, root, which=fake_which, run=fake_run)
+        result = runner.invoke(generate.app, [
+            "email", "--job", h, "--body-file", str(body), "--to", "r@x.com",
+        ])
+        assert result.exit_code == 0, result.stderr
+        payload = json.loads(result.stdout)
+        assert payload["draft_id"] == "draft"  # fallback default
+
     def test_email_gmail_ps1_invokes_via_powershell(self, tmp_db, tmp_path, monkeypatch):
         """On Windows, gws is a .ps1 script — must be invoked via pwsh/powershell.
 

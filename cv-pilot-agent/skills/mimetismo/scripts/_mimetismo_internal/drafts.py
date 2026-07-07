@@ -62,7 +62,21 @@ def create_draft_gmail(to: str, subject: str, body_html: str) -> str:
         raise CV_PilotError(
             f"Gmail draft creation failed: {proc.stderr.strip()}", code="DRAFT_FAILED"
         )
-    return (proc.stdout.strip().splitlines() or [""])[0] or "draft"
+    # gws returns a multi-line JSON envelope: {"id": "r-...", "message": {...}}.
+    # The top-level "id" is the draft id (confirmed by gws stderr hint).
+    try:
+        payload = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        payload = None
+    if isinstance(payload, dict):
+        # JSON parsed: trust it. Missing "id" → default (don't fall through
+        # to the line-based fallback, which would return the whole JSON blob).
+        return payload.get("id", "draft")
+    # Non-JSON output (legacy / other CLIs): first non-empty line.
+    for line in proc.stdout.splitlines():
+        if line.strip():
+            return line.strip()
+    return "draft"
 
 
 def create_draft_outlook(to: str, subject: str, body_html: str) -> str:
