@@ -8,10 +8,6 @@ from __future__ import annotations
 
 from typing import Optional
 
-# Profile keys reused for the optional links footer.
-_LINKS = ("cv_url", "linkedin", "github")
-_LINK_TEXT = {"cv_url": "CV", "linkedin": "LinkedIn", "github": "GitHub"}
-
 
 def format_date(job: dict, analysis: dict) -> str:
     """Return the display date: public_date takes precedence; created_at is fallback."""
@@ -34,15 +30,6 @@ def format_comparativa(comparativa: Optional[str]) -> str:
             entry = f"- {entry}"
         lines.append(entry)
     return "\n".join(lines) if lines else "_(Sin comparativa)_"
-
-
-def links_html(profile: dict) -> str:
-    """Build the HTML links footer from profile data."""
-    parts = [
-        f'<a href="{profile[key]}">{_LINK_TEXT[key]}</a>'
-        for key in _LINKS if profile.get(key)
-    ]
-    return "".join(f"{p}<br>" for p in parts)
 
 
 def build_markdown(job: dict, analysis: dict, profile: dict) -> str:

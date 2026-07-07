@@ -1,7 +1,7 @@
 """Tests for `skills/formatos/scripts/cli.py`.
 
 Unit tests target the pure builders (_build_markdown, _build_json,
-_format_date, _format_comparativa, _links_html, _load_profile); CLI tests
+_format_date, _format_comparativa, _load_profile); CLI tests
 cover --help, happy paths (markdown + json), and the stable error envelopes
 (JOB_NOT_FOUND, ANALYSIS_NOT_FOUND, INVALID_FORMAT).
 """
@@ -35,7 +35,6 @@ from _formatos_internal.builders import (  # noqa: E402
     build_markdown as _build_markdown,
     format_comparativa as _format_comparativa,
     format_date as _format_date,
-    links_html as _links_html,
 )
 from _lib.shared.profile_loader import load_profile as _load_profile  # noqa: E402
 
@@ -139,19 +138,6 @@ class TestFormatComparativa:
     def test_blank_lines_skipped(self):
         out = _format_comparativa("a | 1\n\n\nb | 2")
         assert "- a | 1" in out and "- b | 2" in out and "\n\n" not in out
-
-
-class TestLinksHtml:
-    def test_includes_available_links(self):
-        profile = {"cv_url": "https://cv", "linkedin": "https://li", "github": "https://gh"}
-        out = _links_html(profile)
-        assert '<a href="https://cv">CV</a><br>' in out
-        assert '<a href="https://li">LinkedIn</a><br>' in out
-        assert '<a href="https://gh">GitHub</a><br>' in out
-
-    def test_missing_links_omitted(self):
-        out = _links_html({"cv_url": None, "linkedin": None, "github": None})
-        assert out == ""
 
 
 class TestBuildMarkdown:
