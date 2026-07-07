@@ -98,7 +98,64 @@ def test_linkedin_normalize_handles_missing_optionals():
     assert j.company == "Glob"
     assert j.url == "https://l"
     assert j.salary is None and j.public_date is None
+    assert j.description in (None, "")
     assert j.source == "apify-linkedin"
+
+
+def test_linkedin_normalize_reads_actor_field_names():
+    """Mirror the actual ``curious_coder/linkedin-jobs-scraper`` output shape.
+
+    The actor returns ``descriptionText`` and ``descriptionHtml`` (not
+    ``description``) and a ``salaryInfo`` *array* (not ``salary`` or
+    ``salaryInsights``). Earlier versions of the adapter silently dropped
+    both fields.
+    """
+    raw = [{
+        "id": "3692563200",
+        "link": "https://www.linkedin.com/jobs/view/x",
+        "title": "English Data Labeling Analyst",
+        "companyName": "Facebook",
+        "location": "Los Angeles Metropolitan Area",
+        "postedAt": "2023-08-16",
+        "salaryInfo": ["$17.00", "$19.00"],
+        "descriptionText": "Plain text job body",
+    }]
+    j = LinkedinAdapter().normalize_output(raw)[0]
+    assert j.position == "English Data Labeling Analyst"
+    assert j.company == "Facebook"
+    assert j.public_date == "2023-08-16"
+    # salaryInfo is joined with comma (min, max)
+    assert j.salary == "$17.00, $19.00"
+    assert j.description == "Plain text job body"
+
+
+def test_linkedin_normalize_salary_info_edge_cases():
+    """Empty list, single-element list, non-list scalar, None."""
+    # Empty list → None
+    j = LinkedinAdapter().normalize_output([{"salaryInfo": []}])[0]
+    assert j.salary is None
+    # None → None
+    j = LinkedinAdapter().normalize_output([{"salaryInfo": None}])[0]
+    assert j.salary is None
+    # Single-element list → just the element
+    j = LinkedinAdapter().normalize_output([{"salaryInfo": ["$100k"]}])[0]
+    assert j.salary == "$100k"
+    # List with empty string → filtered out
+    j = LinkedinAdapter().normalize_output([{"salaryInfo": ["$50", "", "$70"]}])[0]
+    assert j.salary == "$50, $70"
+
+
+def test_linkedin_normalize_description_falls_back_through_aliases():
+    """Try descriptionText → descriptionHtml → legacy ``description``."""
+    # descriptionText wins
+    raw_text = [{"descriptionText": "T", "description": "OLD"}]
+    assert LinkedinAdapter().normalize_output(raw_text)[0].description == "T"
+    # descriptionHtml used when descriptionText missing
+    raw_html = [{"descriptionHtml": "<p>H</p>", "description": "OLD"}]
+    assert LinkedinAdapter().normalize_output(raw_html)[0].description == "<p>H</p>"
+    # legacy ``description`` still works as last resort
+    raw_legacy = [{"description": "OLD"}]
+    assert LinkedinAdapter().normalize_output(raw_legacy)[0].description == "OLD"
 
 
 def test_computrabajo_builds_url_with_subdomain_and_slug():

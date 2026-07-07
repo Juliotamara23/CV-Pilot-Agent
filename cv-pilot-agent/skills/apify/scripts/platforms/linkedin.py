@@ -9,6 +9,7 @@ clamps the requested count and warns the user.
 
 from __future__ import annotations
 
+from typing import Optional
 from urllib.parse import quote_plus
 
 from .base import JobInsert, PlatformAdapter, SearchParams
@@ -52,6 +53,20 @@ class LinkedinAdapter(PlatformAdapter):
             parts.append(f"&f_E={_EXPERIENCE_TO_FE[params.experience_level]}")
         return "".join(parts)
 
+    @staticmethod
+    def _format_salary_info(salary_info) -> Optional[str]:
+        """The ``curious_coder/linkedin-jobs-scraper`` actor returns salary as
+        a list (typically ``[min, max]``, e.g. ``["$17.00", "$19.00"]``).
+        Join with comma for the JobInsert string field. Non-list scalars
+        are coerced to string for resilience.
+        """
+        if not salary_info:
+            return None
+        if isinstance(salary_info, list):
+            parts = [str(s).strip() for s in salary_info if s]
+            return ", ".join(parts) if parts else None
+        return str(salary_info)
+
     def normalize_output(self, raw_items: list[dict]) -> list[JobInsert]:
         source = self.get_platform_name()
         jobs: list[JobInsert] = []
@@ -65,8 +80,10 @@ class LinkedinAdapter(PlatformAdapter):
                     external_id=str(ext_id) if ext_id is not None else None,
                     public_date=raw.get("postedAt"),
                     url=raw.get("link") or raw.get("url"),
-                    salary=raw.get("salary") or raw.get("salaryInsights"),
-                    description=raw.get("description"),
+                    salary=self._format_salary_info(raw.get("salaryInfo")),
+                    description=(raw.get("descriptionText")
+                                 or raw.get("descriptionHtml")
+                                 or raw.get("description")),
                     source=source,
                 )
             )
