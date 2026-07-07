@@ -25,3 +25,19 @@ La redacción la hace el agente; el envío, el script.
 5. `cleanup.py` al final (éxito o error).
 6. Output: JSON `{"ok":bool, ...}` a stdout, errores a stderr con `code`.
 7. Proveedores: Gmail `gws`, Outlook `m365` (ver docs/gws-setup.md, docs/outlook-setup.md).
+
+## Formato del body file
+
+El body file es **HTML, no plain text**. Outlook colapsa whitespace, así que `\n` no se renderiza como salto de línea — el script no convierte. Usar `<br><br>` entre párrafos (consistente con `signature_footer`):
+
+```html
+Buenos días,<br><br>Me postulo a la vacante de [Cargo] en [Empresa]. Soy Ingeniero de Sistemas con experiencia en [stack].<br><br>Adjunto mi Currículum para su revisión. Quedo atento a su respuesta.
+```
+
+Equivalente válido con `<p>` (los tests usan este patrón):
+
+```html
+<p>Buenos días,</p><p>Me postulo a la vacante...</p>
+```
+
+**NO escribir** plain text con `\n` — el draft llega a Outlook como una sola línea.
