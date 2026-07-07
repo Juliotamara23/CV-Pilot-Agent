@@ -105,10 +105,13 @@ def test_linkedin_normalize_handles_missing_optionals():
 def test_linkedin_normalize_reads_actor_field_names():
     """Mirror the actual ``curious_coder/linkedin-jobs-scraper`` output shape.
 
-    The actor returns ``descriptionText`` and ``descriptionHtml`` (not
-    ``description``) and a ``salaryInfo`` *array* (not ``salary`` or
-    ``salaryInsights``). Earlier versions of the adapter silently dropped
-    both fields.
+    Verified against a real E2E run on 2026-07-07 (see
+    ``test/fixtures/apify/linkedin.json``). The actor returns
+    ``descriptionText``/``descriptionHtml`` (not ``description``) — that part
+    of the fix is correct. The actor also returns ``salary`` as a
+    *string* (not ``salaryInfo`` as a list) — the public docs were stale
+    on that detail, so the previous fix (which read ``salaryInfo``) would
+    have silently dropped the field.
     """
     raw = [{
         "id": "3692563200",
@@ -117,31 +120,30 @@ def test_linkedin_normalize_reads_actor_field_names():
         "companyName": "Facebook",
         "location": "Los Angeles Metropolitan Area",
         "postedAt": "2023-08-16",
-        "salaryInfo": ["$17.00", "$19.00"],
+        "salary": "$17.00 - $19.00",
         "descriptionText": "Plain text job body",
     }]
     j = LinkedinAdapter().normalize_output(raw)[0]
     assert j.position == "English Data Labeling Analyst"
     assert j.company == "Facebook"
     assert j.public_date == "2023-08-16"
-    # salaryInfo is joined with comma (min, max)
-    assert j.salary == "$17.00, $19.00"
+    assert j.salary == "$17.00 - $19.00"
     assert j.description == "Plain text job body"
 
 
-def test_linkedin_normalize_salary_info_edge_cases():
-    """Empty list, single-element list, non-list scalar, None."""
-    # Empty list → None
-    j = LinkedinAdapter().normalize_output([{"salaryInfo": []}])[0]
-    assert j.salary is None
+def test_linkedin_normalize_salary_field_edge_cases():
+    """Verify salary handling for None, empty string, and (defensively) list."""
     # None → None
-    j = LinkedinAdapter().normalize_output([{"salaryInfo": None}])[0]
+    j = LinkedinAdapter().normalize_output([{"salary": None}])[0]
     assert j.salary is None
-    # Single-element list → just the element
-    j = LinkedinAdapter().normalize_output([{"salaryInfo": ["$100k"]}])[0]
+    # Empty string → None
+    j = LinkedinAdapter().normalize_output([{"salary": ""}])[0]
+    assert j.salary is None
+    # Real-world: scalar string passes through unchanged
+    j = LinkedinAdapter().normalize_output([{"salary": "$100k"}])[0]
     assert j.salary == "$100k"
-    # List with empty string → filtered out
-    j = LinkedinAdapter().normalize_output([{"salaryInfo": ["$50", "", "$70"]}])[0]
+    # Defensive: if the actor ever emits a list, join with comma
+    j = LinkedinAdapter().normalize_output([{"salary": ["$50", "$70"]}])[0]
     assert j.salary == "$50, $70"
 
 

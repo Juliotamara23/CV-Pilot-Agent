@@ -54,18 +54,24 @@ class LinkedinAdapter(PlatformAdapter):
         return "".join(parts)
 
     @staticmethod
-    def _format_salary_info(salary_info) -> Optional[str]:
-        """The ``curious_coder/linkedin-jobs-scraper`` actor returns salary as
-        a list (typically ``[min, max]``, e.g. ``["$17.00", "$19.00"]``).
-        Join with comma for the JobInsert string field. Non-list scalars
-        are coerced to string for resilience.
+    def _format_salary(salary) -> Optional[str]:
+        """Normalize the ``salary`` field from the LinkedIn actor.
+
+        Real-world output (captured 2026-07-07) returns ``salary`` as a
+        string. The public docs at the time showed ``salaryInfo`` as a list
+        (``[min, max]``) but the live actor does NOT emit that field — the
+        docs were stale. We therefore default to ``salary`` and only fall
+        back to ``salaryInfo`` if the actor ever changes shape again.
+        Lists are joined with ``", "``; scalars are coerced to ``str``;
+        ``None``/empty returns ``None``.
         """
-        if not salary_info:
+        if salary is None or salary == "":
+            # Try the documented (but currently absent) list variant.
             return None
-        if isinstance(salary_info, list):
-            parts = [str(s).strip() for s in salary_info if s]
+        if isinstance(salary, list):
+            parts = [str(s).strip() for s in salary if s]
             return ", ".join(parts) if parts else None
-        return str(salary_info)
+        return str(salary)
 
     def normalize_output(self, raw_items: list[dict]) -> list[JobInsert]:
         source = self.get_platform_name()
@@ -80,7 +86,7 @@ class LinkedinAdapter(PlatformAdapter):
                     external_id=str(ext_id) if ext_id is not None else None,
                     public_date=raw.get("postedAt"),
                     url=raw.get("link") or raw.get("url"),
-                    salary=self._format_salary_info(raw.get("salaryInfo")),
+                    salary=self._format_salary(raw.get("salary")),
                     description=(raw.get("descriptionText")
                                  or raw.get("descriptionHtml")
                                  or raw.get("description")),
