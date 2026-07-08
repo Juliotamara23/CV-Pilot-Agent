@@ -50,6 +50,7 @@ from _apify_internal.apify_client import (  # noqa: E402
     check_apify_cli,
     fetch_dataset,
     launch_actor,
+    parse_dataset,
     persist_jobs,
     poll_run_status,
 )
@@ -219,6 +220,253 @@ def search(
         "validation_failures": validation_failures,
         "run_id": run_id, "dataset_id": dataset_id,
         "elapsed_seconds": elapsed,
+    })
+
+
+# --------------------------------------------------------------------------- #
+# Dataset inspection commands (PR 3)
+# --------------------------------------------------------------------------- #
+
+@app.command()
+def datasets_list(
+    actor: str = typer.Option(..., help="Actor full name (e.g., curious_coder/linkedin-jobs-scraper)."),
+    since_minutes: int = typer.Option(60, help="Only show runs from the last N minutes."),
+    limit: int = typer.Option(10, help="Maximum number of runs to list."),
+) -> None:
+    """List recent datasets for an actor. The agent uses this to find a
+    dataset_id to inspect or fetch, based on the approximate time of the last run.
+    """
+    import time as _time
+    from datetime import datetime, timedelta, timezone
+
+    check_apify_cli()
+
+    # Fetch recent runs from Apify.
+    proc = subprocess.run(
+        ["apify", "runs", "ls", actor, "--json", "--limit", str(limit), "--desc"],
+        capture_output=True, text=True, encoding="utf-8",
+    )
+    if proc.returncode != 0:
+        _emit_error(
+            f"apify runs ls failed: {proc.stderr.strip() or proc.stdout.strip()}",
+            "APIFY_RUNS_LS_FAILED",
+        )
+        raise typer.Exit(code=1)
+
+    try:
+        runs_data = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        _emit_error("Could not parse apify runs ls output", "APIFY_PARSE_ERROR")
+        raise typer.Exit(code=1)
+
+    raw_runs = runs_data.get("items", [])
+
+    # Filter by since_minutes.
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=since_minutes)
+    filtered: list[dict] = []
+    for run in raw_runs:
+        started = run.get("startedAt", "")
+        if not started:
+            continue
+        try:
+            started_dt = datetime.fromisoformat(started.replace("Z", "+00:00"))
+            if started_dt >= cutoff:
+                filtered.append(run)
+        except (ValueError, TypeError):
+            # Include runs with unparseable dates (defensive).
+            filtered.append(run)
+
+    # Build output rows.
+    runs_out: list[dict] = []
+    for run in filtered:
+        started = run.get("startedAt", "")
+        finished = run.get("finishedAt", "")
+        elapsed = None
+        if started and finished:
+            try:
+                s_dt = datetime.fromisoformat(started.replace("Z", "+00:00"))
+                f_dt = datetime.fromisoformat(finished.replace("Z", "+00:00"))
+                elapsed = round((f_dt - s_dt).total_seconds(), 1)
+            except (ValueError, TypeError):
+                pass
+
+        runs_out.append({
+            "run_id": run.get("id", ""),
+            "dataset_id": run.get("defaultDatasetId", ""),
+            "items_count": run.get("stats", {}).get("itemCount") if isinstance(run.get("stats"), dict) else None,
+            "started_at": started,
+            "finished_at": finished,
+            "elapsed_seconds": elapsed,
+            "status": run.get("status", ""),
+            "usage_total_usd": run.get("usageTotalUsd"),
+        })
+
+    _emit({
+        "ok": True,
+        "actor": actor,
+        "since_minutes": since_minutes,
+        "count": len(runs_out),
+        "runs": runs_out,
+    })
+
+
+@app.command()
+def datasets_inspect(
+    dataset_id: str = typer.Option(..., help="The Apify dataset ID to inspect."),
+) -> None:
+    """Inspect a dataset: count items, show schema (set of keys across items).
+    The agent uses this to verify how many items a dataset has, before fetching.
+    """
+    check_apify_cli()
+
+    raw_items = fetch_dataset(dataset_id)
+    items_count = len(raw_items)
+
+    # Collect schema keys (union of all keys across items).
+    schema_keys: set[str] = set()
+    for item in raw_items:
+        if isinstance(item, dict):
+            schema_keys.update(item.keys())
+
+    # Build a preview of the first item (truncated).
+    sample_preview = None
+    if raw_items and isinstance(raw_items[0], dict):
+        sample_preview = {k: str(v)[:100] for k, v in list(raw_items[0].items())[:10]}
+
+    _emit({
+        "ok": True,
+        "dataset_id": dataset_id,
+        "items_count": items_count,
+        "schema_keys": sorted(schema_keys),
+        "sample_item_preview": sample_preview,
+    })
+
+
+@app.command()
+def datasets_fetch(
+    dataset_id: str = typer.Option(..., help="The Apify dataset ID to fetch from."),
+    persist: bool = typer.Option(True, help="If True, persist items not already in DB. If False, just return them."),
+) -> None:
+    """Fetch a dataset and (optionally) persist items not already in our DB.
+    The agent uses this to recover from interrupted runs or to retry validation
+    on items that previously failed.
+    """
+    check_apify_cli()
+
+    raw_items = fetch_dataset(dataset_id)
+    fetched = len(raw_items)
+
+    # Normalize items using generic field extraction.
+    # Different actors use different field names; try common patterns.
+    from _lib.db import compute_hash
+    from _lib.models import JobInsert
+
+    jobs: list[JobInsert] = []
+    validation_failures: list[dict] = []
+
+    for idx, item in enumerate(raw_items):
+        if not isinstance(item, dict):
+            validation_failures.append({
+                "index": idx,
+                "error": f"Item is not a dict: {type(item).__name__}",
+            })
+            continue
+
+        # Extract fields using common actor field name patterns.
+        company = (
+            item.get("company")
+            or item.get("companyName")
+            or ""
+        )
+        position = (
+            item.get("positionName")
+            or item.get("title")
+            or ""
+        )
+        location = (
+            item.get("location")
+            or item.get("jobLocation")
+            or ""
+        )
+
+        if not company or not position:
+            validation_failures.append({
+                "index": idx,
+                "raw_preview": str(item)[:200],
+                "error": f"Missing required fields: company='{company}', position='{position}'",
+            })
+            continue
+
+        try:
+            job = JobInsert(
+                company=company,
+                position=position,
+                location=location,
+                external_id=str(item.get("id", "")) or None,
+                public_date=item.get("postedAt") or item.get("postedDate") or item.get("date") or None,
+                url=item.get("link") or item.get("url") or None,
+                salary=item.get("salary") or None,
+                description=(
+                    item.get("descriptionText")
+                    or item.get("descriptionHtml")
+                    or item.get("description")
+                    or None
+                ),
+                source="apify-dataset-recovery",
+            )
+            jobs.append(job)
+        except Exception as exc:
+            validation_failures.append({
+                "index": idx,
+                "raw_preview": str(item)[:200],
+                "error": str(exc),
+            })
+
+    # Dedup and persist if requested.
+    new_count = 0
+    duplicate_count = 0
+    persisted_result = None
+
+    if jobs:
+        # Compute hashes and check for existing jobs.
+        hashes_seen: set[str] = set()
+        new_jobs: list[JobInsert] = []
+
+        for job in jobs:
+            job_hash = compute_hash(job.company, job.position, job.location)
+            if job_hash in hashes_seen:
+                duplicate_count += 1
+                continue
+            hashes_seen.add(job_hash)
+
+            # Check if job already exists in DB.
+            try:
+                proc = subprocess.run(
+                    [sys.executable, _QUERY_PY, "job", "get", "--hash", job_hash],
+                    capture_output=True, text=True, encoding="utf-8",
+                )
+                if proc.returncode == 0:
+                    # Job exists — duplicate.
+                    duplicate_count += 1
+                    continue
+            except Exception:
+                pass  # If get fails, assume job doesn't exist.
+
+            new_jobs.append(job)
+            new_count += 1
+
+        if persist and new_jobs:
+            persisted_result = persist_jobs(new_jobs, _QUERY_PY)
+
+    _emit({
+        "ok": True,
+        "dataset_id": dataset_id,
+        "fetched": fetched,
+        "new": new_count,
+        "duplicates": duplicate_count,
+        "validation_failures": validation_failures,
+        "persisted": persisted_result,
+        "cost_usd": None,  # Cost info would require run context, not available here.
     })
 
 
