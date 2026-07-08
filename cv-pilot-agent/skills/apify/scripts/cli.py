@@ -48,7 +48,10 @@ from _apify_internal.apify_client import (  # noqa: E402
     actor_cost,
     call_actor,
     check_apify_cli,
+    fetch_dataset,
+    launch_actor,
     persist_jobs,
+    poll_run_status,
 )
 from _apify_internal.relevance import GENERIC_POSITIONS, label_relevance  # noqa: E402
 
@@ -146,7 +149,26 @@ def search(
         })
         return
 
-    raw = call_actor(actor, adapter.build_input(params))
+    import time as _time
+    _t0 = _time.monotonic()
+
+    run_info = launch_actor(actor, adapter.build_input(params))
+    run_id = run_info["id"]
+    dataset_id = run_info["defaultDatasetId"]
+
+    status = poll_run_status(run_id)
+    elapsed = round(_time.monotonic() - _t0, 1)
+
+    if status != "SUCCEEDED":
+        _emit({
+            "ok": False, "phase": "done", "platform": platform, "actor": actor,
+            "error": f"actor run {status}", "code": f"APIFY_RUN_{status}",
+            "run_id": run_id, "dataset_id": dataset_id,
+            "elapsed_seconds": elapsed, "cost_usd": cost,
+        })
+        return
+
+    raw = fetch_dataset(dataset_id)
 
     # -- filter error items (e.g. Indeed FOUND_NO_RESULTS) --------------- #
     valid_raw, error_items = adapter.filter_errors(raw)
@@ -164,6 +186,8 @@ def search(
             "count": 0, "cost_usd": cost, "relevance": {"high": 0, "medium": 0, "low": 0},
             "persisted": None, "skipped_errors": skipped_errors,
             "validation_failures": [],
+            "run_id": run_id, "dataset_id": dataset_id,
+            "elapsed_seconds": elapsed,
         })
         return
 
@@ -181,6 +205,8 @@ def search(
             "count": 0, "cost_usd": cost, "relevance": {"high": 0, "medium": 0, "low": 0},
             "persisted": None, "skipped_errors": skipped_errors,
             "validation_failures": validation_failures,
+            "run_id": run_id, "dataset_id": dataset_id,
+            "elapsed_seconds": elapsed,
         })
         return
 
@@ -191,6 +217,8 @@ def search(
         "count": len(jobs), "cost_usd": cost, "relevance": relevance,
         "persisted": persisted, "skipped_errors": skipped_errors,
         "validation_failures": validation_failures,
+        "run_id": run_id, "dataset_id": dataset_id,
+        "elapsed_seconds": elapsed,
     })
 
 

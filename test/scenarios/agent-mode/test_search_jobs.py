@@ -271,11 +271,26 @@ class _FakeProc:
 
 def _make_run(info=INFO_JSON, dataset=INDEED_RAW, persist=PERSIST_JSON, calls=None,
               fail_call=False):
+    # Build run info for the new polling flow.
+    run_info = json.dumps({
+        "id": "test-run-123",
+        "defaultDatasetId": "test-dataset-456",
+        "status": "SUCCEEDED",
+        "startedAt": "2026-07-08T17:49:11.660Z",
+    })
     def _run(args, **kwargs):
         if calls is not None:
             calls.append(list(args))
-        if args[0] == "apify" and args[1] == "actors":
+        if args[0] == "apify" and args[1] == "actors" and args[2] == "info":
             return _FakeProc(args, 0, stdout=info)
+        if args[0] == "apify" and args[1] == "actors" and args[2] == "start":
+            if fail_call:
+                return _FakeProc(args, 1, stderr="boom")
+            return _FakeProc(args, 0, stdout=run_info)
+        if args[0] == "apify" and args[1] == "runs":
+            return _FakeProc(args, 0, stdout=json.dumps({"status": "SUCCEEDED"}))
+        if args[0] == "apify" and args[1] == "datasets":
+            return _FakeProc(args, 0, stdout=json.dumps(dataset))
         if args[0] == "apify" and args[1] == "call":
             if fail_call:
                 return _FakeProc(args, 1, stderr="boom")
@@ -285,6 +300,11 @@ def _make_run(info=INFO_JSON, dataset=INDEED_RAW, persist=PERSIST_JSON, calls=No
     return _run
 
 
+def _mock_poll(run_id, cap_seconds=180, backoff_seconds=(5,)):
+    """Mock poll_run_status that returns immediately without sleeping."""
+    return "SUCCEEDED"
+
+
 def _has_apify(monkeypatch):
     monkeypatch.setattr(search_jobs.shutil, "which",
                         lambda name: "/usr/bin/apify" if name == "apify" else None)
@@ -292,6 +312,8 @@ def _has_apify(monkeypatch):
     import _apify_internal.apify_client as ac_mod
     monkeypatch.setattr(ac_mod.shutil, "which",
                         lambda name: "/usr/bin/apify" if name == "apify" else None)
+    # Mock poll_run_status to avoid sleep delays in tests
+    monkeypatch.setattr(ac_mod, "poll_run_status", _mock_poll)
 
 
 def test_cli_help_exits_zero():
@@ -328,7 +350,7 @@ def test_cost_phase_does_not_call_actor(monkeypatch):
     assert out["count"] == 5
     assert out["cost_usd"] == 0.0055  # 5 * 0.001 + 0.0005
     # The actor was never called (cost-only phase).
-    assert not any(c[0:2] == ["apify", "call"] for c in calls)
+    assert not any(c[0:3] == ["apify", "actors", "start"] for c in calls)
 
 
 def test_confirm_phase_normalizes_persists_and_labels(monkeypatch):

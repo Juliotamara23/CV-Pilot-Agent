@@ -82,7 +82,12 @@ def parse_dataset(stdout: str) -> list[dict]:
 
 
 def call_actor(actor: str, actor_input: dict) -> list[dict]:
-    """Invoke an Apify actor and return the parsed dataset."""
+    """Invoke an Apify actor and return the parsed dataset.
+
+    .. deprecated::
+        Use :func:`launch_actor` + :func:`poll_run_status` + :func:`fetch_dataset`
+        for better control over variable-duration runs.
+    """
     proc = subprocess.run(
         ["apify", "call", actor, "--input", json.dumps(actor_input),
          "--silent", "--output-dataset"],
@@ -94,6 +99,116 @@ def call_actor(actor: str, actor_input: dict) -> list[dict]:
                 "ok": False,
                 "error": f"apify call failed: {proc.stderr.strip() or proc.stdout.strip()}",
                 "code": "APIFY_CALL_FAILED",
+            }, ensure_ascii=False),
+            err=True,
+        )
+        raise typer.Exit(code=1)
+    return parse_dataset(proc.stdout)
+
+
+def launch_actor(actor: str, actor_input: dict) -> dict:
+    """Start an actor run asynchronously. Returns the run info dict with
+    ``run_id``, ``dataset_id`` (from ``defaultDatasetId``), ``status``,
+    and ``startedAt``.  Does NOT wait for completion.
+
+    Uses ``apify actors start --json`` which returns immediately.
+    """
+    proc = subprocess.run(
+        ["apify", "actors", "start", actor,
+         "--input", json.dumps(actor_input), "--json"],
+        capture_output=True, text=True, encoding="utf-8",
+    )
+    if proc.returncode != 0:
+        typer.echo(
+            json.dumps({
+                "ok": False,
+                "error": f"apify actors start failed: {proc.stderr.strip() or proc.stdout.strip()}",
+                "code": "APIFY_START_FAILED",
+            }, ensure_ascii=False),
+            err=True,
+        )
+        raise typer.Exit(code=1)
+    return json.loads(proc.stdout)
+
+
+# Terminal run statuses — polling stops when the run reaches one of these.
+_TERMINAL_STATUSES = frozenset({"SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"})
+
+
+def poll_run_status(
+    run_id: str,
+    cap_seconds: int = 180,
+    backoff_seconds: tuple[int, ...] = (5, 5, 10, 15, 30, 60),
+) -> str:
+    """Poll the run's status until it reaches a terminal state.
+
+    Returns the final status: ``SUCCEEDED``, ``FAILED``, ``ABORTED``,
+    or ``TIMED-OUT``.  Raises :class:`TimeoutError` if the run doesn't
+    terminate within *cap_seconds*.
+
+    Writes one progress line to stderr per poll so the user sees activity.
+    Backoff sequence is cycled: once exhausted, the last value repeats.
+    """
+    import time
+
+    elapsed = 0
+    poll_count = 0
+    backoff_idx = 0
+
+    while elapsed < cap_seconds:
+        # Sleep first (the run needs time to progress).
+        delay = backoff_seconds[min(backoff_idx, len(backoff_seconds) - 1)]
+        time.sleep(delay)
+        elapsed += delay
+        poll_count += 1
+        backoff_idx += 1
+
+        # Query run status.
+        proc = subprocess.run(
+            ["apify", "runs", "info", run_id, "--json"],
+            capture_output=True, text=True, encoding="utf-8",
+        )
+        if proc.returncode != 0:
+            typer.echo(
+                f"[{elapsed}s] poll={poll_count} WARNING: could not read run info",
+                err=True,
+            )
+            continue
+
+        info = json.loads(proc.stdout)
+        # The status may be nested under the run object or at top level.
+        status = info.get("status", "UNKNOWN")
+
+        typer.echo(
+            f"[{elapsed}s] status={status}, poll={poll_count}",
+            err=True,
+        )
+
+        if status in _TERMINAL_STATUSES:
+            return status
+
+    raise TimeoutError(
+        f"Run {run_id} did not reach a terminal state within {cap_seconds}s"
+    )
+
+
+def fetch_dataset(dataset_id: str) -> list[dict]:
+    """Fetch all items from a known *dataset_id*.
+
+    Uses ``apify datasets get-items <dataset_id> --format json``.
+    Returns the raw items list.  Handles CLI warning text that may
+    precede the JSON output.
+    """
+    proc = subprocess.run(
+        ["apify", "datasets", "get-items", dataset_id, "--format", "json"],
+        capture_output=True, text=True, encoding="utf-8",
+    )
+    if proc.returncode != 0:
+        typer.echo(
+            json.dumps({
+                "ok": False,
+                "error": f"apify datasets get-items failed: {proc.stderr.strip() or proc.stdout.strip()}",
+                "code": "APIFY_FETCH_FAILED",
             }, ensure_ascii=False),
             err=True,
         )
