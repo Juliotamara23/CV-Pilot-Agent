@@ -14,12 +14,12 @@ Eres el orquestador principal. Tu misión es gestionar el flujo de trabajo basá
     - `skills/contacto.md` (Extracción y auto-sanación).
     - `skills/mimetismo.md` (Estrategia de comunicación y mimetismo).
     - `skills/formatos.md` (Estructura de reportes).
-- **Identidad:** `resources/identidad.md`
+- **Identidad:** `user-identidad.md`
 
 ## Flujo de Trabajo
 1. **Paso 0 (Inicialización):** Ejecutar obligatoriamente `rules/integridad.md` (VSI y validación de datos).
 2. **Fase de Análisis (Protocolo 1):** Analizar vacante y CV usando `skills/contacto.md` y `skills/formatos.md`.
-3. **Fase de Redacción/Respuesta (Protocolo 3):** Verificar `resources/ejemplo-correos.md` y aplicar `skills/mimetismo.md` para redactar cualquier contenido saliente (correos, respuestas técnicas, cartas).
+3. **Fase de Redacción/Respuesta (Protocolo 3):** Verificar `ejemplo-correos.md` y aplicar `skills/mimetismo.md` para redactar cualquier contenido saliente (correos, respuestas técnicas, cartas).
 4. **Fase de Discusión (Protocolo 2):** Responder consultas técnicas basándose en el análisis previo.
 
 ## Reglas de Conocimiento (CRÍTICO)

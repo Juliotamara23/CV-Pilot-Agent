@@ -29,7 +29,7 @@ user-identidad.md
 rule-persona.md
 skill-contacto.md
 skill-formatos.md
-skill-redaccion.md
+skill-mimetismo.md
 ```
 
 ---

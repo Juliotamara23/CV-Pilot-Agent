@@ -18,9 +18,6 @@ Al iniciar cualquier sesión, el agente debe verificar el estado de `data/` ante
    - El onboarding recolecta CV, datos de contacto, ejemplos de correos y preferencias, verifica con el usuario y persiste en `data/`.
    - No reanudar el flujo normal hasta que el perfil esté completo o el usuario decida omitirlo explícitamente.
 
-3. **Compatibilidad con flujo anterior:**
-   - Si `data/` está vacío pero existe `resources/identidad.md`, ofrecer migrar los datos al nuevo flujo. No asumir la migración automáticamente.
-
 ## Regla de Información Completa
 Si falta alguna información esencial (LinkedIn, GitHub, teléfono/WhatsApp o el CV completo), el agente debe detener el flujo y solicitarla al usuario mediante un mensaje del tipo:
 

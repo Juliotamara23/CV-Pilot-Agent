@@ -67,12 +67,12 @@ cv-pilot-agent/
 │   ├── onboarding/
 │   │   ├── SKILL.md
 │   │   ├── scripts/
-│   │   │   └── cli.py         # onboard.py (extract, parse, generate, full)
+│   │   │   └── cli.py         # extract, parse, generate, full
 │   │   └── templates/
 │   ├── apify/
 │   │   ├── SKILL.md
 │   │   └── scripts/
-│   │       ├── cli.py         # search_jobs.py
+│   │       ├── cli.py         # search (indeed, linkedin, computrabajo)
 │   │       └── platforms/     # indeed.py, linkedin.py, computrabajo.py
 │   ├── database/
 │   │   ├── SKILL.md
@@ -81,11 +81,11 @@ cv-pilot-agent/
 │   ├── mimetismo/
 │   │   ├── SKILL.md
 │   │   └── scripts/
-│   │       └── cli.py         # mimetismo.py (email, question, cover-letter)
+│   │       └── cli.py         # email, question, cover-letter
 │   └── formatos/
 │       ├── SKILL.md
 │       └── scripts/
-│           └── cli.py         # format_report.py
+│           └── cli.py         # reporte determinista
 ├── _lib/                      # Utilidades internas compartidas
 │   ├── db.py
 │   ├── models.py
@@ -101,12 +101,12 @@ cv-pilot-agent/
 ├── db/
 │   └── cv-pilot.db            # Base SQLite (local)
 └── data/                      # Perfil del usuario (gitignored, local)
-    ├── perfil.md              # Generado por onboard.py
-    ├── correos.md             # Generado por onboard.py
-    └── preferencias.md        # Generado por onboard.py
+    ├── perfil.md              # Generado por onboarding
+    ├── correos.md             # Generado por onboarding
+    └── preferencias.md        # Generado por onboarding
 ```
 
-3. **Onboarding conversacional** (obligatorio la primera vez): el agente detecta que `data/perfil.md` no existe y arranca el flujo guiado invocando `onboard.py`. Puedes pasarle tu CV en PDF (Camino B, requiere venv con PyMuPDF) o pegar el texto directamente (Camino A, sin dependencias). El agente verifica los datos contigo y persiste el perfil en `data/`.
+3. **Onboarding conversacional** (obligatorio la primera vez): el agente detecta que `data/perfil.md` no existe y arranca el flujo guiado invocando el script de onboarding. Puedes pasarle tu CV en PDF (Camino B, requiere venv con PyMuPDF) o pegar el texto directamente (Camino A, sin dependencias). El agente verifica los datos contigo y persiste el perfil en `data/`.
 4. **Configurar soporte PDF** (opcional, solo Camino B): si vas a subir el CV en PDF y quieres ahorrarte la pregunta del agente, ejecuta manualmente `cv-pilot-agent/scripts/venv_setup.py` o uno de los scripts legacy. Si omites este paso, el agente lo configura automáticamente la primera vez que lo necesite.
 5. **Configurar Apify** (solo si vas a usar búsqueda automática): sigue los pasos de "Token Apify" más arriba. Para análisis manual de vacantes no hace falta.
 

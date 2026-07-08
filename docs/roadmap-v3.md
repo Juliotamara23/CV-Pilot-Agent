@@ -1,3 +1,6 @@
+> **HISTORICAL** — This roadmap planned the v3.0 scriptification. That work is complete.
+> Each skill now uses `scripts/cli.py` + `_lib/` internal modules. See `AGENTS.md` for the current architecture.
+
 # v3.0.0 — Scriptification Roadmap
 
 ## Objetivo

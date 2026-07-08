@@ -4,7 +4,7 @@
 
 ## ✨ Qué hace
 
-- **Onboarding conversacional**: el agente chatea contigo, ejecuta `onboard.py` para extraer tu CV (texto o PDF con PyMuPDF), verifica los datos y genera tu perfil automáticamente. Nunca más repetir el setup.
+- **Onboarding conversacional**: el agente chatea contigo, ejecuta el script de onboarding para extraer tu CV (texto o PDF con PyMuPDF), verifica los datos y genera tu perfil automáticamente. Nunca más repetir el setup.
 - **Búsqueda automática multi-plataforma**: Indeed, LinkedIn y Computrabajo con un presupuesto desde $5 USD/mes.
 - **Análisis técnico riguroso**: compara cada vacante contra tu CV real, tecnología por tecnología.
 - **Borradores en tu correo**: guarda las postulaciones como borrador en Gmail (`gws`) u Outlook (`m365` / Microsoft Graph) para que las revises antes de enviar. HTML con hipervínculos, sin URLs crudas.
@@ -43,16 +43,16 @@
 ## 🧠 Arquitectura
 
 ```
-skills/onboarding/        → CLI onboard.py (extract, parse, generate, full)
+skills/onboarding/        → CLI cli.py (extract, parse, generate, full)
                               Persistencia de perfil en data/
-skills/apify/             → CLI search_jobs.py con plugins por plataforma
+skills/apify/             → CLI cli.py con plugins por plataforma
                               (indeed, linkedin, computrabajo)
 skills/database/          → CLI query.py (ORM: list, insert, status, analysis)
                               Persistencia y deduplicación en SQLite
-skills/mimetismo/         → CLI mimetismo.py (email, question, cover-letter)
+skills/mimetismo/         → CLI cli.py (email, question, cover-letter)
                               Redacción con estilo del usuario + borradores
                               en Gmail/Outlook (gws, m365) y extracción de contacto
-skills/formatos/          → CLI format_report.py (reporte determinista)
+skills/formatos/          → CLI cli.py (reporte determinista)
                               Reportes estructurados con opciones de postulación
 cv-pilot-agent/scripts/   → venv_setup (obligatorio), pdf_parser (PyMuPDF),
                               init (DB), cleanup (temp/)
