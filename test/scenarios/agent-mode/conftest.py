@@ -16,10 +16,11 @@ _AGENT_ROOT = Path(__file__).resolve().parent.parent.parent.parent / "cv-pilot-a
 if str(_AGENT_ROOT) not in sys.path:
     sys.path.insert(0, str(_AGENT_ROOT))
 
-# Make test/_lib importable for token_counter and other helpers.
+# Make test/test_helpers importable for token_counter and other test utilities.
+# Append (not insert) so cv-pilot-agent/_lib/ takes priority for production imports.
 _TEST_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_TEST_ROOT) not in sys.path:
-    sys.path.insert(0, str(_TEST_ROOT))
+    sys.path.append(str(_TEST_ROOT))
 
 # DDL mirrors scripts/init.py verbatim (which is code_guard protected and uses a
 # fixed path, so tests reuse the schema here instead of importing it).

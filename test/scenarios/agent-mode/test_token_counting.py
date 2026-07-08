@@ -1,4 +1,4 @@
-"""Tests for the token counting helper in test/_lib/token_counter.py.
+"""Tests for the token counting helper in test/test_helpers/token_counter.py.
 
 These tests verify the tiktoken-based counting utilities work correctly
 before we integrate them into the broader test suite.
@@ -11,12 +11,13 @@ from pathlib import Path
 
 import pytest
 
-# Make _lib importable from test/scenarios/agent-mode/.
+# Make test_helpers importable from test/scenarios/agent-mode/.
+# Append (not insert) so cv-pilot-agent/_lib/ takes priority for production imports.
 _TEST_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_TEST_ROOT) not in sys.path:
-    sys.path.insert(0, str(_TEST_ROOT))
+    sys.path.append(str(_TEST_ROOT))
 
-from _lib.token_counter import count_tokens, count_tokens_in_messages
+from test_helpers.token_counter import count_tokens, count_tokens_in_messages
 
 
 # --------------------------------------------------------------------------- #

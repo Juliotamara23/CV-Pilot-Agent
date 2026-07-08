@@ -289,15 +289,18 @@ def test_fixture_json_token_budget(token_tracker):
     that API/CLI output stays within a reasonable token budget.
     The threshold is generous — adjust after observing real usage.
     """
-    from _lib.token_counter import count_tokens
+    from test_helpers.token_counter import count_tokens
 
     items = _load("linkedin.json")
     envelope = json.dumps(items, ensure_ascii=False)
     tokens = count_tokens(envelope)
     token_tracker.add(tokens)
 
-    # LinkedIn fixture with 10+ items should stay well under 5000 tokens.
-    assert tokens < 5000, (
-        f"LinkedIn fixture JSON is {tokens} tokens — exceeds 5000 budget. "
+    # LinkedIn fixture with 10 full jobs (long descriptions) measures ~22k tokens
+    # on 2026-07-08. Threshold of 50000 catches catastrophic growth (e.g., fixture
+    # accidentally expanded to hundreds of items) without false-alarming on normal
+    # data. Adjust if fixture legitimately grows.
+    assert tokens < 50000, (
+        f"LinkedIn fixture JSON is {tokens} tokens — exceeds 50000 budget. "
         f"Fixture may have grown; review and adjust threshold."
     )
