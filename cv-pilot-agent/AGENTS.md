@@ -36,8 +36,12 @@ version: 4.1
 
 **4a. Sourcing — Apify:**
 - Detectar plataforma (Indeed/LinkedIn/Computrabajo), inferir params
-- `skills/apify/scripts/cli.py` sin `--confirm` → mostrar costo → confirmar con usuario
-- `skills/apify/scripts/cli.py --confirm` → normaliza, etiqueta relevancia (high/medium/low), persiste TODO
+- `skills/apify/scripts/cli.py search --platform <p> --position <q> --location <loc> [--count N]` sin `--confirm` → mostrar costo → confirmar con usuario
+- `skills/apify/scripts/cli.py search ... --confirm` → launch + poll + fetch (variable time, cap 180s), normaliza, etiqueta relevancia (high/medium/low), persiste TODO. Envelope final incluye `run_id`, `dataset_id`, `elapsed_seconds`, `skipped_errors`, `validation_failures` para diagnóstico
+- **Recovery de interrupción** (opcional, si el run tardó demasiado o cerraste la terminal):
+  - `cli.py datasets-list --actor <a> --since-minutes N` → lista datasets recientes
+  - `cli.py datasets-inspect --dataset-id <id>` → cuenta items, muestra schema
+  - `cli.py datasets-fetch --dataset-id <id>` → trae items, persiste los que faltan (idempotente, no duplica)
 
 **4b. Sourcing — Manual:**
 - Extraer campos del texto/URL. Si faltan, preguntar.
