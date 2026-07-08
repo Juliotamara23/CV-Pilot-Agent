@@ -12,9 +12,9 @@ La redacción la hace el agente; el envío, el script.
 
 | Comando | ¿Crea borrador? | Notas |
 |---|---|---|
-| `email --job <h> --body-file <p> --to <e> [--provider gmail\|outlook] [--dry-run]` | Sí | Bloquea si `contact_method=="portal"` |
+| `email --job <h> --body-file <p> --to <e> [--provider gmail\|outlook] [--subject ...] [--dry-run]` | Sí | Bloquea si `contact_method=="portal"` |
 | `question --job <h> --body-file <p>` | No | Error si cuerpo vacío |
-| `cover-letter --job <h> --body-file <p> [--provider ...] [--to ...] [--dry-run]` | Solo con provider+to | Funciona siempre |
+| `cover-letter --job <h> --body-file <p> [--provider ...] [--to ...] [--subject ...] [--dry-run]` | Solo con provider+to | Funciona siempre |
 
 ## Contrato
 
@@ -25,6 +25,57 @@ La redacción la hace el agente; el envío, el script.
 5. `cleanup.py` al final (éxito o error).
 6. Output: JSON `{"ok":bool, ...}` a stdout, errores a stderr con `code`.
 7. Proveedores: Gmail `gws`, Outlook `m365` (ver docs/gws-setup.md, docs/outlook-setup.md).
+
+## Flags opcionales
+
+### `--subject`
+
+Línea de asunto personalizada. Si no se pasa, el script genera una por defecto según el modo:
+
+| Modo | Asunto por defecto |
+|---|---|
+| `email` | `Postulación: <position> — <company>` |
+| `cover-letter` | `Carta de presentación: <position> — <company>` |
+
+Uso: pasar `--subject` cuando el usuario pide un asunto específico o cuando la empresa indica un formato particular (ej. "Asunto: Candidatura - Full Stack Developer").
+
+```bash
+# Asunto personalizado
+python skills/mimetismo/scripts/cli.py email \
+  --job <h> --body-file <p> --to rrhh@x.com \
+  --subject "Candidatura: Senior React Developer"
+```
+
+### `--dry-run`
+
+Previsualiza el HTML final (con links y firma) sin crear el borrador en el proveedor. No cambia el estado del job en la DB.
+
+| Valor | Comportamiento |
+|---|---|
+| Sin flag (default) | Crea borrador en el proveedor y actualiza estado a `applied` |
+| `--dry-run` | Retorna `{"ok": true, "dry_run": true, "html": "...", ...}` sin crear borrador |
+
+Uso: pasar `--dry-run` cuando se quiere mostrar el email/cartas al usuario antes de enviar, o para debugging del HTML.
+
+```bash
+# Previsualizar sin crear borrador
+python skills/mimetismo/scripts/cli.py email \
+  --job <h> --body-file <p> --to rrhh@x.com --dry-run
+```
+
+**Envelope de salida con `--dry-run`:**
+```json
+{
+  "ok": true,
+  "mode": "email",
+  "dry_run": true,
+  "provider": "gmail",
+  "to": "rrhh@x.com",
+  "subject": "Postulación: React Developer — Acme Corp",
+  "html": "<html>...</html>",
+  "job_hash": "abc123"
+}
+```
 
 ## Formato del body file
 
