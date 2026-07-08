@@ -16,6 +16,11 @@ _AGENT_ROOT = Path(__file__).resolve().parent.parent.parent.parent / "cv-pilot-a
 if str(_AGENT_ROOT) not in sys.path:
     sys.path.insert(0, str(_AGENT_ROOT))
 
+# Make test/_lib importable for token_counter and other helpers.
+_TEST_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(_TEST_ROOT) not in sys.path:
+    sys.path.insert(0, str(_TEST_ROOT))
+
 # DDL mirrors scripts/init.py verbatim (which is code_guard protected and uses a
 # fixed path, so tests reuse the schema here instead of importing it).
 SCHEMA_SQL = """
@@ -63,3 +68,44 @@ def tmp_db(tmp_path, monkeypatch):
 def query_script():
     """Absolute path to the CLI entrypoint."""
     return str(_AGENT_ROOT / "skills" / "database" / "scripts" / "query.py")
+
+
+# --------------------------------------------------------------------------- #
+# Token usage tracking — collects per-test counts for the terminal summary.
+# --------------------------------------------------------------------------- #
+
+_token_counts: list[tuple[str, int]] = []
+
+
+class TokenTracker:
+    """Simple accumulator that records token counts for a single test."""
+
+    def __init__(self) -> None:
+        self.total: int = 0
+
+    def add(self, tokens: int) -> None:
+        """Record a token count (e.g. from count_tokens or count_tokens_in_messages)."""
+        self.total += tokens
+
+
+@pytest.fixture()
+def token_tracker(request):
+    """Fixture that provides a TokenTracker and auto-registers the count."""
+    tracker = TokenTracker()
+    yield tracker
+    if tracker.total > 0:
+        _token_counts.append((request.node.nodeid, tracker.total))
+
+
+def pytest_terminal_summary(terminalreporter):
+    """Print token usage stats at the end of the test run."""
+    if not _token_counts:
+        return
+    counts = [c for _, c in _token_counts]
+    total = sum(counts)
+    mean = total // len(counts)
+    maximum = max(counts)
+    terminalreporter.write_sep("-", "token usage summary")
+    terminalreporter.write_line(
+        f"[tokens] total: {total}, mean: {mean}, max: {maximum}"
+    )

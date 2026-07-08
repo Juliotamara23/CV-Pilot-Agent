@@ -276,3 +276,28 @@ def test_normalize_output_per_item_safety():
     assert len(jobs) == 2, f"Expected 2 jobs, got {len(jobs)}"
     assert len(failures) == 1, f"Expected 1 failure, got {len(failures)}"
     assert "no_id_1" in failures[0]["id"]  # fallback id for non-dict
+
+
+# --------------------------------------------------------------------------- #
+# Token counting integration demo
+# --------------------------------------------------------------------------- #
+
+def test_fixture_json_token_budget(token_tracker):
+    """Measure token consumption of a fixture JSON envelope.
+
+    This demonstrates how to use the token_tracker fixture to assert
+    that API/CLI output stays within a reasonable token budget.
+    The threshold is generous — adjust after observing real usage.
+    """
+    from _lib.token_counter import count_tokens
+
+    items = _load("linkedin.json")
+    envelope = json.dumps(items, ensure_ascii=False)
+    tokens = count_tokens(envelope)
+    token_tracker.add(tokens)
+
+    # LinkedIn fixture with 10+ items should stay well under 5000 tokens.
+    assert tokens < 5000, (
+        f"LinkedIn fixture JSON is {tokens} tokens — exceeds 5000 budget. "
+        f"Fixture may have grown; review and adjust threshold."
+    )
