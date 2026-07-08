@@ -147,13 +147,50 @@ def search(
         return
 
     raw = call_actor(actor, adapter.build_input(params))
-    jobs = adapter.normalize_output(raw)
+
+    # -- filter error items (e.g. Indeed FOUND_NO_RESULTS) --------------- #
+    valid_raw, error_items = adapter.filter_errors(raw)
+    skipped_errors = [e.get("error", "UNKNOWN") for e in error_items]
+    if error_items:
+        typer.echo(
+            f"Warning: {len(error_items)} error item(s) dropped from dataset "
+            f"(codes: {', '.join(skipped_errors)}).",
+            err=True,
+        )
+
+    if not valid_raw:
+        _emit({
+            "ok": True, "phase": "done", "platform": platform, "actor": actor,
+            "count": 0, "cost_usd": cost, "relevance": {"high": 0, "medium": 0, "low": 0},
+            "persisted": None, "skipped_errors": skipped_errors,
+            "validation_failures": [],
+        })
+        return
+
+    # -- safe normalization (per-item isolation) ------------------------- #
+    jobs, validation_failures = adapter.normalize_output_safe(valid_raw)
+    if validation_failures:
+        typer.echo(
+            f"Warning: {len(validation_failures)} item(s) failed normalization.",
+            err=True,
+        )
+
+    if not jobs:
+        _emit({
+            "ok": True, "phase": "done", "platform": platform, "actor": actor,
+            "count": 0, "cost_usd": cost, "relevance": {"high": 0, "medium": 0, "low": 0},
+            "persisted": None, "skipped_errors": skipped_errors,
+            "validation_failures": validation_failures,
+        })
+        return
+
     relevance = label_relevance(jobs, position)
     persisted = persist_jobs(jobs, _QUERY_PY)
     _emit({
         "ok": True, "phase": "done", "platform": platform, "actor": actor,
         "count": len(jobs), "cost_usd": cost, "relevance": relevance,
-        "persisted": persisted,
+        "persisted": persisted, "skipped_errors": skipped_errors,
+        "validation_failures": validation_failures,
     })
 
 

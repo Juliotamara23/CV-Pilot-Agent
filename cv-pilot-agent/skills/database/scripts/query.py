@@ -113,7 +113,11 @@ def job_insert(
 def job_insert_batch(
     file: Path = typer.Option(..., help="JSON file holding an array of job objects."),
 ) -> None:
-    """Insert many jobs from a JSON array file."""
+    """Insert many jobs from a JSON array file.
+
+    Per-item validation: a single bad item no longer kills the whole batch.
+    Returns ``{"persisted": [...], "failed": [...]}`` on stdout.
+    """
     try:
         raw = json.loads(file.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -123,13 +127,32 @@ def job_insert_batch(
         _emit_error("Batch file must contain a JSON array.", "VALIDATION_ERROR")
         raise typer.Exit(code=1)
 
-    try:
-        jobs = [JobInsert(**item) for item in raw]
-    except (TypeError, ValueError) as exc:
-        _emit_error(f"Invalid job shape in batch file: {exc}", "VALIDATION_ERROR")
+    if not raw:
+        _emit({"persisted": [], "failed": []})
+        return
+
+    persisted: list[JobInsert] = []
+    failed: list[dict] = []
+    for idx, item in enumerate(raw):
+        try:
+            persisted.append(JobInsert(**item))
+        except (TypeError, ValueError) as exc:
+            item_id = item.get("id", f"no_id_{idx}") if isinstance(item, dict) else f"no_id_{idx}"
+            failed.append({
+                "id": str(item_id),
+                "raw_preview": str(item)[:200],
+                "error": str(exc),
+            })
+
+    if not persisted and failed:
+        _emit_error(
+            f"All {len(failed)} item(s) failed validation. Nothing to persist.",
+            "VALIDATION_ERROR",
+        )
         raise typer.Exit(code=1)
 
-    _run(lambda: _emit(db.insert_jobs_batch(jobs)))
+    result = db.insert_jobs_batch(persisted)
+    _emit({"persisted": result, "failed": failed})
 
 
 @job_app.command("list")

@@ -102,7 +102,13 @@ def call_actor(actor: str, actor_input: dict) -> list[dict]:
 
 
 def persist_jobs(jobs: list, query_py: str) -> Optional[dict]:
-    """Persist a batch of normalized jobs via ``query.py job insert-batch``."""
+    """Persist a batch of normalized jobs via ``query.py job insert-batch``.
+
+    Returns the DB-level result dict (inserted/duplicates/refreshed) or
+    ``None`` if the input list is empty.  DB-level validation failures
+    (if any) are logged to stderr by query.py and surfaced in the CLI
+    envelope via the ``failed`` key when the caller needs them.
+    """
     from _lib.models import JobInsert  # avoid circular at module level
 
     if not jobs:
@@ -132,6 +138,12 @@ def persist_jobs(jobs: list, query_py: str) -> Optional[dict]:
                 err=True,
             )
             raise typer.Exit(code=1)
-        return json.loads(proc.stdout)
+        raw_result = json.loads(proc.stdout)
+        # query.py now returns {"persisted": <db_result>, "failed": [...]}.
+        # Unwrap so the CLI envelope's "persisted" field keeps the old shape
+        # and DB-level failures are available separately.
+        if isinstance(raw_result, dict) and "persisted" in raw_result:
+            return raw_result["persisted"]
+        return raw_result
     finally:
         Path(tmp_path).unlink(missing_ok=True)

@@ -211,3 +211,68 @@ def test_indeed_fixture_no_silently_dropped_field():
         f"The actor schema likely changed. Either extend the adapter, or "
         f"add the field to KNOWN_UNMAPPED in test_apify_fixtures.py."
     )
+
+
+# --------------------------------------------------------------------------- #
+# Error filtering and per-item safety
+# --------------------------------------------------------------------------- #
+
+# Minimal good-item fixtures — just enough fields to pass JobInsert validation.
+LINKEDIN_GOOD = {
+    "id": "1",
+    "title": "Dev",
+    "companyName": "Acme",
+    "location": "Bogota",
+    "postedAt": "2026-07-08",
+    "link": "http://example.com",
+    "descriptionText": "A job description.",
+}
+
+COMPUTRABAJO_GOOD = {
+    "id": "2",
+    "title": "Dev",
+    "company": "Acme",
+    "location": "Bogota",
+    "postedDate": "2026-07-08",
+    "url": "http://example.com",
+    "descriptionText": "A job description.",
+}
+
+INDEED_GOOD = {
+    "id": "3",
+    "positionName": "Dev",
+    "company": "Acme",
+    "location": "Bogota",
+    "postedAt": "2026-07-08",
+    "url": "http://example.com",
+    "description": "A job description.",
+}
+
+
+def test_all_adapters_filter_error_items():
+    """All 3 adapters should drop Indeed-style error items before normalization."""
+    error_item = {"error": "FOUND_NO_RESULTS", "errorDescription": "no jobs"}
+    for adapter_cls, good_item in [
+        (ComputrabajoAdapter, COMPUTRABAJO_GOOD),
+        (LinkedinAdapter, LINKEDIN_GOOD),
+        (IndeedAdapter, INDEED_GOOD),
+    ]:
+        adapter = adapter_cls()
+        valid, errors = adapter.filter_errors([good_item, error_item])
+        assert len(valid) == 1, f"{adapter_cls.__name__}: expected 1 valid, got {len(valid)}"
+        assert len(errors) == 1, f"{adapter_cls.__name__}: expected 1 error, got {len(errors)}"
+        assert errors[0]["error"] == "FOUND_NO_RESULTS"
+
+
+def test_normalize_output_per_item_safety():
+    """A single bad item must not kill the whole batch."""
+    good = LINKEDIN_GOOD.copy()
+    # Force an error: pass a non-dict item (e.g. a raw string from a
+    # malformed actor response). The adapter calls raw.get() which will
+    # raise AttributeError on a string, proving per-item isolation works.
+    bad = "this is not a valid job dict"
+    adapter = LinkedinAdapter()
+    jobs, failures = adapter.normalize_output_safe([good, bad, good])
+    assert len(jobs) == 2, f"Expected 2 jobs, got {len(jobs)}"
+    assert len(failures) == 1, f"Expected 1 failure, got {len(failures)}"
+    assert "no_id_1" in failures[0]["id"]  # fallback id for non-dict
