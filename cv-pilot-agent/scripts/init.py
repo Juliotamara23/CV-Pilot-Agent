@@ -1,7 +1,7 @@
 import sqlite3
 from pathlib import Path
 
-# Ubicación de la base de datos
+# Database file location
 db_path = Path(__file__).parent.parent / "db" / "cv-pilot.db"
 
 
@@ -22,13 +22,13 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
 
 def init():
     try:
-        # Crear directorio db/ si no existe
+        # Create db/ directory if it does not exist
         db_path.parent.mkdir(parents=True, exist_ok=True)
 
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
-        # Tabla jobs — validación estricta de estados
+        # jobs table — strict status validation
         cursor.execute('''CREATE TABLE IF NOT EXISTS jobs (
             job_hash TEXT PRIMARY KEY,
             external_id TEXT,
@@ -43,7 +43,7 @@ def init():
             source TEXT DEFAULT 'manual'
         )''')
         
-        # Tabla analyses — esquema completo con campos de análisis detallado
+        # analyses table — full schema with detailed analysis fields
         cursor.execute('''CREATE TABLE IF NOT EXISTS analyses (
             analysis_id TEXT PRIMARY KEY,
             job_hash TEXT,

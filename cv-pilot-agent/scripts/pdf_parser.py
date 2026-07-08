@@ -1,24 +1,24 @@
-"""Extracción de texto y enlaces desde un PDF usando PyMuPDF (fitz).
+"""Extract text and links from a PDF using PyMuPDF (fitz).
 
-Uso:
-    # Con venv (recomendado), Windows:
-    cv-pilot-agent\\.venv\\Scripts\\python.exe pdf_parser.py <ruta_al_pdf>
-    # Con venv (recomendado), Unix:
-    cv-pilot-agent/.venv/bin/python pdf_parser.py <ruta_al_pdf>
-    # Sin venv (fallback), Windows:
-    python pdf_parser.py <ruta_al_pdf>
-    # Sin venv (fallback), Unix:
-    python3 pdf_parser.py <ruta_al_pdf>
+Usage:
+    # With venv (recommended), Windows:
+    cv-pilot-agent\\.venv\\Scripts\\python.exe pdf_parser.py <path_to_pdf>
+    # With venv (recommended), Unix:
+    cv-pilot-agent/.venv/bin/python pdf_parser.py <path_to_pdf>
+    # Without venv (fallback), Windows:
+    python pdf_parser.py <path_to_pdf>
+    # Without venv (fallback), Unix:
+    python3 pdf_parser.py <path_to_pdf>
 
-Salida (JSON a stdout):
+Output (JSON to stdout):
     {
-        "text": "<texto completo>",
+        "text": "<full text>",
         "links": ["https://...", "https://..."],
         "ok": true
     }
 
-Si la extracción falla o el PDF no contiene texto, devuelve ok=false para que
-el flujo de onboarding ofrezca el camino manual (pegar texto/enlaces).
+If extraction fails or the PDF contains no text, returns ok=false so the
+onboarding flow can offer the manual path (paste text/links).
 """
 
 import json
@@ -32,12 +32,12 @@ except ImportError:
 
 
 def extract(pdf_path: str) -> dict:
-    """Extrae texto y enlaces de un PDF.
+    """Extract text and links from a PDF.
 
-    Devuelve un dict con:
-        text:  texto completo del PDF (str)
-        links: lista de URLs (list[str])
-        ok:    True si se extrajo texto, False si falló o vacío
+    Returns a dict with:
+        text:  full PDF text (str)
+        links: list of URLs (list[str])
+        ok:    True if text was extracted, False if failed or empty
     """
     if fitz is None:
         return {"text": "", "links": [], "ok": False,
@@ -52,7 +52,7 @@ def extract(pdf_path: str) -> dict:
 
     try:
         doc = fitz.open(path)
-    except Exception as exc:  # PDF corrupto o no soportado
+    except Exception as exc:  # Corrupted or unsupported PDF
         return {"text": "", "links": [], "ok": False,
                 "error": f"No se pudo abrir el PDF: {exc}"}
 
