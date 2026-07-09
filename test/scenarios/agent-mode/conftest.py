@@ -22,35 +22,12 @@ _TEST_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_TEST_ROOT) not in sys.path:
     sys.path.append(str(_TEST_ROOT))
 
-# DDL mirrors scripts/init.py verbatim (which is code_guard protected and uses a
-# fixed path, so tests reuse the schema here instead of importing it).
-SCHEMA_SQL = """
-CREATE TABLE IF NOT EXISTS jobs (
-    job_hash TEXT PRIMARY KEY,
-    external_id TEXT,
-    public_date TEXT,
-    url TEXT,
-    company TEXT,
-    position TEXT,
-    location TEXT,
-    salary TEXT,
-    description TEXT,
-    status TEXT DEFAULT 'new' CHECK(status IN ('new','analyzed','discarded','applied','rejected')),
-    source TEXT DEFAULT 'manual'
-);
-CREATE TABLE IF NOT EXISTS analyses (
-    analysis_id TEXT PRIMARY KEY,
-    job_hash TEXT,
-    percentage REAL,
-    comparativa TEXT,
-    observaciones TEXT,
-    verdict TEXT,
-    tldr TEXT,
-    contact_method TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(job_hash) REFERENCES jobs(job_hash)
-);
-"""
+# Pull the canonical DDL from _lib/schema.sql (single source of truth). The
+# production init script reads from the same file, so test and production
+# cannot drift. If you add a column to schema.sql, both pick it up.
+from _lib._schema import get_schema_sql as _get_schema_sql  # noqa: E402
+
+SCHEMA_SQL = _get_schema_sql()
 
 
 @pytest.fixture()
