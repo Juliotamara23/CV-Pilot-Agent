@@ -251,7 +251,10 @@ class TestGetAnalysis:
         ))
         result = db.get_analysis(h)
         assert result["ok"] is True
-        assert result["analysis"]["percentage"] == 85.5
+        # Production schema: percentage is TEXT NOT NULL. SQLite returns it as
+        # a string. The Pydantic model says float, but the DB column is TEXT.
+        # Match what production actually returns.
+        assert result["analysis"]["percentage"] == "85.5"
 
     def test_returns_contact_method(self, tmp_db):
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]

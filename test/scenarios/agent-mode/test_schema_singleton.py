@@ -7,6 +7,7 @@ These tests guard against accidentally bypassing the shared module
 """
 from __future__ import annotations
 
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -64,4 +65,106 @@ def test_conftest_uses_shared_loader():
     )
     assert content.count("CREATE TABLE IF NOT EXISTS jobs") <= 1, (
         "conftest.py has inline DDL — remove it and use the shared schema"
+    )
+
+
+def extract_schema(conn: sqlite3.Connection) -> dict[str, dict]:
+    """Extract normalized schema info from a SQLite connection.
+
+    Returns a dict keyed by table name, each containing a 'columns' list
+    of dicts with keys: name, type, notnull, default, pk.
+    """
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' "
+        "AND name NOT LIKE 'sqlite_%' ORDER BY name"
+    )
+    tables = {}
+    for (table_name,) in cur.fetchall():
+        cur.execute(f"PRAGMA table_info({table_name})")
+        columns = []
+        for row in cur.fetchall():
+            columns.append({
+                "name": row[1],
+                "type": row[2],
+                "notnull": bool(row[3]),
+                "default": row[4],
+                "pk": bool(row[5]),
+            })
+        tables[table_name] = {"columns": columns}
+    return tables
+
+
+def _format_schema_diff(prod_schema: dict, canon_schema: dict) -> str:
+    """Return a human-readable diff between two schemas."""
+    lines = []
+    all_tables = sorted(set(list(prod_schema.keys()) + list(canon_schema.keys())))
+    for table in all_tables:
+        if table not in prod_schema:
+            lines.append(f"  MISSING IN PRODUCTION: table '{table}'")
+            continue
+        if table not in canon_schema:
+            lines.append(f"  MISSING IN CANONICAL: table '{table}'")
+            continue
+        prod_cols = prod_schema[table]["columns"]
+        canon_cols = canon_schema[table]["columns"]
+        max_len = max(len(prod_cols), len(canon_cols))
+        for i in range(max_len):
+            p = prod_cols[i] if i < len(prod_cols) else None
+            c = canon_cols[i] if i < len(canon_cols) else None
+            if p is None:
+                lines.append(f"  {table}: EXTRA column in canonical at [{i}]: {c['name']} {c['type']}")
+                continue
+            if c is None:
+                lines.append(f"  {table}: MISSING column in canonical at [{i}]: {p['name']} {p['type']}")
+                continue
+            # Compare field by field
+            for field in ("name", "type", "notnull", "default", "pk"):
+                pv, cv = p[field], c[field]
+                if pv != cv:
+                    lines.append(
+                        f"  {table}.{p['name']} [{field}]: "
+                        f"production={pv!r} canonical={cv!r}"
+                    )
+    return "\n".join(lines)
+
+
+def test_init_script_produces_matching_production_schema():
+    """Regression: the canonical schema must exactly match the production DB.
+
+    The production DB at cv-pilot-agent/db/cv-pilot.db is the source of truth.
+    The canonical schema in _lib/schema.sql (used by both init.py and tests)
+    must produce a structurally identical schema: same tables, same columns
+    in order, same types, same nullability, same defaults, same PKs.
+    """
+    repo_root = Path(__file__).resolve().parent.parent.parent.parent
+    prod_db_path = repo_root / "cv-pilot-agent" / "db" / "cv-pilot.db"
+    assert prod_db_path.is_file(), f"Production DB not found: {prod_db_path}"
+
+    # 1. Extract production schema (read-only)
+    prod_conn = sqlite3.connect(f"file:{prod_db_path}?mode=ro", uri=True)
+    try:
+        prod_schema = extract_schema(prod_conn)
+    finally:
+        prod_conn.close()
+
+    # 2. Create a fresh DB from the canonical schema
+    from _lib._schema import get_schema_sql
+
+    tmp_db = repo_root / "test" / "scenarios" / "agent-mode" / "_tmp_schema_test.db"
+    try:
+        canon_conn = sqlite3.connect(tmp_db)
+        canon_conn.executescript(get_schema_sql())
+        canon_conn.commit()
+        canon_schema = extract_schema(canon_conn)
+        canon_conn.close()
+    finally:
+        tmp_db.unlink(missing_ok=True)
+
+    # 3. Compare
+    diff = _format_schema_diff(prod_schema, canon_schema)
+    assert prod_schema == canon_schema, (
+        "Schema drift detected! Production DB differs from canonical schema.\n"
+        "The production DB is the source of truth — fix _lib/schema.sql.\n\n"
+        f"DIFF:\n{diff}"
     )

@@ -166,7 +166,8 @@ def test_e2e_happy_manual_source(tmp_db, query_script):
     assert proc.returncode == 0
     analysis_data = json.loads(proc.stdout)
     assert analysis_data["ok"] is True
-    assert analysis_data["analysis"]["percentage"] == 85.0
+    # Production schema: percentage is TEXT NOT NULL, returned as string.
+    assert analysis_data["analysis"]["percentage"] == "85.0"
     assert analysis_data["analysis"]["verdict"] == "Apto"
 
     # Step 5: Verify job status changed to 'analyzed'
