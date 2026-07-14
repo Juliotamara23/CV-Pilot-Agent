@@ -2,7 +2,7 @@
 name: Skill Formatos
 description: CLI `cli.py` — genera reportes de análisis (markdown | json) deterministas. Lectura de DB.
 scope: STRUCTURAL_ONLY
-version: 4.0
+version: 4.1
 ---
 
 # Formatos de Salida
@@ -13,14 +13,29 @@ Este skill es ahora un script determinista. El agente NO redacta el reporte — 
 
 Lectura de `jobs` + `analyses` (vía `_lib.db`) y `data/perfil.md`. Salida a stdout.
 
-### Uso
+### Comando `main` — reporte individual
 
 ```
-python skills/formatos/scripts/cli.py --job <hash> [--format markdown|json]
+python skills/formatos/scripts/cli.py main --job <hash> [--format markdown|json]
 ```
 
 - `--job <hash>` (obligatorio): SHA256 del trabajo analizado (tabla `jobs`).
 - `--format` (opcional): `markdown` (default, legible) o `json` (programático).
+
+### Comando `all` — análisis completo (todos los jobs)
+
+```
+python skills/formatos/scripts/cli.py all [--format markdown|json] [--status analyzed] [--limit 50]
+```
+
+- `--format` (opcional): `markdown` (default) o `json`.
+- `--status` (opcional): filtra por status de job (default: `analyzed`).
+- `--limit` (opcional): máximo de jobs a retornar (default: 50).
+- Si no hay análisis: imprime "No hay análisis pendientes" y retorna exit 0 (no falla).
+- En formato markdown: concatena todos los reportes con separadores `---`.
+- En formato JSON: retorna `{ok, count, reports: [{job_hash, report}, ...]}`.
+
+**Regla anti-improvisación:** Cuando el usuario pide "análisis completo", "muéstrame todos los análisis", o variantes, el agente DEBE invocar `formatos all` — NUNCA improvisar el output.
 
 ### Synopsis del flujo (AGENTS.md paso 5)
 

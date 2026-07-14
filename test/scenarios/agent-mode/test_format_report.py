@@ -302,7 +302,7 @@ class TestBuildJson:
 # --------------------------------------------------------------------------- #
 class TestCLI:
     def test_help_exits_zero(self):
-        result = runner.invoke(format_report.app, ["--help"])
+        result = runner.invoke(format_report.app, ["main", "--help"])
         assert result.exit_code == 0
         assert "--job" in result.stdout
         assert "--format" in result.stdout
@@ -315,7 +315,7 @@ class TestCLI:
         monkeypatch.setattr(pl, "load_profile", lambda r=None: _load_profile(root))
         h = _seed_job()
         _seed_analysis(h)
-        result = runner.invoke(format_report.app, ["--job", h])
+        result = runner.invoke(format_report.app, ["main", "--job", h])
         assert result.exit_code == 0, result.stderr
         out = result.stdout
         assert "🆔 ID:" in out
@@ -330,7 +330,7 @@ class TestCLI:
         monkeypatch.setattr(pl, "load_profile", lambda r=None: _load_profile(root))
         h = _seed_job()
         _seed_analysis(h)
-        result = runner.invoke(format_report.app, ["--job", h, "--format", "json"])
+        result = runner.invoke(format_report.app, ["main", "--job", h, "--format", "json"])
         assert result.exit_code == 0, result.stderr
         payload = json.loads(result.stdout)
         assert payload["ok"] is True
@@ -347,7 +347,7 @@ class TestCLI:
         monkeypatch.setattr(pl, "load_profile", lambda r=None: _load_profile(root))
         h = _seed_job()
         _seed_analysis(h)
-        result = runner.invoke(format_report.app, ["--job", h, "--format", "xml"])
+        result = runner.invoke(format_report.app, ["main", "--job", h, "--format", "xml"])
         assert result.exit_code == 1
         err = json.loads(result.stderr)
         assert err["ok"] is False
@@ -359,7 +359,7 @@ class TestCLI:
         monkeypatch.setattr(format_report, "_AGENT_ROOT", root)
         import _lib.shared.profile_loader as pl
         monkeypatch.setattr(pl, "load_profile", lambda r=None: _load_profile(root))
-        result = runner.invoke(format_report.app, ["--job", "deadbeef"])
+        result = runner.invoke(format_report.app, ["main", "--job", "deadbeef"])
         assert result.exit_code == 1
         err = json.loads(result.stderr)
         assert err["code"] == "JOB_NOT_FOUND"
@@ -370,13 +370,13 @@ class TestCLI:
         import _lib.shared.profile_loader as pl
         monkeypatch.setattr(pl, "load_profile", lambda r=None: _load_profile(root))
         h = _seed_job_no_analysis()
-        result = runner.invoke(format_report.app, ["--job", h])
+        result = runner.invoke(format_report.app, ["main", "--job", h])
         assert result.exit_code == 1
         err = json.loads(result.stderr)
         assert err["code"] == "ANALYSIS_NOT_FOUND"
 
     def test_missing_job_flag_is_usage_error(self, tmp_db):
-        result = runner.invoke(format_report.app, [])
+        result = runner.invoke(format_report.app, ["main"])
         assert result.exit_code != 0
         assert "--job" in (result.stdout + result.stderr)
 
@@ -387,8 +387,164 @@ class TestCLI:
         monkeypatch.setattr(pl, "load_profile", lambda r=None: _load_profile(root))
         h = _seed_job()
         _seed_analysis(h)
-        result = runner.invoke(format_report.app, ["--job", h])
+        result = runner.invoke(format_report.app, ["main", "--job", h])
         assert result.exit_code == 0, result.stderr
         assert ">LinkedIn</a>" not in result.stdout
         assert ">GitHub</a>" not in result.stdout
         assert ">CV</a>" not in result.stdout
+
+
+# --------------------------------------------------------------------------- #
+# 3.3 CLI tests — `all` command
+# --------------------------------------------------------------------------- #
+
+_IMPROVISED_PHRASES = [
+    "Aquí te muestro",
+    "A continuación",
+    "Te presento",
+    "Aqui tienes",
+    "Aquí tienes",
+    "Here is",
+    "Here are",
+    "Below you will find",
+    "I'll show you",
+]
+
+
+class TestCLIAll:
+    def test_help_exits_zero(self):
+        result = runner.invoke(format_report.app, ["all", "--help"])
+        assert result.exit_code == 0
+        assert "--format" in result.stdout
+        assert "--status" in result.stdout
+        assert "--limit" in result.stdout
+
+    def test_formatos_all_with_no_jobs(self, tmp_db, tmp_path, monkeypatch):
+        """DB vacía → mensaje claro, exit 0."""
+        root = _write_perfil(tmp_path)
+        monkeypatch.setattr(format_report, "_AGENT_ROOT", root)
+        import _lib.shared.profile_loader as pl
+        monkeypatch.setattr(pl, "load_profile", lambda r=None: _load_profile(root))
+        result = runner.invoke(format_report.app, ["all"])
+        assert result.exit_code == 0, result.stderr
+        assert "No hay análisis pendientes" in result.stdout
+
+    def test_formatos_all_with_jobs(self, tmp_db, tmp_path, monkeypatch):
+        """DB con 3 jobs analizados → output markdown contiene los 3, secciones correctas."""
+        root = _write_perfil(tmp_path)
+        monkeypatch.setattr(format_report, "_AGENT_ROOT", root)
+        import _lib.shared.profile_loader as pl
+        monkeypatch.setattr(pl, "load_profile", lambda r=None: _load_profile(root))
+
+        h1 = _seed_job(company="Alpha", position="Dev", location="Madrid")
+        _seed_analysis(h1, percentage=80, verdict="Apto", tldr="Tldr alpha")
+        h2 = _seed_job(company="Beta", position="QA", location="Barcelona")
+        _seed_analysis(h2, percentage=65, verdict="Apto con reservas", tldr="Tldr beta")
+        h3 = _seed_job(company="Gamma", position="Lead", location="Valencia")
+        _seed_analysis(h3, percentage=90, verdict="Apto", tldr="Tldr gamma")
+
+        result = runner.invoke(format_report.app, ["all"])
+        assert result.exit_code == 0, result.stderr
+        out = result.stdout
+
+        # All 3 companies appear
+        assert "Alpha" in out
+        assert "Beta" in out
+        assert "Gamma" in out
+
+        # All 3 verdicts appear
+        assert "Tldr alpha" in out
+        assert "Tldr beta" in out
+        assert "Tldr gamma" in out
+
+        # Section headers appear (from build_markdown)
+        assert "🆔 ID:" in out
+        assert "✅ Veredicto:" in out
+
+        # Separators between reports
+        assert out.count("---") >= 2
+
+    def test_formatos_all_json_format(self, tmp_db, tmp_path, monkeypatch):
+        """--format json → JSON parseable con lista de jobs."""
+        root = _write_perfil(tmp_path)
+        monkeypatch.setattr(format_report, "_AGENT_ROOT", root)
+        import _lib.shared.profile_loader as pl
+        monkeypatch.setattr(pl, "load_profile", lambda r=None: _load_profile(root))
+
+        h1 = _seed_job(company="Alpha", position="Dev", location="Madrid")
+        _seed_analysis(h1, percentage=80)
+        h2 = _seed_job(company="Beta", position="QA", location="Barcelona")
+        _seed_analysis(h2, percentage=65)
+
+        result = runner.invoke(format_report.app, ["all", "--format", "json"])
+        assert result.exit_code == 0, result.stderr
+        payload = json.loads(result.stdout)
+        assert payload["ok"] is True
+        assert payload["format"] == "json"
+        assert payload["count"] == 2
+        assert len(payload["reports"]) == 2
+        # Each entry has job_hash and report
+        for entry in payload["reports"]:
+            assert "job_hash" in entry
+            assert "report" in entry
+            assert "company" in entry["report"]
+
+    def test_formatos_all_json_no_jobs(self, tmp_db, tmp_path, monkeypatch):
+        """--format json con DB vacía → JSON válido con count 0."""
+        root = _write_perfil(tmp_path)
+        monkeypatch.setattr(format_report, "_AGENT_ROOT", root)
+        import _lib.shared.profile_loader as pl
+        monkeypatch.setattr(pl, "load_profile", lambda r=None: _load_profile(root))
+
+        result = runner.invoke(format_report.app, ["all", "--format", "json"])
+        assert result.exit_code == 0, result.stderr
+        payload = json.loads(result.stdout)
+        assert payload["ok"] is True
+        assert payload["count"] == 0
+        assert payload["reports"] == []
+
+    def test_formatos_all_does_not_improvise(self, tmp_db, tmp_path, monkeypatch):
+        """El output NO contiene texto improvisado por el LLM."""
+        root = _write_perfil(tmp_path)
+        monkeypatch.setattr(format_report, "_AGENT_ROOT", root)
+        import _lib.shared.profile_loader as pl
+        monkeypatch.setattr(pl, "load_profile", lambda r=None: _load_profile(root))
+
+        h = _seed_job()
+        _seed_analysis(h)
+
+        result = runner.invoke(format_report.app, ["all"])
+        assert result.exit_code == 0, result.stderr
+        out = result.stdout
+        for phrase in _IMPROVISED_PHRASES:
+            assert phrase not in out, f"LLM-improvised phrase found in output: '{phrase}'"
+
+    def test_formatos_all_respects_limit(self, tmp_db, tmp_path, monkeypatch):
+        """--limit 1 → solo 1 reporte."""
+        root = _write_perfil(tmp_path)
+        monkeypatch.setattr(format_report, "_AGENT_ROOT", root)
+        import _lib.shared.profile_loader as pl
+        monkeypatch.setattr(pl, "load_profile", lambda r=None: _load_profile(root))
+
+        _seed_analysis(_seed_job(company="A", position="P", location="L"))
+        _seed_analysis(_seed_job(company="B", position="Q", location="M"))
+
+        result = runner.invoke(format_report.app, ["all", "--limit", "1", "--format", "json"])
+        assert result.exit_code == 0, result.stderr
+        payload = json.loads(result.stdout)
+        assert payload["count"] == 1
+
+    def test_formatos_all_deterministic(self, tmp_db, tmp_path, monkeypatch):
+        """Mismo input → mismo output byte-a-byte."""
+        root = _write_perfil(tmp_path)
+        monkeypatch.setattr(format_report, "_AGENT_ROOT", root)
+        import _lib.shared.profile_loader as pl
+        monkeypatch.setattr(pl, "load_profile", lambda r=None: _load_profile(root))
+
+        h = _seed_job()
+        _seed_analysis(h)
+
+        r1 = runner.invoke(format_report.app, ["all"])
+        r2 = runner.invoke(format_report.app, ["all"])
+        assert r1.stdout == r2.stdout
+        assert r1.exit_code == r2.exit_code == 0

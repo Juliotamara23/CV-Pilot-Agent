@@ -45,6 +45,9 @@ Extraer campos. Verificar duplicación por SHA256 (`company+position+location`) 
 **5. Análisis**
 Razonamiento del agente (CV vs vacante). Persistir vía `analysis insert`. Renderizar reporte según `skills/formatos/SKILL.md` (reporte determinista — el agente NO añade texto propio, resúmenes ni formato adicional).
 
+**5b. Análisis completo**
+Si el usuario pide "análisis completo", "muéstrame todos los análisis", "dame el resumen de todo", o variantes: invocar `skills/formatos/scripts/cli.py all` (no improvisar el output). Ver `skills/formatos/SKILL.md` para los flags disponibles.
+
 **6. Redacción / Respuesta**
 Generar HTML en `temp/cvp-<hash>-body.html`. Invocar CLI de `skills/mimetismo/SKILL.md` (`email` / `question` / `cover-letter`, auto-detección de provider). Cambios de estado vía `query.py status set`. NUNCA escribir SQL. Cleanup al finalizar según `rules/code_guard.md`.
 
