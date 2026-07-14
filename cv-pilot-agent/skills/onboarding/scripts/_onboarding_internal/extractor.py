@@ -23,7 +23,7 @@ def read_text(source: Path, extra_links: list[str]) -> tuple[str, list[str]]:
         text = sys.stdin.read()
         links: list[str] = []
     elif _is_pdf(source):
-        from pdf_parser import extract as extract_pdf
+        from _lib.pdf_parser import extract as extract_pdf
         result = extract_pdf(str(source))
         if not result.get("ok"):
             raise RuntimeError(result.get("error", "PDF extraction failed"))

@@ -30,7 +30,7 @@ for _stream in (sys.stdout, sys.stderr):
 # works regardless of CWD when the script is run by path or as a module.
 _AGENT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(_AGENT_ROOT))
-sys.path.insert(0, str(_AGENT_ROOT / "scripts"))
+sys.path.insert(0, str(_AGENT_ROOT / "_lib"))
 
 import typer  # noqa: E402
 from pdf_parser import extract as extract_pdf  # noqa: E402
