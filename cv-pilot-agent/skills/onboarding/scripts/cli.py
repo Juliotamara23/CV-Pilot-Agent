@@ -39,6 +39,12 @@ from _onboarding_internal.extractor import read_text  # noqa: E402
 from _onboarding_internal.parser import REQUIRED, parse_text  # noqa: E402
 from _onboarding_internal.renderer import email_block, render_template  # noqa: E402
 from _onboarding_internal.generator import generate_files  # noqa: E402
+from vsi import validate_cv  # noqa: E402
+
+# Canonical rejection message from rules/integridad.md:32.
+VSI_REJECTION_MESSAGE = (
+    "Este documento no es un perfil profesional válido. Comparte un CV real."
+)
 
 app = typer.Typer(
     name="onboard",
@@ -113,6 +119,19 @@ def full(
     if not extracted.get("ok"):
         _emit({"ok": False, "step": "extract", "error": extracted.get("error", "")})
         raise typer.Exit(code=1)
+
+    # VSI — Validate Semantic Identity (integridad.md:26-35)
+    vsi_result = validate_cv(extracted.get("text", ""))
+    if not vsi_result["is_valid"]:
+        _emit({
+            "ok": False,
+            "step": "vsi",
+            "error": "VSI_REJECTED",
+            "razon_rechazo": vsi_result["razon_rechazo"],
+            "mensaje": VSI_REJECTION_MESSAGE,
+        })
+        raise typer.Exit(code=1)
+
     parsed = parse_text(extracted.get("text", ""), extracted.get("links", []))
     fields = dict(parsed["fields"])
     if fields_file and fields_file.is_file():
@@ -127,6 +146,10 @@ def full(
         "ok": True,
         "step": "full",
         "extract": {"ok": True, "links": extracted.get("links", [])},
+        "vsi": {
+            "secciones_detectadas": vsi_result["secciones_detectadas"],
+            "confianza": vsi_result["confianza"],
+        },
         "parse": {"fields": parsed["fields"], "missing": parsed["missing"]},
         "generate": outputs,
     })

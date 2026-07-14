@@ -46,6 +46,12 @@ if str(_ONBOARDING_SCRIPTS) not in sys.path:
 
 from _onboarding_internal.parser import parse_text  # noqa: E402
 from _cv_update_internal.reconstructor import reconstruct_profile  # noqa: E402
+from vsi import validate_cv  # noqa: E402
+
+# Canonical rejection message from rules/integridad.md:32.
+VSI_REJECTION_MESSAGE = (
+    "Este documento no es un perfil profesional válido. Comparte un CV real."
+)
 
 app = typer.Typer(
     name="cv-update",
@@ -79,18 +85,30 @@ def update(
         _emit({"ok": False, "step": "extract", "error": extracted.get("error", "")})
         raise typer.Exit(code=1)
 
-    # Step 2: Parse CV fields
+    # Step 2: VSI — Validate Semantic Identity (integridad.md:26-35)
+    vsi_result = validate_cv(extracted.get("text", ""))
+    if not vsi_result["is_valid"]:
+        _emit({
+            "ok": False,
+            "step": "vsi",
+            "error": "VSI_REJECTED",
+            "razon_rechazo": vsi_result["razon_rechazo"],
+            "mensaje": VSI_REJECTION_MESSAGE,
+        })
+        raise typer.Exit(code=1)
+
+    # Step 3: Parse CV fields
     parsed = parse_text(extracted.get("text", ""), extracted.get("links", []))
     new_fields = parsed["fields"]
 
-    # Step 3: Reconstruct perfil.md from scratch (NO old data consulted)
+    # Step 4: Reconstruct perfil.md from scratch (NO old data consulted)
     result = reconstruct_profile(new_fields, source_pdf=str(pdf_path))
 
-    # Step 4: Write new perfil.md
+    # Step 5: Write new perfil.md
     data_dir.mkdir(parents=True, exist_ok=True)
     perfil_path.write_text(result["perfil_content"], encoding="utf-8")
 
-    # Step 5: Post-update validation — verify written content matches
+    # Step 6: Post-update validation — verify written content matches
     written = perfil_path.read_text(encoding="utf-8")
     if written != result["perfil_content"]:
         import logging
@@ -99,7 +117,7 @@ def update(
             "Posible race condition o encoding issue."
         )
 
-    # Step 6: Report
+    # Step 7: Report
     _emit({
         "ok": True,
         "perfil_path": str(perfil_path),
@@ -107,6 +125,10 @@ def update(
         "campos_no_encontrados": result["campos_no_encontrados"],
         "fuente": result["fuente"],
         "timestamp": result["timestamp"],
+        "vsi": {
+            "secciones_detectadas": vsi_result["secciones_detectadas"],
+            "confianza": vsi_result["confianza"],
+        },
     })
 
 
