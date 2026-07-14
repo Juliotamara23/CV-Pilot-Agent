@@ -1,8 +1,10 @@
 """Deterministic CV update CLI for CV-Pilot.
 
-Updates ``data/perfil.md`` from a new CV PDF WITHOUT re-running onboarding.
-Preserves custom fields (e.g. ``pdf_soporte: true``) and NEVER touches
-``correos.md`` or ``preferencias.md``.
+Rewrites ``data/perfil.md`` from scratch using ONLY the new CV PDF.
+Each update is a full snapshot — old fields are NEVER preserved.
+This ensures ATS fidelity: a real ATS only knows the CV you submit.
+
+NEVER touches ``correos.md`` or ``preferencias.md``.
 
 Reuses:
 - ``_lib/pdf_parser.py`` for PDF text extraction.
@@ -10,7 +12,8 @@ Reuses:
 
 Invoked by the orchestrator via the venv Python::
 
-    .venv/Scripts/python.exe skills/cv-update/scripts/cli.py update <pdf_path>
+    .venv/Scripts/python.exe skills/cv-update/scripts/cli.py <pdf_path>
+    .venv/Scripts/python.exe skills/cv-update/scripts/cli.py --data-dir <dir> <pdf_path>
 """
 
 from __future__ import annotations
@@ -42,7 +45,7 @@ if str(_ONBOARDING_SCRIPTS) not in sys.path:
     sys.path.append(str(_ONBOARDING_SCRIPTS))
 
 from _onboarding_internal.parser import parse_text  # noqa: E402
-from _cv_update_internal.merger import merge_profile  # noqa: E402
+from _cv_update_internal.reconstructor import reconstruct_profile  # noqa: E402
 
 app = typer.Typer(
     name="cv-update",
@@ -63,11 +66,10 @@ def update(
         Path("data"), "--data-dir", help="Directory containing perfil.md (default: data/)."
     ),
 ) -> None:
-    """Update perfil.md from a new CV PDF.
+    """Rewrite perfil.md from scratch with data from a new CV PDF.
 
-    Extracts text/links from the PDF, parses CV fields, and merges them
-    into the existing perfil.md. Custom fields are preserved. NEVER touches
-    correos.md or preferencias.md.
+    Each update is a FULL snapshot — old perfil.md content is discarded.
+    NEVER touches correos.md or preferencias.md.
     """
     perfil_path = data_dir / "perfil.md"
 
@@ -81,25 +83,30 @@ def update(
     parsed = parse_text(extracted.get("text", ""), extracted.get("links", []))
     new_fields = parsed["fields"]
 
-    # Step 3: Load existing perfil.md (if exists)
-    old_content = ""
-    if perfil_path.is_file():
-        old_content = perfil_path.read_text(encoding="utf-8")
+    # Step 3: Reconstruct perfil.md from scratch (NO old data consulted)
+    result = reconstruct_profile(new_fields, source_pdf=str(pdf_path))
 
-    # Step 4: Merge
-    result = merge_profile(old_content, new_fields)
-
-    # Step 5: Write updated perfil.md
+    # Step 4: Write new perfil.md
     data_dir.mkdir(parents=True, exist_ok=True)
-    perfil_path.write_text(result["content"], encoding="utf-8")
+    perfil_path.write_text(result["perfil_content"], encoding="utf-8")
+
+    # Step 5: Post-update validation — verify written content matches
+    written = perfil_path.read_text(encoding="utf-8")
+    if written != result["perfil_content"]:
+        import logging
+        logging.warning(
+            "cv-update: contenido escrito difiere del generado. "
+            "Posible race condition o encoding issue."
+        )
 
     # Step 6: Report
     _emit({
         "ok": True,
         "perfil_path": str(perfil_path),
-        "fields_updated": result["fields_updated"],
-        "fields_preserved": result["fields_preserved"],
-        "fields_added": result["fields_added"],
+        "campos_extraidos": result["campos_extraidos"],
+        "campos_no_encontrados": result["campos_no_encontrados"],
+        "fuente": result["fuente"],
+        "timestamp": result["timestamp"],
     })
 
 

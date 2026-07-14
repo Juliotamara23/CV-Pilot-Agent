@@ -1,1 +1,1 @@
-"""cv-update internal modules: merge logic for profile updates."""
+"""cv-update internal modules: full-profile reconstruction from CV."""

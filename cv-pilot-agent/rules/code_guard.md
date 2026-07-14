@@ -52,9 +52,15 @@ Si un script es un parche único para un caso puntual, el agente DEBE:
 
 Un agente improvisó código nuevo para extraer información del CV en vez de reutilizar `pdf_parser.extract()`. Resultado: el campo custom `pdf_soporte: true` en `data/preferencias.md` quedó en riesgo de sobrescritura.
 
-**Regla:** Si necesitás re-extraer info del CV, usá la skill `cv-update` (que preserva campos custom), nunca re-ejecutes `onboarding full` ni improvises código de extracción.
+**Regla:** Si necesitás re-extraer info del CV, usá la skill `cv-update`, nunca re-ejecutes `onboarding full` ni improvises código de extracción.
 
 **Principio:** Onboarding ≠ Actualizador. Ambos comparten SOLO la interfaz PDF→MD (`pdf_parser.extract()` + `parser.parse_text()`). Cada uno tiene su responsabilidad única (SRP).
+
+### Regla: cv-update es reescritura completa, no merge (2026-07-14)
+
+Mezclar información de CVs distintos viola fidelidad ATS. Un ATS real (Workday/Greenhouse/Lever) solo conoce el CV enviado en cada postulación. Mezclar campos de un CV anterior genera evaluaciones infladas para RRHH.
+
+**Regla:** `cv-update` reescribe `perfil.md` desde cero con cada nuevo CV. NO preserva campos del perfil viejo. Cada perfil.md es una instantánea independiente del último CV procesado.
 
 ## Archivos temporales
 - Todo archivo temporal (borradores de correo, código generado, respuestas de scraping, etc.) DEBE guardarse en `cv-pilot-agent/temp/`. Nunca en otra ubicación.
