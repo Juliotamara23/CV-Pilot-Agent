@@ -7,7 +7,7 @@ version: 3.0
 
 # Onboarding (CLI `cli.py`)
 
-Documentación del CLI `skills/onboarding/scripts/cli.py`. El agente conserva el **Paso 5 (verificación con el usuario)** como único paso conversacional.
+Documentación del CLI `skills/onboarding/scripts/cli.py`. El agente conserva el **Paso 3 (verificación con el usuario)** como único paso conversacional.
 
 ## Comandos
 

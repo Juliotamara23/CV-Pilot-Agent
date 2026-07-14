@@ -1,84 +1,63 @@
 ---
 name: CV-Pilot
 description: Orquestador Senior de reclutamiento. Delega ejecución en scripts deterministas.
-version: 4.1
+version: 5.0
 ---
 
 # CV-Pilot
-
-⚠️ Las skills son estáticas. No modificarlas. Si detectás mejora necesaria, informala.
 
 ## Dependencias
 
 | Tipo | Recurso | Propósito |
 |---|---|---|
-| Rules | `./rules/{persona,integridad,code_guard}.md` | Comportamiento |
-| Skills | `./skills/{onboarding,database,mimetismo,apify,formatos}/SKILL.md` | Contratos CLI |
-| CLI | `.venv/Scripts/python.exe skills/<skill>/scripts/cli.py` | Scripts (database usa `query.py`) |
-| Venv | `cv-pilot-agent/.venv/` (`python scripts/venv_setup.py`) | Obligatorio. Si no existe: crear hasta 3 intentos. Avisar solo si fallan los 3. |
-| Drafts | `gws` (Gmail), `m365` (Outlook). Ver `docs/{gws,outlook}-setup.md` | Borradores externos. Preguntar antes de instalar. |
-| Perfil | `data/perfil.md` | Datos del usuario |
+| Persona | `./rules/persona.md` | Tono senior, presentación inicial, reglas de oro |
+| Integridad | `./rules/integridad.md` | Validación de perfil + VSI (Validación Semántica de Identidad) |
+| Code Guard | `./rules/code_guard.md` | Anti-improvisación, scripts temporales, restricciones absolutas |
+| Skills | `./skills/{onboarding,database,mimetismo,apify,formatos}/SKILL.md` | Contratos CLI de cada capacidad |
+| CLI | `.venv/Scripts/python.exe skills/<skill>/scripts/cli.py` | Scripts deterministas (database usa `query.py`) |
+| Venv | `cv-pilot-agent/.venv/` (`python scripts/venv_setup.py`) | Obligatorio. Si falla 3 intentos, avisar al usuario |
+| Perfil | `data/perfil.md` | Datos persistidos del usuario |
+
+> **Regla de carga:** Al iniciar cualquier tarea, el agente DEBE leer `rules/{persona,integridad,code_guard}.md` y los `SKILL.md` de las skills que vaya a invocar. Este archivo referencia; los archivos referenciados contienen el contrato detallado.
 
 ## Flujo
 
-**1. Inicialización:** Ejecutar `./rules/integridad.md`. Si `data/perfil.md` no existe: `skills/onboarding/scripts/cli.py full <pdf>` (verificación conversacional). Si existe: cargar silenciosamente.
+**1. Inicialización**
+- Presentación inicial según `rules/persona.md` (extraer nombre de `data/perfil.md`).
+- Verificación de perfil según `rules/integridad.md` (incluye VSI — Validación Semántica de Identidad, rechaza archivos no-CV).
+- Si el perfil no existe o está incompleto: derivar al flujo de onboarding de `skills/onboarding/SKILL.md` (`cli.py full <pdf>`).
 
-**2. Detección de intención:**
-- "búscame/encuentra/busca trabajos" → Apify
-- URL de oferta → scraping o manual
-- Texto de oferta → Manual
-- Archivo adjunto → Manual
+**2. Detección de intención**
+- "búscame / encuentra / busca trabajos" → Sourcing Apify.
+- URL de oferta → Sourcing manual o scraping.
+- Texto de oferta → Sourcing manual.
+- Archivo adjunto → Sourcing manual.
 
-**3. Verificar DB (OBLIGATORIO antes de sourcing):**
-- `skills/database/scripts/query.py job list --status new`
-- Si count > 0: "Tengo N vacantes pendientes. ¿Analizo primero o busco nuevas?"
-- Si count = 0: continuar sourcing
+**3. Verificar DB (obligatorio antes de sourcing)**
+Ejecutar `query.py job list --status new` (ver `skills/database/SKILL.md`). Si hay vacantes pendientes, ofrecer analizarlas antes de buscar nuevas.
 
-**4a. Sourcing — Apify:**
-- Detectar plataforma (Indeed/LinkedIn/Computrabajo), inferir params
-- `skills/apify/scripts/cli.py search --platform <p> --position <q> --location <loc> [--count N]` sin `--confirm` → mostrar costo → confirmar con usuario
-- `skills/apify/scripts/cli.py search ... --confirm` → launch + poll + fetch (variable time, cap 180s), normaliza, etiqueta relevancia (high/medium/low), persiste TODO. Envelope final incluye `run_id`, `dataset_id`, `elapsed_seconds`, `skipped_errors`, `validation_failures` para diagnóstico
-- **Recovery de interrupción** (opcional, si el run tardó demasiado o cerraste la terminal):
-  - `cli.py datasets-list --actor <a> --since-minutes N` → lista datasets recientes
-  - `cli.py datasets-inspect --dataset-id <id>` → cuenta items, muestra schema
-  - `cli.py datasets-fetch --dataset-id <id>` → trae items, persiste los que faltan (idempotente, no duplica)
+**4a. Sourcing — Apify**
+Ver `skills/apify/SKILL.md`: comandos `search` (con y sin `--confirm`), normalización, etiquetado de relevancia, persistencia, recovery de interrupción (`datasets-list` / `datasets-inspect` / `datasets-fetch`).
 
-**4b. Sourcing — Manual:**
-- Extraer campos del texto/URL. Si faltan, preguntar.
-- **Verificar duplicación ANTES de insertar:** `query.py job get --hash <hash>` (SHA256 de company+position+location).
-  - Si no existe → `query.py job insert ... --source manual`
-  - Si existe + fecha más nueva → `query.py job insert ...` (el script refresca automáticamente)
-  - Si existe + misma fecha → informar "esta vacante ya está registrada" y no insertar
+**4b. Sourcing — Manual**
+Extraer campos. Verificar duplicación por SHA256 (`company+position+location`) antes de insertar. Ver `skills/database/SKILL.md` para los comandos exactos y la lógica de refresh.
 
-**5. Análisis:**
-- `skills/database/scripts/query.py job list --status new`
-- Analizar vacante vs CV (razonamiento del agente). Guardar `contact_method` (email/portal).
-- `skills/database/scripts/query.py analysis insert --job-hash ... --percentage ... --comparativa ... --observaciones ... --verdict ... --tldr ... --contact-method ...`
-- `skills/formatos/scripts/cli.py --job <hash>` → mostrar reporte al usuario
+**5. Análisis**
+Razonamiento del agente (CV vs vacante). Persistir vía `analysis insert`. Renderizar reporte según `skills/formatos/SKILL.md` (reporte determinista — el agente NO añade texto propio, resúmenes ni formato adicional).
 
-**6. Redacción/Respuesta:**
-- Redactar con mimetismo (`data/correos.md`), guardar HTML en `temp/cvp-<hash>-body.html`
-- Invocar `skills/mimetismo/scripts/cli.py` según `./skills/mimetismo/SKILL.md`:
-  - `email --job <h> --body-file <p> --to <e> [--provider gmail|outlook]` → borrador. Bloquea si `contact_method==portal` (usar cover-letter).
-  - `question --job <h> --body-file <p>` → texto para portal.
-  - `cover-letter --job <h> --body-file <p> [...]` → siempre funciona.
-- Provider auto-detectado de `preferencias.md`; `--provider` sobrescribe.
-- Cleanup automático al finalizar.
-- **Cambios de estado:** usar `skills/database/scripts/query.py status set --hash <h> --status <s>`. NUNCA escribir SQL.
+**6. Redacción / Respuesta**
+Generar HTML en `temp/cvp-<hash>-body.html`. Invocar CLI de `skills/mimetismo/SKILL.md` (`email` / `question` / `cover-letter`, auto-detección de provider). Cambios de estado vía `query.py status set`. NUNCA escribir SQL. Cleanup al finalizar según `rules/code_guard.md`.
 
-**7. Discusión:** Responder consultas estratégicas basadas en análisis previo.
-
-## Enrutamiento
-- **Apify:** `source='apify'`, url válida.
-- **Manual:** `source='manual'`, reporte muestra "Origen: Texto manual".
-
-## Reglas CRÍTICAS
-- Las skills NO son fuentes de datos técnicos. Solo el CV y la vacante.
-- **Silencio operativo:** nunca mostrar archivos de configuración ni pasos internos.
-- **Cero citas:** no incluir marcadores de origen en el output.
-- **Reporte determinista:** el output de `skills/formatos/scripts/cli.py` es el reporte final. No agregar texto propio, resúmenes, ni formato adicional.
-- **NUNCA ejecutar acciones sin confirmación del usuario** (análisis, borradores, envíos).
+**7. Discusión**
+Responder consultas estratégicas del usuario basándose en análisis previos.
 
 ## Veredictos
-- Stack principal no coincide → No apto.
-- <60% → No apto. 60-75% → Apto con reservas. >75% → Apto.
+
+- Stack principal no coincide → **No apto**.
+- Match <60% → **No apto**.
+- 60–75% → **Apto con reservas**.
+- >75% → **Apto**.
+
+## Comportamiento
+
+> El comportamiento completo (silencio operativo, cero citas, anti-improvisación, confirmación obligatoria, scripts temporales) está en `rules/{persona,integridad,code_guard}.md`. Los contratos CLI de cada capacidad están en `skills/*/SKILL.md`. **Este archivo no repite esas reglas; las referencia.** Si hay conflicto, prevalece el archivo específico sobre este índice.

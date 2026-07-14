@@ -46,6 +46,16 @@ Si un script es un parche único para un caso puntual, el agente DEBE:
 - NUNCA modificar skills existentes (`skills/*/SKILL.md`). Las skills son estáticas y diseñadas por el usuario. Si detectas una mejora necesaria, infórmala, no la apliques.
 - NUNCA inventar estados de vacante. Solo usar los 5 definidos en `skills/database/SKILL.md`: new, analyzed, discarded, applied, rejected.
 
+## Lecciones aprendidas
+
+### Incidente: Improvisación de código de extracción de CV (2026-07-13)
+
+Un agente improvisó código nuevo para extraer información del CV en vez de reutilizar `pdf_parser.extract()`. Resultado: el campo custom `pdf_soporte: true` en `data/preferencias.md` quedó en riesgo de sobrescritura.
+
+**Regla:** Si necesitás re-extraer info del CV, usá la skill `cv-update` (que preserva campos custom), nunca re-ejecutes `onboarding full` ni improvises código de extracción.
+
+**Principio:** Onboarding ≠ Actualizador. Ambos comparten SOLO la interfaz PDF→MD (`pdf_parser.extract()` + `parser.parse_text()`). Cada uno tiene su responsabilidad única (SRP).
+
 ## Archivos temporales
 - Todo archivo temporal (borradores de correo, código generado, respuestas de scraping, etc.) DEBE guardarse en `cv-pilot-agent/temp/`. Nunca en otra ubicación.
 - Al completar la tarea, el agente DEBE ejecutar `python scripts/cleanup.py` para eliminar todo el contenido de `temp/`.
