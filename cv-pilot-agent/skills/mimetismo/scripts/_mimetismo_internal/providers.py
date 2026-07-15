@@ -1,6 +1,6 @@
 """Provider detection for CV-Pilot email generation.
 
-Reads preferences from ``data/preferencias.md`` and resolves the active
+Reads preferences from ``data/preferencias.json`` and resolves the active
 email provider (gmail or outlook).
 """
 
@@ -10,7 +10,7 @@ from typing import Optional
 
 from _lib.errors import CV_PilotError
 
-# Value tokens accepted as a boolean "true" in preferencias.md.
+# Value tokens accepted as a boolean "true" in preferencias.json.
 _TRUE = {"sí", "si", "yes", "true", "1"}
 
 
@@ -34,7 +34,7 @@ def detect_provider(prefs: dict, override: Optional[str]) -> str:
     if prov is None:
         raise CV_PilotError(
             "No provider configured. Set gmail_drafts/outlook_drafts in "
-            "preferencias.md or pass --provider.",
+            "preferencias.json or pass --provider.",
             code="NO_PROVIDER",
         )
     return prov

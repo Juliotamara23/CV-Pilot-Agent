@@ -44,28 +44,26 @@ runner = CliRunner()
 # --------------------------------------------------------------------------- #
 # Fixtures
 # --------------------------------------------------------------------------- #
-PERFIL_MD = """# Perfil
+PERFIL_JSON = {
+    "nombre": "Julio Andrés Támara Hernández",
+    "linkedin": "https://linkedin.com/in/example",
+    "github": "https://github.com/example",
+    "cv_url": "https://drive.google.com/cv",
+}
 
-## Identidad
-- **Nombre completo:** Julio Andrés Támara Hernández
-
-## Contacto
-- **LinkedIn:** https://linkedin.com/in/example
-- **GitHub:** https://github.com/example
-- **Link al CV:** https://drive.google.com/cv
-"""
-
-NO_LINKS_MD = """# Perfil
-
-## Identidad
-- **Nombre completo:** Anónimo
-"""
+NO_LINKS_JSON = {
+    "nombre": "Anónimo",
+}
 
 
-def _write_perfil(tmp_path: Path, perfil_md: str = PERFIL_MD) -> Path:
+def _write_perfil(tmp_path: Path, perfil: dict | None = None) -> Path:
+    """Create a tmp cv-pilot-agent root with data/perfil.json (JSON happy path)."""
+    if perfil is None:
+        perfil = PERFIL_JSON
     root = tmp_path / "agent-root"
     (root / "data").mkdir(parents=True)
-    (root / "data" / "perfil.md").write_text(perfil_md, encoding="utf-8")
+    with (root / "data" / "perfil.json").open("w", encoding="utf-8") as f:
+        json.dump(perfil, f, ensure_ascii=False, indent=2)
     return root
 
 
@@ -254,12 +252,11 @@ class TestBuildProfile:
         assert p["github"] == "https://github.com/example"
         assert p["cv_url"] == "https://drive.google.com/cv"
 
-    def test_missing_file_returns_none(self, tmp_path, monkeypatch):
+    def test_missing_file_raises_file_not_found(self, tmp_path, monkeypatch):
         root = tmp_path / "no-perfil"
         root.mkdir()
-        p = _load_profile(root)
-        assert p["name"] is None
-        assert p["cv_url"] is None
+        with pytest.raises(FileNotFoundError):
+            _load_profile(root)
 
 
 class TestBuildJson:
@@ -381,7 +378,7 @@ class TestCLI:
         assert "--job" in (result.stdout + result.stderr)
 
     def test_markdown_without_profile_links(self, tmp_db, tmp_path, monkeypatch):
-        root = _write_perfil(tmp_path, NO_LINKS_MD)
+        root = _write_perfil(tmp_path, NO_LINKS_JSON)
         monkeypatch.setattr(format_report, "_AGENT_ROOT", root)
         import _lib.shared.profile_loader as pl
         monkeypatch.setattr(pl, "load_profile", lambda r=None: _load_profile(root))

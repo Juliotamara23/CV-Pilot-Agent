@@ -37,29 +37,36 @@ runner = CliRunner()
 # --------------------------------------------------------------------------- #
 # Fixtures
 # --------------------------------------------------------------------------- #
-PERFIL_MD = """# Perfil
-
-## Identidad
-- **Nombre completo:** Julio Andrés Támara Hernández
-- **Resumen profesional:** Dev.
-
-## Contacto
-- **LinkedIn:** https://linkedin.com/in/example
-- **GitHub:** https://github.com/example
-- **WhatsApp / Teléfono:** +57 320 5551234
-- **Correo electrónico:** julio@example.com
-- **Link al CV:** https://drive.google.com/cv
-"""
+PERFIL_JSON = {
+    "nombre": "Julio Andrés Támara Hernández",
+    "resumen": "Dev.",
+    "linkedin": "https://linkedin.com/in/example",
+    "github": "https://github.com/example",
+    "telefono": "+57 320 5551234",
+    "correo": "julio@example.com",
+    "cv_url": "https://drive.google.com/cv",
+}
 
 
-def _write_data(tmp_path: Path, preferencias: str = "gmail_drafts: no\noutlook_drafts: no\n") -> Path:
-    """Create a tmp cv-pilot-agent root with data/perfil.md, preferencias.md and a
-    scripts/cleanup.py stub so _cleanup() actually invokes subprocess.run (mocked)."""
+def _write_data(
+    tmp_path: Path,
+    preferencias: dict | None = None,
+    *,
+    perfil: dict | None = None,
+) -> Path:
+    """Create a tmp cv-pilot-agent root with data/perfil.json, preferencias.json
+    and a scripts/cleanup.py stub so _cleanup() actually invokes subprocess.run (mocked)."""
+    if preferencias is None:
+        preferencias = {"gmail_drafts": False, "outlook_drafts": False}
+    if perfil is None:
+        perfil = PERFIL_JSON
     root = tmp_path / "agent-root"
     (root / "data").mkdir(parents=True)
     (root / "scripts").mkdir(parents=True)
-    (root / "data" / "perfil.md").write_text(PERFIL_MD, encoding="utf-8")
-    (root / "data" / "preferencias.md").write_text(preferencias, encoding="utf-8")
+    with (root / "data" / "perfil.json").open("w", encoding="utf-8") as f:
+        json.dump(perfil, f, ensure_ascii=False, indent=2)
+    with (root / "data" / "preferencias.json").open("w", encoding="utf-8") as f:
+        json.dump(preferencias, f, ensure_ascii=False, indent=2)
     (root / "scripts" / "cleanup.py").write_text("print('cleaned')\n", encoding="utf-8")
     return root
 
@@ -121,24 +128,21 @@ class TestLoadProfile:
         assert profile["email"] == "julio@example.com"
         assert profile["cv_url"] == "https://drive.google.com/cv"
 
-    def test_missing_file_returns_none_profile(self, tmp_path, monkeypatch):
+    def test_missing_file_raises_file_not_found(self, tmp_path, monkeypatch):
         root = tmp_path / "no-data-root"
         root.mkdir()
-        profile = _load_profile(root)
-        assert profile["name"] is None
-        assert profile["github"] is None
+        with pytest.raises(FileNotFoundError):
+            _load_profile(root)
 
 
 class TestLoadPreferences:
-    @pytest.mark.parametrize("token", ["sí", "si", "yes", "true", "1"])
-    def test_true_tokens(self, tmp_path, monkeypatch, token):
-        root = _write_data(tmp_path, preferencias=f"gmail_drafts: {token}\n")
+    def test_true_loaded_from_json(self, tmp_path, monkeypatch):
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": True, "outlook_drafts": False})
         monkeypatch.setattr(generate, "_AGENT_ROOT", root)
         assert generate._load_preferences()["gmail_drafts"] is True
 
-    @pytest.mark.parametrize("token", ["no", "false", "", "0", "n/a"])
-    def test_false_tokens(self, tmp_path, monkeypatch, token):
-        root = _write_data(tmp_path, preferencias=f"gmail_drafts: {token}\n")
+    def test_false_loaded_from_json(self, tmp_path, monkeypatch):
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": False, "outlook_drafts": False})
         monkeypatch.setattr(generate, "_AGENT_ROOT", root)
         assert generate._load_preferences()["gmail_drafts"] is False
 
@@ -149,11 +153,26 @@ class TestLoadPreferences:
         assert generate._load_preferences() == {"gmail_drafts": False, "outlook_drafts": False}
 
     def test_outlook_detected(self, tmp_path, monkeypatch):
-        root = _write_data(tmp_path, preferencias="outlook_drafts: sí\n")
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": False, "outlook_drafts": True})
         monkeypatch.setattr(generate, "_AGENT_ROOT", root)
         prefs = generate._load_preferences()
         assert prefs["outlook_drafts"] is True
         assert prefs["gmail_drafts"] is False
+
+    def test_non_bool_value_keeps_default(self, tmp_path, monkeypatch):
+        # Non-boolean values in the JSON (e.g. accidental strings) must be
+        # ignored — the loader must not crash and must fall back to the
+        # default ``False`` for that key.
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": "sí"})
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        assert generate._load_preferences()["gmail_drafts"] is False
+
+    def test_malformed_json_returns_defaults(self, tmp_path, monkeypatch):
+        root = tmp_path / "agent-root"
+        (root / "data").mkdir(parents=True)
+        (root / "data" / "preferencias.json").write_text("{not valid json", encoding="utf-8")
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        assert generate._load_preferences() == {"gmail_drafts": False, "outlook_drafts": False}
 
 
 class TestDetectProvider:
@@ -224,7 +243,7 @@ class TestSignatureFooter:
 # --------------------------------------------------------------------------- #
 class TestErrorEnvelopes:
     def test_portal_postulation_blocks_email(self, tmp_db, tmp_path, monkeypatch):
-        root = _write_data(tmp_path, preferencias="gmail_drafts: sí\n")
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": True, "outlook_drafts": False})
         h = _seed_job(contact_method="portal")
         body = tmp_path / "body.html"; body.write_text("<p>Hola</p>", encoding="utf-8")
         _patch_environment(monkeypatch, root, which=lambda n: f"/fake/{n}")
@@ -267,7 +286,7 @@ class TestErrorEnvelopes:
         assert json.loads(result.stderr)["code"] == "JOB_NOT_FOUND"
 
     def test_analysis_not_found_email(self, tmp_db, tmp_path, monkeypatch):
-        root = _write_data(tmp_path, preferencias="gmail_drafts: sí\n")
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": True, "outlook_drafts": False})
         h = _seed_job_no_analysis()
         body = tmp_path / "body.html"; body.write_text("x", encoding="utf-8")
         _patch_environment(monkeypatch, root, which=lambda n: f"/fake/{n}")
@@ -278,7 +297,7 @@ class TestErrorEnvelopes:
         assert json.loads(result.stderr)["code"] == "ANALYSIS_NOT_FOUND"
 
     def test_analysis_not_found_cover_letter(self, tmp_db, tmp_path, monkeypatch):
-        root = _write_data(tmp_path, preferencias="gmail_drafts: sí\n")
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": True, "outlook_drafts": False})
         h = _seed_job_no_analysis()
         body = tmp_path / "body.html"; body.write_text("x", encoding="utf-8")
         _patch_environment(monkeypatch, root, which=lambda n: f"/fake/{n}")
@@ -289,7 +308,7 @@ class TestErrorEnvelopes:
         assert json.loads(result.stderr)["code"] == "ANALYSIS_NOT_FOUND"
 
     def test_no_provider_email(self, tmp_db, tmp_path, monkeypatch):
-        root = _write_data(tmp_path, preferencias="gmail_drafts: no\n")  # no outlook either
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": False, "outlook_drafts": False})  # no provider
         h = _seed_job(contact_method="email")
         body = tmp_path / "body.html"; body.write_text("x", encoding="utf-8")
         _patch_environment(monkeypatch, root, which=lambda n: f"/fake/{n}")
@@ -300,7 +319,7 @@ class TestErrorEnvelopes:
         assert json.loads(result.stderr)["code"] == "NO_PROVIDER"
 
     def test_body_file_missing(self, tmp_db, tmp_path, monkeypatch):
-        root = _write_data(tmp_path, preferencias="gmail_drafts: sí\n")
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": True, "outlook_drafts": False})
         h = _seed_job(contact_method="email")
         _patch_environment(monkeypatch, root, which=lambda n: f"/fake/{n}")
         result = runner.invoke(generate.app, [
@@ -322,7 +341,7 @@ class TestErrorEnvelopes:
         assert json.loads(result.stderr)["code"] == "EMPTY_QUESTION"
 
     def test_provider_cli_missing_gmail(self, tmp_db, tmp_path, monkeypatch):
-        root = _write_data(tmp_path, preferencias="gmail_drafts: sí\n")
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": True, "outlook_drafts": False})
         h = _seed_job(contact_method="email")
         body = tmp_path / "body.html"; body.write_text("x", encoding="utf-8")
         _patch_environment(monkeypatch, root, which=lambda n: None)
@@ -338,7 +357,7 @@ class TestErrorEnvelopes:
 # --------------------------------------------------------------------------- #
 class TestIntegration:
     def test_email_gmail_happy_path(self, tmp_db, tmp_path, monkeypatch):
-        root = _write_data(tmp_path, preferencias="gmail_drafts: sí\n")
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": True, "outlook_drafts": False})
         h = _seed_job(contact_method="email")
         body = tmp_path / "body.html"
         body.write_text(
@@ -370,7 +389,7 @@ class TestIntegration:
         Regression: previously the parser took the first line of stdout, which
         was the opening brace ``{`` of the JSON — yielding a useless draft_id.
         """
-        root = _write_data(tmp_path, preferencias="gmail_drafts: sí\n")
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": True, "outlook_drafts": False})
         h = _seed_job(contact_method="email")
         body = tmp_path / "body.html"
         body.write_text("<p>Hola</p>", encoding="utf-8")
@@ -405,7 +424,7 @@ class TestIntegration:
 
     def test_email_gmail_json_without_id_falls_back_to_default(self, tmp_db, tmp_path, monkeypatch):
         """If the JSON envelope has no top-level "id", fall back to default."""
-        root = _write_data(tmp_path, preferencias="gmail_drafts: sí\n")
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": True, "outlook_drafts": False})
         h = _seed_job(contact_method="email")
         body = tmp_path / "body.html"; body.write_text("<p>x</p>", encoding="utf-8")
 
@@ -432,7 +451,7 @@ class TestIntegration:
         subprocess.run, which fails on Windows with FileNotFoundError because
         Python can't execute .ps1 files without an explicit shell wrapper.
         """
-        root = _write_data(tmp_path, preferencias="gmail_drafts: sí\n")
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": True, "outlook_drafts": False})
         h = _seed_job(contact_method="email")
         body = tmp_path / "body.html"
         body.write_text("<p>Hola, visita mi [github].</p>", encoding="utf-8")
@@ -475,7 +494,7 @@ class TestIntegration:
         fails on Windows because Python's subprocess does not auto-resolve
         ``.CMD`` extensions for the program name.
         """
-        root = _write_data(tmp_path, preferencias="gmail_drafts: sí\n")
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": True, "outlook_drafts": False})
         h = _seed_job(contact_method="email")
         body = tmp_path / "body.html"
         body.write_text("<p>Hola</p>", encoding="utf-8")
@@ -511,7 +530,7 @@ class TestIntegration:
 
     def test_email_gmail_ps1_no_powershell_raises(self, tmp_db, tmp_path, monkeypatch):
         """If gws is .ps1 but no PowerShell is available, fail with PROVIDER_CLI_MISSING."""
-        root = _write_data(tmp_path, preferencias="gmail_drafts: sí\n")
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": True, "outlook_drafts": False})
         h = _seed_job(contact_method="email")
         body = tmp_path / "body.html"; body.write_text("x", encoding="utf-8")
 
@@ -531,7 +550,7 @@ class TestIntegration:
         assert "PowerShell" in payload["error"]
 
     def test_email_outlook_happy_path(self, tmp_db, tmp_path, monkeypatch):
-        root = _write_data(tmp_path, preferencias="outlook_drafts: sí\n")
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": False, "outlook_drafts": True})
         h = _seed_job(contact_method="email")
         body = tmp_path / "body.html"; body.write_text("<p>Hola</p>", encoding="utf-8")
         calls = []
@@ -550,7 +569,7 @@ class TestIntegration:
         assert db.get_job(h)["job"]["status"] == "applied"
 
     def test_email_links_substituted(self, tmp_db, tmp_path, monkeypatch):
-        root = _write_data(tmp_path, preferencias="gmail_drafts: sí\n")
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": True, "outlook_drafts": False})
         h = _seed_job(contact_method="email")
         body = tmp_path / "body.html"
         body.write_text("Visita [github] y [linkedin].", encoding="utf-8")
@@ -591,7 +610,7 @@ class TestIntegration:
         assert db.get_job(h)["job"]["status"] == "analyzed"  # untouched
 
     def test_cover_letter_without_provider(self, tmp_db, tmp_path, monkeypatch):
-        root = _write_data(tmp_path, preferencias="gmail_drafts: no\n")  # no provider
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": False, "outlook_drafts": False})  # no provider
         h = _seed_job(contact_method="portal")
         body = tmp_path / "cl.html"; body.write_text("<p>Candidatura.</p>", encoding="utf-8")
         _patch_environment(monkeypatch, root, which=lambda n: f"/fake/{n}",
@@ -608,7 +627,7 @@ class TestIntegration:
         assert db.get_job(h)["job"]["status"] == "analyzed"
 
     def test_cover_letter_with_provider(self, tmp_db, tmp_path, monkeypatch):
-        root = _write_data(tmp_path, preferencias="gmail_drafts: sí\n")
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": True, "outlook_drafts": False})
         h = _seed_job(contact_method="portal")
         body = tmp_path / "cl.html"; body.write_text("<p>Candidatura.</p>", encoding="utf-8")
         calls = []
@@ -627,7 +646,7 @@ class TestIntegration:
 
     def test_cleanup_runs_even_on_error(self, tmp_db, tmp_path, monkeypatch):
         # PORTAL_POSTULATION path: cleanup must still run.
-        root = _write_data(tmp_path, preferencias="gmail_drafts: sí\n")
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": True, "outlook_drafts": False})
         h = _seed_job(contact_method="portal")
         body = tmp_path / "body.html"; body.write_text("x", encoding="utf-8")
         calls = []
@@ -641,7 +660,7 @@ class TestIntegration:
         assert any("cleanup.py" in str(c[-1]) for c in calls)
 
     def test_unicode_body_preserved(self, tmp_db, tmp_path, monkeypatch):
-        root = _write_data(tmp_path, preferencias="gmail_drafts: sí\n")
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": True, "outlook_drafts": False})
         h = _seed_job(contact_method="email")
         body = tmp_path / "body.html"
         body.write_text("ñ &aacute; &lt;script&gt; José", encoding="utf-8")

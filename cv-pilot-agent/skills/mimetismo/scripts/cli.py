@@ -21,7 +21,6 @@ every execution, success or error.
 from __future__ import annotations
 
 import json
-import re
 import shutil
 import subprocess
 import sys
@@ -47,7 +46,6 @@ from _lib.shared.profile_loader import load_profile  # noqa: E402
 from _mimetismo_internal.drafts import create_draft_gmail, create_draft_outlook  # noqa: E402
 from _mimetismo_internal.links import format_links, signature_footer  # noqa: E402
 from _mimetismo_internal.providers import (  # noqa: E402
-    _TRUE,
     detect_provider,
     detect_provider_optional,
 )
@@ -95,15 +93,21 @@ def _load_analysis(job_hash: str) -> dict:
 
 
 def _load_preferences() -> dict:
-    path = _AGENT_ROOT / "data" / "preferencias.md"
-    prefs = {"gmail_drafts": False, "outlook_drafts": False}
+    path = _AGENT_ROOT / "data" / "preferencias.json"
+    defaults = {"gmail_drafts": False, "outlook_drafts": False}
     if not path.is_file():
-        return prefs
-    text = path.read_text(encoding="utf-8")
-    for line in text.splitlines():
-        match = re.match(r"^\s*(gmail_drafts|outlook_drafts)\s*:\s*(.+?)\s*$", line)
-        if match:
-            prefs[match.group(1)] = match.group(2).strip().lower() in _TRUE
+        return defaults
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        print(f"warning: cannot parse preferencias.json ({exc}); using defaults",
+              file=sys.stderr)
+        return defaults
+    prefs = dict(defaults)
+    for key in defaults:
+        val = data.get(key)
+        if isinstance(val, bool):
+            prefs[key] = val
     return prefs
 
 

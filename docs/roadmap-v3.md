@@ -49,7 +49,7 @@ generate_email.py --job <hash> --provider outlook
 ```
 
 **Lógica interna:**
-1. Lee `data/perfil.md` y `data/correos.md`
+1. Lee `data/perfil.json` y `data/correos.md`
 2. Lee job de la DB
 3. Aplica matching CV vs requisitos
 4. Genera email HTML con estilo mimetismo y links formateados
@@ -91,7 +91,7 @@ search_jobs.py --platform linkedin --position "React" --location "Medellín" --c
 ### Fase 6 — Onboarding Engine (`onboard.py`) 🟢
 
 ```
-onboard.py --cv cv.pdf  → perfil.md, correos.md, preferencias.md
+onboard.py --cv cv.pdf  → perfil.json, correos.md, preferencias.json
 ```
 
 **Qué reemplaza:** `skills/onboarding/SKILL.md` (~1.5K tokens)

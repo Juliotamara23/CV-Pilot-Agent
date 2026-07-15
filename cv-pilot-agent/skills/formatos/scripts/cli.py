@@ -59,7 +59,7 @@ def _emit_error(message: str, code: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Loaders (read-only DB + data/perfil.md)
+# Loaders (read-only DB + data/perfil.json)
 # --------------------------------------------------------------------------- #
 def _load_job(job_hash: str) -> dict:
     return db.get_job(job_hash)["job"]

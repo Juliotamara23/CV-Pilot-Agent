@@ -2,7 +2,7 @@
 
 Replaces the conversational ``skills/onboarding/SKILL.md`` flow with a Typer
 CLI that extracts CV data from a PDF or text, parses fields via regex, and
-generates ``data/perfil.md``, ``data/correos.md``, ``data/preferencias.md``
+generates ``data/perfil.json``, ``data/correos.md``, ``data/preferencias.json``
 from the templates in ``skills/onboarding/templates/``.
 
 Invoked by the orchestrator (AGENTS.md step 1) via the venv Python::
@@ -95,7 +95,7 @@ def generate(
     out_dir: Path = typer.Option(Path("data"), "--out-dir", help="Output directory (default: data/)."),
     no_backup: bool = typer.Option(False, "--no-backup", help="Skip .bak creation."),
 ) -> None:
-    """Render perfil.md, correos.md, preferencias.md from a fields JSON file."""
+    """Render perfil.json, correos.md, preferencias.json from a fields JSON file."""
     try:
         fields = json.loads(fields_file.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
