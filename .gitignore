@@ -10,6 +10,17 @@ openspec/
 cv-pilot-agent/db/
 cv-pilot-agent/data/
 cv-pilot-agent/.venv/
+cv-pilot-agent/scratch/
+cv-pilot-agent/sdd/
+__pycache__/
+.ruff_cache/
+.coverage
+.pytest_cache/
+cv-pilot-agent/temp/*
+!cv-pilot-agent/temp/.gitkeep
 skills/gws-*/
 skills/persona-*/
 skills/recipe-*/
+skills-lock.json
+.agents/*
+.env

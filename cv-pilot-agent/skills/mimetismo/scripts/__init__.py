@@ -1,0 +1,1 @@
+"""Mimetismo generation scripts package."""

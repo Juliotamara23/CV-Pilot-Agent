@@ -1,0 +1,1 @@
+"""Database CLI scripts package (entrypoint lives in ``query.py``)."""

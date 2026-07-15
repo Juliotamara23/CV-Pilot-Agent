@@ -1,43 +1,94 @@
 ---
-name: Skills Mimetismo Estratégico
-description: Gestión de voz del usuario para cualquier comunicación saliente.
+name: Mimetismo — Generate CLI
+description: CLI cli.py para correos, preguntas y cartas.
 scope: GLOBAL
 ---
 
-# Guía de Mimetismo Estratégico
+# cli.py CLI
 
-## Objetivo
-Configurar el estilo de redacción para CUALQUIER comunicación saliente (correos, respuestas a preguntas técnicas de portales, cartas de presentación). El agente debe redactar asumiendo la voz del usuario, manteniendo un tono profesional, estratégico y humilde.
+La redacción la hace el agente; el envío, el script.
 
-## Estrategia de Contenido (Anti-Genérico)
-Para que cualquier respuesta sea de alto impacto, el agente debe:
-1. **Identificar el "Pain Point":** ¿Qué es lo más difícil que pide la oferta?
-2. **Cruzar con Logros:** Seleccionar del CV los logros más cercanos a ese dolor.
-3. **Mimetismo de Estilo:** Extraer la estructura y patrones de `data/correos.md`.
-4. **Filtro de Humildad:** Usar "He implementado", "Tengo experiencia con" en lugar de "Soy un experto en".
-5. **Links formateados:** Si `data/perfil.md` contiene link al CV (Drive, repositorio), LinkedIn o GitHub, incluirlos como hipervínculos HTML en el cuerpo del correo. Por ejemplo:
-   `Mi <a href="https://github.com/Juliotamara23">GitHub</a>` en lugar de la URL cruda. Esto aplica tanto para correos en Gmail (--html) como en Outlook (contentType: HTML).
+## Comandos
 
-## Aplicación
-Esta skill se aplica en cualquier comunicación saliente: correos de postulación, cartas de presentación y respuestas a cuestionarios técnicos de portales.
+| Comando | ¿Crea borrador? | Notas |
+|---|---|---|
+| `email --job <h> --body-file <p> --to <e> [--provider gmail\|outlook] [--subject ...] [--dry-run]` | Sí | Bloquea si `contact_method=="portal"` |
+| `question --job <h> --body-file <p>` | No | Error si cuerpo vacío |
+| `cover-letter --job <h> --body-file <p> [--provider ...] [--to ...] [--subject ...] [--dry-run]` | Solo con provider+to | Funciona siempre |
 
-## Salida estructurada (cuando borradores están activados)
-Tras redactar un correo, leer `data/preferencias.md`.
+## Contrato
 
-- Si `gmail_drafts: sí` o `outlook_drafts: sí`, emitir el correo con marcadores estructurados para que la skill correspondiente (Gmail u Outlook) pueda extraer los campos:
+1. Agente escribe HTML en `temp/cvp-{hash}-body.html` y pasa ruta con `--body-file`.
+2. Script reemplaza `[github]`/`[linkedin]`/`[cv]`/`[whatsapp]` por `<a href>` desde `perfil.json`.
+3. Provider auto-detectado de `preferencias.json`; `--provider` sobrescribe.
+4. Si ambos providers `sí`, pasar `--provider` con la elección del usuario.
+5. `cleanup.py` al final (éxito o error).
+6. Output: JSON `{"ok":bool, ...}` a stdout, errores a stderr con `code`.
+7. Proveedores: Gmail `gws`, Outlook `m365` (ver docs/gws-setup.md, docs/outlook-setup.md).
 
+## Flags opcionales
+
+### `--subject`
+
+Línea de asunto personalizada. Si no se pasa, el script genera una por defecto según el modo:
+
+| Modo | Asunto por defecto |
+|---|---|
+| `email` | `Postulación: <position> — <company>` |
+| `cover-letter` | `Carta de presentación: <position> — <company>` |
+
+Uso: pasar `--subject` cuando el usuario pide un asunto específico o cuando la empresa indica un formato particular (ej. "Asunto: Candidatura - Full Stack Developer").
+
+```bash
+# Asunto personalizado
+python skills/mimetismo/scripts/cli.py email \
+  --job <h> --body-file <p> --to rrhh@x.com \
+  --subject "Candidatura: Senior React Developer"
 ```
----TO: rrhh@empresa.com
----SUBJECT: Postulación: Cargo
----BODY:
-Cuerpo del correo...
+
+### `--dry-run`
+
+Previsualiza el HTML final (con links y firma) sin crear el borrador en el proveedor. No cambia el estado del job en la DB.
+
+| Valor | Comportamiento |
+|---|---|
+| Sin flag (default) | Crea borrador en el proveedor y actualiza estado a `applied` |
+| `--dry-run` | Retorna `{"ok": true, "dry_run": true, "html": "...", ...}` sin crear borrador |
+
+Uso: pasar `--dry-run` cuando se quiere mostrar el email/cartas al usuario antes de enviar, o para debugging del HTML.
+
+```bash
+# Previsualizar sin crear borrador
+python skills/mimetismo/scripts/cli.py email \
+  --job <h> --body-file <p> --to rrhh@x.com --dry-run
 ```
 
-  El cuerpo continúa hasta el final del bloque del correo.
+**Envelope de salida con `--dry-run`:**
+```json
+{
+  "ok": true,
+  "mode": "email",
+  "dry_run": true,
+  "provider": "gmail",
+  "to": "rrhh@x.com",
+  "subject": "Postulación: React Developer — Acme Corp",
+  "html": "<html>...</html>",
+  "job_hash": "abc123"
+}
+```
 
-- Si el usuario indica "sin borrador" para este correo, omitir los marcadores y mostrar el correo en el chat. La preferencia global se mantiene para futuros correos.
+## Formato del body file
 
+El body file es **HTML, no plain text**. Outlook colapsa whitespace, así que `\n` no se renderiza como salto de línea — el script no convierte. Usar `<br><br>` entre párrafos (consistente con `signature_footer`):
 
+```html
+Buenos días,<br><br>Me postulo a la vacante de [Cargo] en [Empresa]. Soy Ingeniero de Sistemas con experiencia en [stack].<br><br>Adjunto mi Currículum para su revisión. Quedo atento a su respuesta.
+```
 
-## Scripts de Respaldo
-*(Vacío — si un script generado resuelve un vacío permanente, se documenta aquí con su propósito y uso.)*
+Equivalente válido con `<p>` (los tests usan este patrón):
+
+```html
+<p>Buenos días,</p><p>Me postulo a la vacante...</p>
+```
+
+**NO escribir** plain text con `\n` — el draft llega a Outlook como una sola línea.

@@ -5,13 +5,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Configuración del entorno de prueba
+# Test environment setup
 DB_PATH = Path(__file__).parent.parent.parent.parent / "test" / "cv-pilot-test.db"
 INIT_SCRIPT = Path(__file__).parent / "init_test.py"
 
 
 def setup_db():
-    """Inicializa la base de datos de prueba usando init_test.py y retorna la conexión."""
+    """Initialize the test database using init_test.py and return a connection."""
     subprocess.run([sys.executable, str(INIT_SCRIPT)], check=True)
     return sqlite3.connect(DB_PATH)
 
@@ -22,7 +22,7 @@ def test_chaos_scenario():
     cursor = conn.cursor()
     print("--- TEST CAOS: Inyectando datos corruptos ---")
 
-    # JSON Malformado/Incompleto (Falta 'description' y 'id')
+    # Malformed/incomplete JSON (missing 'description' and 'id')
     corrupted_data = [
         {"positionName": "DevOps", "company": "Empresa X"},
         {"id": "caca-001", "positionName": "Dev", "company": "Empresa Y"},

@@ -2,17 +2,17 @@ import sqlite3
 import os
 from pathlib import Path
 
-# La DB se crea en la carpeta test para mantenerse fuera del flujo principal
+# Test DB lives under test/ to keep it out of the main flow
 DB_PATH = Path(__file__).parent.parent.parent.parent / "test" / "cv-pilot-test.db"
 
 def init_test_db():
-    """Inicializa una base de datos limpia para pruebas con el esquema de producción."""
+    """Initialize a clean test database using the production schema."""
     if DB_PATH.exists():
         os.remove(DB_PATH)
-    
+
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    
+
     cursor.execute('''CREATE TABLE jobs (
         job_hash TEXT PRIMARY KEY,
         external_id TEXT,
@@ -25,8 +25,8 @@ def init_test_db():
         description TEXT,
         status TEXT DEFAULT 'new'
     )''')
-    
-    # Esquema sincronizado con producción
+
+    # Schema must stay in sync with production
     cursor.execute('''CREATE TABLE analyses (
         analysis_id TEXT PRIMARY KEY,
         job_hash TEXT,

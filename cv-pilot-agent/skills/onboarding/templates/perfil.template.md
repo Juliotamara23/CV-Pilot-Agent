@@ -1,33 +1,30 @@
 ---
 name: Plantilla de Perfil
-description: Estructura para data/perfil.md. CV unificado y datos de contacto en una sola fuente de verdad, sin duplicación.
+description: Legacy structure for data/perfil.json. No longer a contract — perfil.json is now free-form. Kept for reference only.
 scope: ONBOARDING
 ---
 
 # Perfil
 
 ## Identidad
-- **Nombre completo:** [Nombre y apellidos]
-- **Resumen profesional:** [Una o dos líneas describiendo el perfil profesional]
+- **Nombre completo:** {{nombre}}
+- **Resumen profesional:** {{resumen}}
 
 ## Contacto
-- **LinkedIn:** [URL completa]
-- **GitHub:** [URL completa]
-- **WhatsApp / Teléfono:** [número con prefijo internacional]
-- **Correo electrónico:** [correo]
-- **Link al CV (opcional):** [URL de Drive u otro repositorio]
+- **LinkedIn:** {{linkedin}}
+- **GitHub:** {{github}}
+- **WhatsApp / Teléfono:** {{telefono}}
+- **Correo electrónico:** {{correo}}
+- **Link al CV (opcional):** {{cv_url}}
 
 ## Experiencia
-- **[Puesto]** — [Empresa] ([periodo])
-  - [Responsabilidad o logro concreto]
-  - [Responsabilidad o logro concreto]
+{{experiencia}}
 
 ## Educación
-- **[Título]** — [Institución] ([periodo])
+{{educacion}}
 
 ## Skills Técnicos
-- [Lenguaje / framework / herramienta]
-- [Lenguaje / framework / herramienta]
+{{skills}}
 
 ## Notas
-- [Cualquier información adicional relevante para postulaciones]
+{{notas}}

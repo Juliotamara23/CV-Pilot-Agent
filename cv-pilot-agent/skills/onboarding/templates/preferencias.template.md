@@ -1,28 +1,28 @@
 ---
 name: Plantilla de Preferencias
-description: Estructura para data/preferencias.md. Configuración de preferencias del usuario.
+description: Legacy structure for data/preferencias.json. No longer a contract — preferencias.json is now free-form. Kept for reference only.
 scope: ONBOARDING
 ---
 
 # Preferencias
 
 ## Mimetismo
-- **Activado:** [sí / no]
+- **Activado:** {{mimetismo}}
 
 ## Sector preferido
-- [Sector o área de interés, por ejemplo: Backend, IA, Fullstack, DevOps]
+- {{sector}}
 
 ## Tono
-- [Tono de redacción preferido, por ejemplo: formal, cercano, técnico]
+- {{tono}}
 
 ## Idioma de postulación
-- [Idioma preferido para correos y respuestas, por ejemplo: español, inglés]
+- {{idioma}}
 
 ## Borradores en Gmail
-gmail_drafts: [sí / no]
+gmail_drafts: {{gmail_drafts}}
 
 ## Borradores en Outlook
-outlook_drafts: [sí / no]
+outlook_drafts: {{outlook_drafts}}
 
 ## Notas adicionales
-- [Cualquier preferencia relevante para la búsqueda de trabajo]
+- {{notas_adicionales}}

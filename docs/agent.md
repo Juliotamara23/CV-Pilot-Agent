@@ -1,6 +1,6 @@
 # CV-Pilot Agent — Manual de Usuario
 
-CV-Pilot Agent es un orquestador inteligente de reclutamiento que busca, analiza y evalúa vacantes contra tu perfil técnico. Funciona en OpenCode, Codex, Antigravity, Claude Code y cualquier entorno con agentes.
+CV-Pilot Agent es un orquestador inteligente de reclutamiento que busca, analiza y evalúa vacantes contra tu perfil técnico. Funciona en OpenCode, Antigravity, Claude Code y cualquier entorno con agentes.
 
 ---
 
@@ -18,20 +18,20 @@ Persistencia de vacantes y análisis.
 
 El agente detecta si `sqlite3` está disponible y pregunta antes de instalar (nunca instala sin permiso).
 
-### Apify CLI
-
-Búsqueda automática en Indeed, LinkedIn y Computrabajo.
-
 ### Python + PyMuPDF (soporte PDF opcional)
 
-El Camino B del onboarding (subir un PDF en lugar de pegar el texto del CV) requiere un entorno virtual de Python con `pymupdf` instalado. El entorno se crea una sola vez:
+El Camino B del onboarding (subir un PDF en lugar de pegar el texto del CV) requiere un entorno virtual de Python con `pymupdf` instalado. El agente configura el venv por su cuenta la primera vez (hasta 3 reintentos automáticos) llamando a `scripts/venv_setup.py`; solo te avisa si fallan los 3 intentos.
 
-| OS | Comando |
+| OS | Comando manual (opcional) |
 |----|---------|
 | Windows (PowerShell) | `pwsh -File cv-pilot-agent/scripts/setup.ps1` (o `.\scripts\setup.ps1` desde `cv-pilot-agent/`) |
 | Linux / macOS | `bash cv-pilot-agent/scripts/setup.sh` |
 
-El script crea `cv-pilot-agent/.venv/`, instala las dependencias declaradas en `cv-pilot-agent/requirements.txt` y verifica PyMuPDF. Requiere Python 3.9+ en el PATH. El agente detecta la ausencia del venv y ofrece configurarlo (una sola pregunta); si el usuario declina, continúa solo con el Camino A (pegar el CV manualmente).
+Los scripts `setup.ps1` y `setup.sh` son alternativas legacy; el método actual es `scripts/venv_setup.py`, que el agente invoca automáticamente. Todos crean `cv-pilot-agent/.venv/`, instalan las dependencias de `cv-pilot-agent/requirements.txt` y verifican PyMuPDF. Requieren Python 3.9+ en el PATH. Si el venv no se puede crear, el agente continúa con el Camino A (pegar el CV manualmente).
+
+### Apify CLI
+
+Búsqueda automática en Indeed, LinkedIn y Computrabajo.
 
 | OS | Comando | Recomendado |
 |----|---------|-------------|
@@ -57,36 +57,58 @@ apify login --token TU_TOKEN
 
 ```
 cv-pilot-agent/
-├── AGENTS.md
-├── requirements.txt
-├── rules/
+├── AGENTS.md                  # Contrato del agente (orquestación)
+├── requirements.txt           # Dependencias Python
+├── rules/                     # Reglas de comportamiento del agente
 │   ├── persona.md
-│   └── integridad.md
-├── skills/
+│   ├── integridad.md
+│   └── code_guard.md
+├── skills/                    # Skills como contratos CLI
+│   ├── onboarding/
+│   │   ├── SKILL.md
+│   │   ├── scripts/
+│   │   │   └── cli.py         # extract, parse, generate, full
+│   │   └── templates/
 │   ├── apify/
 │   │   ├── SKILL.md
-│   │   └── platforms/
-│   │       ├── indeed.md
-│   │       ├── linkedin.md
-│   │       └── computrabajo.md
-│   ├── contacto.md
-│   ├── database.md
-│   ├── formatos.md
-│   └── mimetismo.md
-├── scripts/
-│   ├── pdf_parser.py
-│   ├── setup.ps1
-│   └── setup.sh
+│   │   └── scripts/
+│   │       ├── cli.py         # search (indeed, linkedin, computrabajo)
+│   │       └── platforms/     # indeed.py, linkedin.py, computrabajo.py
+│   ├── database/
+│   │   ├── SKILL.md
+│   │   └── scripts/
+│   │       └── query.py       # ORM (list, insert, status, analysis)
+│   ├── mimetismo/
+│   │   ├── SKILL.md
+│   │   └── scripts/
+│   │       └── cli.py         # email, question, cover-letter
+│   └── formatos/
+│       ├── SKILL.md
+│       └── scripts/
+│           └── cli.py         # reporte determinista
+├── _lib/                      # Utilidades internas compartidas
+│   ├── db.py
+│   ├── models.py
+│   ├── errors.py
+│   └── shared/
+├── scripts/                   # Utilidades y bootstrap
+│   ├── venv_setup.py          # Setup automático del venv (con retry)
+│   ├── setup.ps1              # Alternativa legacy para Windows
+│   ├── setup.sh               # Alternativa legacy para Linux/macOS
+│   ├── pdf_parser.py          # Extracción PDF con PyMuPDF
+│   ├── init.py                # Inicialización de la base de datos
+│   └── cleanup.py             # Limpieza de archivos temporales
 ├── db/
-│   └── cv-pilot.db
-└── resources/
-    ├── identidad.md
-    └── ejemplo-correos.md
+│   └── cv-pilot.db            # Base SQLite (local)
+└── data/                      # Perfil del usuario (gitignored, local)
+    ├── perfil.md              # Generado por onboarding
+    ├── correos.md             # Generado por onboarding
+    └── preferencias.md        # Generado por onboarding
 ```
 
-3. **Configura tu identidad**: edita `resources/identidad.md` con tu nombre, LinkedIn, GitHub.
-4. **(Opcional) Configura el soporte PDF**: ejecuta el script de setup del Camino B (ver "Python + PyMuPDF" arriba) si quieres subir el CV en PDF en lugar de pegar el texto. Si omites este paso, el agente funcionará solo con el Camino A (texto manual).
-5. **Sube tu CV** en formato Markdown a `resources/`. Usa un MCP o herramienta para convertir PDF a Markdown.
+3. **Onboarding conversacional** (obligatorio la primera vez): el agente detecta que `data/perfil.md` no existe y arranca el flujo guiado invocando el script de onboarding. Puedes pasarle tu CV en PDF (Camino B, requiere venv con PyMuPDF) o pegar el texto directamente (Camino A, sin dependencias). El agente verifica los datos contigo y persiste el perfil en `data/`.
+4. **Configurar soporte PDF** (opcional, solo Camino B): si vas a subir el CV en PDF y quieres ahorrarte la pregunta del agente, ejecuta manualmente `cv-pilot-agent/scripts/venv_setup.py` o uno de los scripts legacy. Si omites este paso, el agente lo configura automáticamente la primera vez que lo necesite.
+5. **Configurar Apify** (solo si vas a usar búsqueda automática): sigue los pasos de "Token Apify" más arriba. Para análisis manual de vacantes no hace falta.
 
 ---
 
@@ -142,15 +164,24 @@ Cada análisis incluye:
 
 ## ¿Cómo interactuar?
 
-- **Postulación con email:** El agente genera un borrador formal con enlace `mailto:` directo.
-- **Postulación en portal:** El agente entrega una carta de presentación para copiar y pegar.
-- **Modo Discusión:** Después de cualquier análisis puedes pedir orientación estratégica.
+- **Postulación con email:** el agente usa el provider configurado en `data/preferencias.md` (Gmail u Outlook) y genera un borrador formal con enlace `mailto:` directo. Puedes sobrescribir el provider pasando `--provider gmail|outlook` al comando de `mimetismo`. El setup de Gmail/Outlook es **opcional**: solo lo necesitas si quieres que el agente guarde borradores en tu correo. Si no lo configuras, puedes seguir usando la carta de presentación manual (siguiente bullet).
+- **Postulación en portal:** el agente entrega una carta de presentación para copiar y pegar.
+- **Modo Discusión:** después de cualquier análisis puedes pedir orientación estratégica.
+
+### Configuración de proveedores de correo (opcional)
+
+| Proveedor | Guía | Cuándo se usa |
+|-----------|------|---------------|
+| **Gmail** (`gws`) | [docs/gws-setup.md](docs/gws-setup.md) | Si quieres que el agente guarde borradores en Gmail |
+| **Outlook** (`m365` + Graph) | [docs/outlook-setup.md](docs/outlook-setup.md) | Si quieres que el agente guarde borradores en Outlook |
+
+El agente **pregunta antes de instalar** cualquier CLI externa; nunca lo hace sin tu confirmación.
 
 ---
 
 ## Privacidad
 
-Todos los datos (CV, identidad, análisis) se almacenan localmente en `db/cv-pilot.db`. Para máxima privacidad, usa LLMs locales con Ollama o LM Studio.
+Todos los datos (CV, identidad, análisis) se almacenan localmente en `db/cv-pilot.db` y `data/`. Para máxima privacidad, usa LLMs locales con Ollama o LM Studio.
 
 ---
 

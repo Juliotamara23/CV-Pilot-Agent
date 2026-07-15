@@ -1,0 +1,126 @@
+[
+  {
+    "id": "276491074E8511A761373E686DCF3405",
+    "title": "Desarrollador Junior",
+    "company": "Importante empresa del sector",
+    "location": "Medell├¡n, Antioquia",
+    "postedDate": "2026-05-22T11:54:22",
+    "updatedAt": "2026-07-01T05:55:20",
+    "descriptionText": "En We-Talk AI buscamos un Desarrollador Junior con base s├│lida en TypeScript, Next.js y React, que combine el gusto por construir interfaces con una genuina vocaci├│n de servicio al cliente. La persona ideal es curiosa, proactiva, comunica con claridad y tiene inter├®s real en la IA generativa, los modelos LLM y los agentes conversacionales.\r\nEsta es una posici├│n h├¡brida: parte del tiempo estar├ís escribiendo c├│digo y parte acompa├▒ando a nuestros clientes en el uso de la plataforma. Pensada para quien quiere crecer t├®cnicamente sin perder contacto con los usuarios reales que dependen de nuestras soluciones d├¡a a d├¡a.\r\n\r\nResponsabilidades t├®cnicas\r\nDesarrollar interfaces modernas con Next.js, React y TypeScript, aplicando buenas pr├ícticas de tipado, componentizaci├│n y arquitectura.\r\nConstruir e integrar APIs RESTful y consumir servicios externos.\r\nColaborar en la implementaci├│n de soluciones con IA generativa: agentes de voz, chatbots y agentes aut├│nomos, incluyendo dise├▒o y refinamiento de prompts.\r\nParticipar en revisiones de c├│digo, control de versiones con Git y resoluci├│n de bugs.\r\nProponer mejoras t├®cnicas y aprender continuamente sobre nuestra arquitectura de IA conversacional.\r\nResponsabilidades de servicio al cliente\r\nAtender consultas t├®cnicas y funcionales de clientes que utilizan nuestras soluciones de voz, chat y agentes con IA.\r\nServir de puente entre el cliente y el equipo de desarrollo, traduciendo necesidades de negocio en requerimientos claros.\r\nDocumentar incidencias, dar seguimiento a tickets y acompa├▒ar a los clientes hasta la resoluci├│n.\r\nApoyar el onboarding y capacitaci├│n t├®cnica de nuevos clientes.\r\n\r\nRequisitos\r\nConocimientos s├│lidos de JavaScript y TypeScript.\r\nExperiencia acad├®mica o pr├íctica con React y Next.js (idealmente App Router).\r\nFamiliaridad con HTML, CSS y herramientas modernas de desarrollo web.\r\nExcelente comunicaci├│n escrita y verbal en espa├▒ol.\r\nCapacidad de explicar conceptos t├®cnicos a usuarios no t├®cnicos con paciencia y empat├¡a.\r\nInter├®s genuino por IA generativa, LLMs, agentes conversacionales y dise├▒o de prompts.\r\nTrabajo en equipo y adaptabilidad a entornos ├ígiles.\r\n\r\nValoramos\r\nConocimientos en Node.js para tareas backend puntuales.\r\nExperiencia previa en soporte t├®cnico, mesa de ayuda o atenci├│n al cliente.\r\nProyectos personales, contribuciones en GitHub o bootcamps.\r\nInter├®s en testing y calidad de c├│digo.\r\nIngl├®s t├®cnico (lectura de documentaci├│n).",
+    "tags": [
+      "Chatbot",
+      "Git",
+      "Programacion",
+      "React",
+      "Typescript",
+      "Desarrollo de apis"
+    ],
+    "url": "https://co.computrabajo.com/ofertas-de-trabajo/oferta-de-trabajo-de-desarrollador-junior-en-medellin-276491074E8511A761373E686DCF3405",
+    "offerAttributes": {
+      "me": "Universidad / Carrera tecnol├│gica",
+      "ey": 2,
+      "at": false,
+      "acr": false,
+      "dy": false,
+      "dn": true,
+      "v": 1,
+      "st": "2026-06-01T00:00:00",
+      "lha": "https://candidato.co.computrabajo.com/candidate/apply/?oi=276491074E8511A761373E686DCF3405&p=47&idb=1",
+      "dluf": "1 de julio",
+      "icv": false,
+      "eoi": "276491074E8511A761373E686DCF3405",
+      "ihc": true,
+      "snas": 0,
+      "s": 2700000,
+      "ltr": "Desarrollador Junior",
+      "lss": "$ 2.700.000,00 (Mensual)",
+      "lset": "Tiempo Completo",
+      "lsj": "Contrato a t├®rmino indefinido",
+      "iwt": 1,
+      "ic": 304,
+      "il": 2,
+      "icat": 4,
+      "cat": "Inform├ítica / Telecomunicaciones",
+      "iscat": 0,
+      "ici": 1,
+      "is": 6,
+      "ict": 5,
+      "iet": 1,
+      "ie": 5,
+      "pc": 2,
+      "kw": "developer programador jr junior",
+      "et": "2026-07-21T11:54:22",
+      "hk": false,
+      "ir": false,
+      "ijon": false,
+      "rt": 0,
+      "iu": 0,
+      "ih": 0,
+      "igfj": false,
+      "igi": false,
+      "os": 0,
+      "er": false,
+      "ior": 0,
+      "iats": false,
+      "ip": 0,
+      "irnw": 0,
+      "id": 0
+    },
+    "offerResponseMeta": {
+      "c": {
+        "b": {
+          "sb": false
+        },
+        "ih": true,
+        "ehci": "ADF1C2FDC1BB526AB8BA5A11C9CD81CD7993AACDDE659AEF",
+        "icv": false,
+        "ac": true,
+        "sci": false,
+        "noe": 0,
+        "if": false
+      },
+      "s": {
+        "lsms": {
+          "to": "0"
+        },
+        "tcs": 0
+      },
+      "sk": {
+        "sl": [
+          {
+            "is": "03B83571F9654306",
+            "it": 2,
+            "sn": "Chatbot"
+          },
+          {
+            "is": "7D808A1F48170F3D",
+            "it": 2,
+            "sn": "Git"
+          },
+          {
+            "is": "E02F18400AAD18AC",
+            "it": 2,
+            "sn": "Programacion"
+          },
+          {
+            "is": "09D30CE84C0398B9",
+            "it": 2,
+            "sn": "React"
+          },
+          {
+            "is": "4BC5BF733A5393FB",
+            "it": 2,
+            "sn": "Typescript"
+          },
+          {
+            "is": "96776B171DC9C5D7",
+            "it": 2,
+            "sn": "Desarrollo de apis"
+          }
+        ]
+      }
+    },
+    "scrapedAt": "2026-07-07T23:39:24.482Z",
+    "source": "oferta.computrabajo.com/offer/:offerId/d/j"
+  }
+]

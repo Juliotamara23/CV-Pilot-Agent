@@ -24,7 +24,7 @@ El agente debe verificar qué archivos de configuración están presentes en la 
    - El agente ofrecerá los templates para que el usuario elija si quiere configurarlo en ese momento o continuar con la configuración estándar.
 
 2. **Detección de Archivos:**
-   - Si el usuario sube `rule-identidad.md`, el agente lo asume como "fuente de verdad" para datos de contacto.
+   - Si el usuario sube `user-identidad.md`, el agente lo asume como "fuente de verdad" para datos de contacto.
    - Si el usuario sube `ejemplo-correos.md`, el agente lo asume como "fuente de estilo" para el mimetismo.
 
 3. **Flexibilidad:**
