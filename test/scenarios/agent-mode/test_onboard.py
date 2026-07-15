@@ -217,12 +217,13 @@ def test_cli_generate_writes_three_files(tmp_path):
         ["generate", "--fields-file", str(fields_path), "--out-dir", str(out_dir)],
     )
     assert result.exit_code == 0
-    assert (out_dir / "perfil.md").is_file()
+    # Now outputs are JSON (perfil.json, preferencias.json) + correos.md
+    assert (out_dir / "perfil.json").is_file()
     assert (out_dir / "correos.md").is_file()
-    assert (out_dir / "preferencias.md").is_file()
-    perfil = (out_dir / "perfil.md").read_text(encoding="utf-8")
-    assert "Ana Lopez" in perfil
-    assert "ana@correo.com" in perfil
+    assert (out_dir / "preferencias.json").is_file()
+    perfil = json.loads((out_dir / "perfil.json").read_text(encoding="utf-8"))
+    assert perfil["nombre"] == "Ana Lopez"
+    assert perfil["correo"] == "ana@correo.com"
 
 
 def test_cli_generate_creates_backup_on_rerun(tmp_path):
@@ -232,9 +233,9 @@ def test_cli_generate_creates_backup_on_rerun(tmp_path):
     # Second run must back up the existing files.
     result = runner.invoke(onboard.app, ["generate", "--fields-file", str(fields_path), "--out-dir", str(out_dir)])
     assert result.exit_code == 0
-    assert (out_dir / "perfil.md.bak").is_file()
+    assert (out_dir / "perfil.json.bak").is_file()
     assert (out_dir / "correos.md.bak").is_file()
-    assert (out_dir / "preferencias.md.bak").is_file()
+    assert (out_dir / "preferencias.json.bak").is_file()
 
 
 def test_cli_generate_no_backup_flag(tmp_path):
@@ -246,7 +247,7 @@ def test_cli_generate_no_backup_flag(tmp_path):
         ["generate", "--fields-file", str(fields_path), "--out-dir", str(out_dir), "--no-backup"],
     )
     assert result.exit_code == 0
-    assert not (out_dir / "perfil.md.bak").exists()
+    assert not (out_dir / "perfil.json.bak").exists()
 
 
 def test_cli_generate_invalid_fields_file(tmp_path):
@@ -296,7 +297,7 @@ def test_cli_full_end_to_end(tmp_path):
     assert data["ok"] is True
     assert data["step"] == "full"
     assert data["parse"]["fields"]["correo"] == "ana@correo.com"
-    assert (out_dir / "perfil.md").is_file()
+    assert (out_dir / "perfil.json").is_file()
 
 
 def test_cli_full_missing_pdf(tmp_path):

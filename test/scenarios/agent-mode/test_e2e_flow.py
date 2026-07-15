@@ -105,7 +105,7 @@ def _insert_analysis(query_script: str, env: dict, job_hash: str, **kwargs) -> s
 
 def _format_report(formatos_script: str, env: dict, job_hash: str) -> str:
     """Run formatos CLI and return the output."""
-    proc = _run_cli(formatos_script, env, "--job", job_hash)
+    proc = _run_cli(formatos_script, env, "main", "--job", job_hash)
     assert proc.returncode == 0, f"Format report failed: {proc.stderr}"
     return proc.stdout
 
@@ -320,7 +320,7 @@ def test_e2e_error_incomplete_manual_source(tmp_db, query_script):
     # Step 5: Try to format a job that has no analysis
     proc = _run_cli(
         formatos_script, env,
-        "--job", job_hash,
+        "main", "--job", job_hash,
     )
     assert proc.returncode == 1, "Expected non-zero exit for format without analysis"
     error_data = json.loads(proc.stderr)
@@ -329,7 +329,7 @@ def test_e2e_error_incomplete_manual_source(tmp_db, query_script):
     # Step 6: Try to format a completely non-existent job hash
     proc = _run_cli(
         formatos_script, env,
-        "--job", "nonexistent_hash_12345",
+        "main", "--job", "nonexistent_hash_12345",
     )
     assert proc.returncode == 1, "Expected non-zero exit for non-existent job"
     error_data = json.loads(proc.stderr)
@@ -485,13 +485,13 @@ def test_e2e_happy_with_onboarding_then_sourcing(tmp_db, query_script, tmp_path)
     onboard_result = json.loads(proc.stdout)
     assert onboard_result["ok"] is True
 
-    # Step 3: Verify the 3 output files exist
-    assert (out_dir / "perfil.md").is_file(), "perfil.md not created"
+    # Step 3: Verify the 3 output files exist (perfil.json + preferencias.json + correos.md)
+    assert (out_dir / "perfil.json").is_file(), "perfil.json not created"
     assert (out_dir / "correos.md").is_file(), "correos.md not created"
-    assert (out_dir / "preferencias.md").is_file(), "preferencias.md not created"
+    assert (out_dir / "preferencias.json").is_file(), "preferencias.json not created"
 
-    perfil_content = (out_dir / "perfil.md").read_text(encoding="utf-8")
-    assert "Carlos Perez" in perfil_content
+    perfil_data = json.loads((out_dir / "perfil.json").read_text(encoding="utf-8"))
+    assert perfil_data.get("nombre") == "Carlos Perez"
 
     # Step 4: Insert a manual job that matches the synthetic profile
     job_hash = _insert_manual_job(

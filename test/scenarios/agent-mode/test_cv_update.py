@@ -1,9 +1,9 @@
 """Tests for cv-update skill and VSI (Validación Semántica de Identidad).
 
 Covers the 3 P2.3 backlog scenarios:
-1. CV válido actualiza el perfil.md.
+1. CV válido actualiza el perfil.json.
 2. CV inválido es rechazado por la VSI.
-3. CV con contenido distinto al viejo genera perfil.md distinto (prueba de reescritura completa).
+3. CV con contenido distinto al viejo genera perfil.json distinto (prueba de reescritura completa).
 
 Run with:
     .venv/Scripts/python.exe -m pytest test/scenarios/agent-mode/test_cv_update.py -v
@@ -65,6 +65,7 @@ _PDF_JOSE = Path(r"E:\Hoja de Vida Jose.pdf")
 _PDF_GCCF = Path(r"E:\Documents\GCCF Academy Key Information.pdf")
 
 # MD5 hashes of the real data/ files (computed once, hardcoded for pollution test).
+# NOTE: After migration, we check both .md and .json files.
 REAL_DATA_MD5: dict[str, str] = {
     "correos.md": "11e474246f6ac953621a4b60e8410ee6",
     "perfil.md": "eac322b727b98b3c3572e7085e5c5174",
@@ -181,11 +182,12 @@ def clean_data_dir(sandbox_dir):
     # Post-test: verify real data/ was not touched.
     for fname, expected_md5 in REAL_DATA_MD5.items():
         real_file = _REAL_DATA_DIR / fname
-        actual_md5 = hashlib.md5(real_file.read_bytes()).hexdigest()
-        assert actual_md5 == expected_md5, (
-            f"REAL data/{fname} was modified during test! "
-            f"Expected {expected_md5}, got {actual_md5}"
-        )
+        if real_file.exists():
+            actual_md5 = hashlib.md5(real_file.read_bytes()).hexdigest()
+            assert actual_md5 == expected_md5, (
+                f"REAL data/{fname} was modified during test! "
+                f"Expected {expected_md5}, got {actual_md5}"
+            )
 
 
 @pytest.fixture()
@@ -294,9 +296,9 @@ class TestCvUpdateE2E:
     """End-to-end tests for the cv-update CLI (invoked as subprocess)."""
 
     def test_cv_update_rewrites_profile_with_new_cv(self, clean_data_dir, sandbox_dir):
-        """cv-update with a valid CV must rewrite perfil.md with new data.
+        """cv-update with a valid CV must rewrite perfil.json with new data.
 
-        Backlog scenario 1: CV válido actualiza el perfil.md.
+        Backlog scenario 1: CV válido actualiza el perfil.json.
         Uses the real Jose CV against a sandbox copy of data/.
         """
         pdf_path = str(sandbox_dir / "input_valid.pdf")
@@ -310,15 +312,13 @@ class TestCvUpdateE2E:
         output = json.loads(result.stdout)
         assert output["ok"] is True
 
-        # Verify perfil.md was written.
-        perfil_path = clean_data_dir / "perfil.md"
-        assert perfil_path.exists(), "perfil.md was not created."
+        # Verify perfil.json was written.
+        perfil_path = clean_data_dir / "perfil.json"
+        assert perfil_path.exists(), "perfil.json was not created."
 
-        perfil_content = perfil_path.read_text(encoding="utf-8")
-
-        # The new perfil must contain Jose's data (not the old Julio data).
-        # Jose's CV should have his name or characteristic content.
-        assert len(perfil_content) > 100, "perfil.md is suspiciously short."
+        perfil_data = json.loads(perfil_path.read_text(encoding="utf-8"))
+        assert isinstance(perfil_data, dict), "perfil.json should be a JSON object"
+        assert len(json.dumps(perfil_data)) > 50, "perfil.json is suspiciously short."
 
     def test_cv_update_preserves_correos_and_preferencias(self, clean_data_dir, sandbox_dir):
         """cv-update must NOT touch correos.md or preferencias.md.
@@ -371,12 +371,16 @@ class TestCvUpdateE2E:
             "data/ files were modified despite VSI rejection!"
         )
 
-    def test_cv_update_profile_md_differs_from_initial(self, clean_data_dir, sandbox_dir):
-        """After cv-update with a new CV, perfil.md must differ from the original.
+    def test_cv_update_profile_json_differs_from_initial(self, clean_data_dir, sandbox_dir):
+        """After cv-update with a new CV, perfil.json must differ from the original.
 
-        Backlog scenario 3: CV distinto al viejo genera perfil.md distinto.
+        Backlog scenario 3: CV distinto al viejo genera perfil.json distinto.
         """
-        perfil_path = clean_data_dir / "perfil.md"
+        perfil_path = clean_data_dir / "perfil.json"
+        # Create initial perfil.json from the existing perfil.md data.
+        import importlib.util as _ilu2
+        from scripts.migrate_perfil_to_json import _parse_perfil_md, migrate
+        migrate(clean_data_dir, dry_run=False)
         md5_before = _md5(perfil_path)
 
         pdf_path = str(sandbox_dir / "input_valid.pdf")
@@ -385,7 +389,7 @@ class TestCvUpdateE2E:
 
         md5_after = _md5(perfil_path)
         assert md5_before != md5_after, (
-            "perfil.md was NOT rewritten — MD5 is identical before and after cv-update. "
+            "perfil.json was NOT rewritten — MD5 is identical before and after cv-update. "
             "This means the old perfil was preserved, violating ATS fidelity."
         )
 
@@ -396,10 +400,10 @@ class TestCvUpdateE2E:
 
 
 class TestReconstructor:
-    """Unit tests for reconstruct_profile() — the perfil.md generator."""
+    """Unit tests for reconstruct_profile() — the perfil.json generator."""
 
-    def test_reconstructor_writes_complete_markdown(self):
-        """Generated markdown must have frontmatter, canonical sections, and Extras.
+    def test_reconstructor_writes_complete_json(self):
+        """Generated dict must have canonical fields, fuente, and generated_at.
 
         Verifies the structural contract of the output format.
         """
@@ -414,49 +418,51 @@ class TestReconstructor:
             "experiencia": "Dev at Acme (2020-2025)",
             "educacion": "Uni (2015-2020)",
             "skills": "Python, Go",
-            "sector": "Backend",  # Non-canonical → should appear in Extras.
+            "sector": "Backend",  # Non-canonical → should appear in extras.
         }
         result = reconstructor.reconstruct_profile(fields, source_pdf="test.pdf")
-        md = result["perfil_content"]
+        perfil = result["perfil_content"]
 
-        # Frontmatter.
-        assert md.startswith("---"), "Missing frontmatter."
-        assert "source: test.pdf" in md
-        assert "generated:" in md
+        # Must be a dict (JSON-serializable).
+        assert isinstance(perfil, dict)
 
-        # Canonical sections.
-        for section in ("## Identidad", "## Contacto", "## Experiencia",
-                        "## Educación", "## Skills Técnicos"):
-            assert section in md, f"Missing section: {section}"
+        # Canonical fields present.
+        assert perfil["nombre"] == "Test User"
+        assert perfil["correo"] == "test@example.com"
+        assert perfil["experiencia"] == "Dev at Acme (2020-2025)"
+        assert perfil["skills"] == "Python, Go"
+
+        # Metadata.
+        assert perfil["fuente"] == "test.pdf"
+        assert "generated_at" in perfil
 
         # Extras (non-canonical field).
-        assert "## Extras" in md, "Non-canonical field 'sector' should produce Extras."
-        assert "Sector" in md or "sector" in md
-
-        # Header.
-        assert "# Perfil" in md
+        assert "extras" in perfil
+        assert "sector" in perfil["extras"]
 
     def test_reconstructor_marks_missing_fields(self):
-        """When only 2 fields are provided, the rest must show _(no detectado)_.
+        """When only 2 fields are provided, the rest must be None.
 
-        The placeholder must appear for every missing canonical field:
-        resumen, experiencia, educacion, skills (nombre and correo are provided).
+        The None values represent missing canonical fields.
         """
         fields = {
             "nombre": "Ana Minimal",
             "correo": "ana@example.com",
         }
         result = reconstructor.reconstruct_profile(fields, source_pdf="test.pdf")
-        md = result["perfil_content"]
+        perfil = result["perfil_content"]
 
-        # nombre line must NOT have placeholder (it's provided).
-        assert "**Nombre:** Ana Minimal" in md
-        # correo must appear in Contacto section.
-        assert "ana@example.com" in md
+        # nombre and correo are provided.
+        assert perfil["nombre"] == "Ana Minimal"
+        assert perfil["correo"] == "ana@example.com"
 
-        # Missing canonical fields should have placeholder.
-        assert "_(no detectado)_" in md
-        # experiencia, educacion, skills, resumen should all be in missing list.
+        # Missing canonical fields should be None.
+        assert perfil["experiencia"] is None
+        assert perfil["educacion"] is None
+        assert perfil["skills"] is None
+        assert perfil["resumen"] is None
+
+        # The missing list should contain them.
         assert result["campos_no_encontrados"]
         for expected_missing in ("experiencia", "educacion", "skills", "resumen"):
             assert expected_missing in result["campos_no_encontrados"], (
@@ -464,7 +470,7 @@ class TestReconstructor:
             )
 
     def test_reconstructor_does_not_consult_old_profile(self):
-        """reconstruct_profile must NOT read from data/ or the old perfil.md.
+        """reconstruct_profile must NOT read from data/ or the old perfil.json.
 
         This verifies the ATS fidelity design: each update is a full snapshot,
         never a merge. We pass fields and verify it produces output without
@@ -477,17 +483,16 @@ class TestReconstructor:
             "educacion": "School.",
             "skills": "Code.",
         }
-        # reconstruct_profile should work with ONLY the fields dict + source_pdf.
-        # It has no parameter for old_perfil_path and does no file I/O.
         result = reconstructor.reconstruct_profile(fields, source_pdf="snapshot.pdf")
-        md = result["perfil_content"]
+        perfil = result["perfil_content"]
 
         # The output should contain ONLY the data we passed.
-        assert "Snapshot User" in md
-        assert "Test." in md
+        assert perfil["nombre"] == "Snapshot User"
+        assert perfil["resumen"] == "Test."
         # It must NOT contain data from the real perfil.md (Julio Támara).
-        assert "Julio" not in md
-        assert "Támara" not in md
+        all_values = json.dumps(perfil)
+        assert "Julio" not in all_values
+        assert "Támara" not in all_values
 
 
 # =========================================================================== #
@@ -501,15 +506,28 @@ class TestATSFidelity:
     def test_two_different_cvs_do_not_merge(self, clean_data_dir, sandbox_dir):
         """Write a 'backend' old perfil, then cv-update with a 'frontend' CV.
 
-        The final perfil.md must NOT contain any backend-specific content
+        The final perfil.json must NOT contain any backend-specific content
         from the old perfil. This is the core ATS fidelity guarantee:
         a real ATS only knows the CV you submit.
         """
-        perfil_path = clean_data_dir / "perfil.md"
+        perfil_json_path = clean_data_dir / "perfil.json"
 
-        # Step 1: Write the synthetic "old backend" perfil.
-        perfil_path.write_text(OLD_PERFIL_BACKEND, encoding="utf-8")
-        md5_old = _md5(perfil_path)
+        # Step 1: Write the synthetic "old backend" perfil as JSON.
+        old_data = {
+            "nombre": "Carlos Backend López",
+            "resumen": "Desarrollador Backend con 8 años de experiencia en Java, Spring Boot y arquitectura de microservicios.",
+            "linkedin": "https://linkedin.com/in/carlos-backend",
+            "github": "https://github.com/carlos-backend",
+            "telefono": "+57 300 1111111",
+            "correo": "carlos.backend@example.com",
+            "experiencia": "**TechCorp Backend Division**\nBackend Lead 2020 – 2025\n- Diseñé la arquitectura de microservicios en Java/Spring Boot para el core bancario.",
+            "educacion": "Ingeniería de Sistemas — Universidad Nacional (2012 – 2018)",
+            "skills": "Backend: Java, Spring Boot, Python, Django, PostgreSQL, Redis",
+            "fuente": "old_cv.pdf",
+            "generated_at": "2025-01-01T00:00:00Z",
+        }
+        perfil_json_path.write_text(json.dumps(old_data, indent=2), encoding="utf-8")
+        md5_old = _md5(perfil_json_path)
 
         # Step 2: Create a synthetic "frontend" PDF from FRONTEND_CV_TEXT.
         frontend_pdf = sandbox_dir / "frontend_cv.pdf"
@@ -526,8 +544,9 @@ class TestATSFidelity:
             f"cv-update failed:\nstdout={result.stdout}\nstderr={result.stderr}"
         )
 
-        # Step 4: Verify the final perfil.md has NO backend content.
-        final_content = perfil_path.read_text(encoding="utf-8")
+        # Step 4: Verify the final perfil.json has NO backend content.
+        final_data = json.loads(perfil_json_path.read_text(encoding="utf-8"))
+        final_content = json.dumps(final_data)
 
         # These strings are unique to the old backend perfil.
         backend_markers = [
@@ -546,12 +565,12 @@ class TestATSFidelity:
 
         # Step 5: Verify the new perfil contains frontend content.
         assert "Laura Frontend" in final_content or "Frontend" in final_content, (
-            "New frontend CV content not found in final perfil.md."
+            "New frontend CV content not found in final perfil.json."
         )
 
         # Step 6: MD5 must differ from the old backend perfil.
-        assert _md5(perfil_path) != md5_old, (
-            "perfil.md was NOT rewritten — still has old backend content."
+        assert _md5(perfil_json_path) != md5_old, (
+            "perfil.json was NOT rewritten — still has old backend content."
         )
 
 

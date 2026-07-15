@@ -1,10 +1,10 @@
 """Deterministic CV update CLI for CV-Pilot.
 
-Rewrites ``data/perfil.md`` from scratch using ONLY the new CV PDF.
+Rewrites ``data/perfil.json`` from scratch using ONLY the new CV PDF.
 Each update is a full snapshot — old fields are NEVER preserved.
 This ensures ATS fidelity: a real ATS only knows the CV you submit.
 
-NEVER touches ``correos.md`` or ``preferencias.md``.
+NEVER touches ``correos.md`` or ``preferencias.json``.
 
 Reuses:
 - ``_lib/pdf_parser.py`` for PDF text extraction.
@@ -55,7 +55,7 @@ VSI_REJECTION_MESSAGE = (
 
 app = typer.Typer(
     name="cv-update",
-    help="CV-Pilot CV update CLI: update perfil.md from a new PDF.",
+    help="CV-Pilot CV update CLI: update perfil.json from a new PDF.",
     add_completion=False,
     no_args_is_help=True,
 )
@@ -69,15 +69,15 @@ def _emit(result: dict) -> None:
 def update(
     pdf_path: Path = typer.Argument(..., help="Path to the new CV PDF."),
     data_dir: Path = typer.Option(
-        Path("data"), "--data-dir", help="Directory containing perfil.md (default: data/)."
+        Path("data"), "--data-dir", help="Directory containing perfil.json (default: data/)."
     ),
 ) -> None:
-    """Rewrite perfil.md from scratch with data from a new CV PDF.
+    """Rewrite perfil.json from scratch with data from a new CV PDF.
 
-    Each update is a FULL snapshot — old perfil.md content is discarded.
-    NEVER touches correos.md or preferencias.md.
+    Each update is a FULL snapshot — old perfil.json content is discarded.
+    NEVER touches correos.md or preferencias.json.
     """
-    perfil_path = data_dir / "perfil.md"
+    perfil_path = data_dir / "perfil.json"
 
     # Step 1: Extract from PDF
     extracted = extract_pdf(str(pdf_path))
@@ -101,15 +101,18 @@ def update(
     parsed = parse_text(extracted.get("text", ""), extracted.get("links", []))
     new_fields = parsed["fields"]
 
-    # Step 4: Reconstruct perfil.md from scratch (NO old data consulted)
+    # Step 4: Reconstruct perfil.json from scratch (NO old data consulted)
     result = reconstruct_profile(new_fields, source_pdf=str(pdf_path))
 
-    # Step 5: Write new perfil.md
+    # Step 5: Write new perfil.json
     data_dir.mkdir(parents=True, exist_ok=True)
-    perfil_path.write_text(result["perfil_content"], encoding="utf-8")
+    perfil_path.write_text(
+        json.dumps(result["perfil_content"], ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
     # Step 6: Post-update validation — verify written content matches
-    written = perfil_path.read_text(encoding="utf-8")
+    written = json.loads(perfil_path.read_text(encoding="utf-8"))
     if written != result["perfil_content"]:
         import logging
         logging.warning(
