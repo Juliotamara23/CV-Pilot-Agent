@@ -65,11 +65,10 @@ _PDF_JOSE = Path(r"E:\Hoja de Vida Jose.pdf")
 _PDF_GCCF = Path(r"E:\Documents\GCCF Academy Key Information.pdf")
 
 # MD5 hashes of the real data/ files (computed once, hardcoded for pollution test).
-# NOTE: After migration, we check both .md and .json files.
+# After migration: perfil.md and preferencias.md deleted, replaced by .json files.
+# correos.md stays (user decision not to migrate).
 REAL_DATA_MD5: dict[str, str] = {
     "correos.md": "11e474246f6ac953621a4b60e8410ee6",
-    "perfil.md": "eac322b727b98b3c3572e7085e5c5174",
-    "preferencias.md": "a3c8c36a1803ac7fd8c0bc39129b7013",
 }
 
 # Synthetic "old" backend perfil used to test non-merging / ATS fidelity.
@@ -320,16 +319,14 @@ class TestCvUpdateE2E:
         assert isinstance(perfil_data, dict), "perfil.json should be a JSON object"
         assert len(json.dumps(perfil_data)) > 50, "perfil.json is suspiciously short."
 
-    def test_cv_update_preserves_correos_and_preferencias(self, clean_data_dir, sandbox_dir):
-        """cv-update must NOT touch correos.md or preferencias.md.
+    def test_cv_update_preserves_correos(self, clean_data_dir, sandbox_dir):
+        """cv-update must NOT touch correos.md.
 
-        Verifies byte-level identity (MD5) of these files before and after.
+        Verifies byte-level identity (MD5) of correos.md before and after.
         """
         correos_path = clean_data_dir / "correos.md"
-        prefs_path = clean_data_dir / "preferencias.md"
 
         md5_correos_before = _md5(correos_path)
-        md5_prefs_before = _md5(prefs_path)
 
         pdf_path = str(sandbox_dir / "input_valid.pdf")
         result = _run_cv_update_cli(pdf_path, str(clean_data_dir))
@@ -337,9 +334,6 @@ class TestCvUpdateE2E:
 
         assert _md5(correos_path) == md5_correos_before, (
             "correos.md was modified by cv-update!"
-        )
-        assert _md5(prefs_path) == md5_prefs_before, (
-            "preferencias.md was modified by cv-update!"
         )
 
     def test_cv_update_with_invalid_pdf_does_not_modify_data(self, clean_data_dir, sandbox_dir):

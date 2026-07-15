@@ -161,7 +161,7 @@ def migrate(data_dir: Path, dry_run: bool = False) -> dict:
             # Write JSON
             perfil_json.write_text(json_content, encoding="utf-8")
             report["perfil"] = True
-            print(f"✓ Written: {perfil_json}")
+            print(f"[OK] Written: {perfil_json}")
     else:
         print(f"⚠ Not found: {perfil_md}")
 
@@ -187,7 +187,7 @@ def migrate(data_dir: Path, dry_run: bool = False) -> dict:
             # Write JSON
             prefs_json.write_text(json_content, encoding="utf-8")
             report["preferencias"] = True
-            print(f"✓ Written: {prefs_json}")
+            print(f"[OK] Written: {prefs_json}")
     else:
         print(f"⚠ Not found: {prefs_md}")
 
