@@ -47,6 +47,7 @@ if str(_ONBOARDING_SCRIPTS) not in sys.path:
 from _onboarding_internal.parser import parse_text  # noqa: E402
 from _cv_update_internal.reconstructor import reconstruct_profile  # noqa: E402
 from vsi import validate_cv  # noqa: E402
+from llm_extract import extract_cv_fields_with_fallback  # noqa: E402
 
 # Canonical rejection message from rules/integridad.md:32.
 VSI_REJECTION_MESSAGE = (
@@ -97,9 +98,13 @@ def update(
         })
         raise typer.Exit(code=1)
 
-    # Step 3: Parse CV fields
-    parsed = parse_text(extracted.get("text", ""), extracted.get("links", []))
-    new_fields = parsed["fields"]
+    # Step 3: Parse CV fields (LLM with regex fallback)
+    extraction_result = extract_cv_fields_with_fallback(
+        extracted.get("text", ""), source_pdf=str(pdf_path)
+    )
+    new_fields = extraction_result["fields"]
+    extraccion_metodo = extraction_result["extraccion_metodo"]
+    campos_faltantes = extraction_result.get("campos_faltantes", [])
 
     # Step 4: Reconstruct perfil.json from scratch (NO old data consulted)
     result = reconstruct_profile(new_fields, source_pdf=str(pdf_path))
@@ -121,18 +126,26 @@ def update(
         )
 
     # Step 7: Report
-    _emit({
+    report = {
         "ok": True,
         "perfil_path": str(perfil_path),
         "campos_extraidos": result["campos_extraidos"],
         "campos_no_encontrados": result["campos_no_encontrados"],
         "fuente": result["fuente"],
         "timestamp": result["timestamp"],
+        "extraccion_metodo": extraccion_metodo,
         "vsi": {
             "secciones_detectadas": vsi_result["secciones_detectadas"],
             "confianza": vsi_result["confianza"],
         },
-    })
+    }
+    if campos_faltantes:
+        report["campos_faltantes"] = campos_faltantes
+        report["aviso_usuario"] = (
+            "Algunos campos no se pudieron extraer. "
+            "Revise el JSON y complete manualmente."
+        )
+    _emit(report)
 
 
 if __name__ == "__main__":
