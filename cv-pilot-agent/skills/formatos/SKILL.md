@@ -11,7 +11,7 @@ Este skill es ahora un script determinista. El agente NO redacta el reporte — 
 
 ## CLI: `skills/formatos/scripts/cli.py`
 
-Lectura de `jobs` + `analyses` (vía `_lib.db`) y `data/perfil.md`. Salida a stdout.
+Lectura de `jobs` + `analyses` (vía `_lib.db`) y `data/perfil.json`. Salida a stdout.
 
 ### Comando `main` — reporte individual
 

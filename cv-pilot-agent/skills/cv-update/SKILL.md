@@ -1,6 +1,6 @@
 ---
 name: cv-update
-description: Rewrite perfil.md from scratch using a new CV PDF. Each update is a full snapshot — old fields are never preserved. Ensures ATS fidelity.
+description: Rewrite perfil.json from scratch using a new CV PDF. Each update is a full snapshot — old fields are never preserved. Ensures ATS fidelity.
 scope: DATA
 version: "2.0"
 ---
@@ -9,14 +9,14 @@ version: "2.0"
 
 ## Propósito
 
-Reescribir `data/perfil.md` **desde cero** con la información de un nuevo CV PDF. Cada actualización es una **instantánea independiente** — el perfil viejo se descarta completamente. Esto garantiza fidelidad ATS: un ATS real (Workday/Greenhouse/Lever) solo conoce el CV enviado en cada postulación.
+Reescribir `data/perfil.json` **desde cero** con la información de un nuevo CV PDF. Cada actualización es una **instantánea independiente** — el perfil viejo se descarta completamente. Esto garantiza fidelidad ATS: un ATS real (Workday/Greenhouse/Lever) solo conoce el CV enviado en cada postulación.
 
 **NO es un merge.** Mezclar info de CVs distintos genera evaluaciones infladas para RRHH.
 
 ## SRP (Responsabilidad Única)
 
-- **Onboarding**: genera los 3 archivos (`perfil.md`, `correos.md`, `preferencias.md`) desde cero.
-- **cv-update**: SOLO reescribe `perfil.md` con datos de un nuevo CV. Nunca consulta el perfil viejo.
+- **Onboarding**: genera los 3 archivos (`perfil.json`, `correos.md`, `preferencias.json`) desde cero.
+- **cv-update**: SOLO reescribe `perfil.json` con datos de un nuevo CV. Nunca consulta el perfil viejo.
 - Ambos comparten la interfaz PDF→MD: `pdf_parser.extract()` + `parser.parse_text()`.
 - cv-update NUNCA re-ejecuta onboarding ni modifica los otros archivos de data.
 
@@ -24,7 +24,7 @@ Reescribir `data/perfil.md` **desde cero** con la información de un nuevo CV PD
 
 ### `<pdf_path> [--data-dir <path>]`
 
-Reescribe `perfil.md` con la información extraída de un nuevo CV PDF.
+Reescribe `perfil.json` con la información extraída de un nuevo CV PDF.
 
 ```bash
 # Desde la raíz del proyecto (con venv):
@@ -38,7 +38,7 @@ Reescribe `perfil.md` con la información extraída de un nuevo CV PDF.
 ```json
 {
   "ok": true,
-  "perfil_path": "data/perfil.md",
+  "perfil_path": "data/perfil.json",
   "campos_extraidos": ["nombre", "resumen", "linkedin", "github", "telefono", "correo", "experiencia", "educacion", "skills"],
   "campos_no_encontrados": ["cv_url"],
   "fuente": "path/to/cv.pdf",
@@ -48,7 +48,7 @@ Reescribe `perfil.md` con la información extraída de un nuevo CV PDF.
 
 ## Contrato de Reescritura
 
-- `perfil.md` se genera **desde cero** con los campos del CV nuevo.
+- `perfil.json` se genera **desde cero** con los campos del CV nuevo.
 - **NO se consulta** el perfil viejo en ningún momento.
 - Campos canónicos no encontrados en el CV aparecen con placeholder `_(no detectado)_`.
 - Secciones no canónicas del CV (ej. "Certificaciones", "Proyectos") van en `## Extras`.
@@ -63,9 +63,9 @@ Reescribe `perfil.md` con la información extraída de un nuevo CV PDF.
 
 ## Archivos que Toca
 
-- `data/perfil.md` — SOLO este archivo se modifica.
+- `data/perfil.json` — SOLO este archivo se modifica.
 
 ## Archivos que NUNCA Toca
 
 - `data/correos.md` — exclusivo de onboarding.
-- `data/preferencias.md` — exclusivo de onboarding.
+- `data/preferencias.json` — exclusivo de onboarding.

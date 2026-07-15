@@ -420,7 +420,7 @@ class TestCLIAll:
         assert "--limit" in result.stdout
 
     def test_formatos_all_with_no_jobs(self, tmp_db, tmp_path, monkeypatch):
-        """DB vacía → mensaje claro, exit 0."""
+        """Empty DB -> clear message, exit 0."""
         root = _write_perfil(tmp_path)
         monkeypatch.setattr(format_report, "_AGENT_ROOT", root)
         import _lib.shared.profile_loader as pl
@@ -490,7 +490,7 @@ class TestCLIAll:
             assert "company" in entry["report"]
 
     def test_formatos_all_json_no_jobs(self, tmp_db, tmp_path, monkeypatch):
-        """--format json con DB vacía → JSON válido con count 0."""
+        """--format json with empty DB -> valid JSON with count 0."""
         root = _write_perfil(tmp_path)
         monkeypatch.setattr(format_report, "_AGENT_ROOT", root)
         import _lib.shared.profile_loader as pl

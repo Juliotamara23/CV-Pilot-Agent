@@ -246,7 +246,7 @@ def _run_cv_update_cli(pdf_path: str, data_dir: str) -> subprocess.CompletedProc
 
 
 class TestVSI:
-    """Tests for validate_cv() — the Validación Semántica de Identidad."""
+    """Tests for validate_cv() — the Semantic Identity Validation."""
 
     def test_vsi_accepts_valid_cv_jose_david(self, jose_text):
         """VSI must accept a real CV with is_valid=True and detect >=2 sections.

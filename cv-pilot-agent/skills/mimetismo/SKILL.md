@@ -19,8 +19,8 @@ La redacción la hace el agente; el envío, el script.
 ## Contrato
 
 1. Agente escribe HTML en `temp/cvp-{hash}-body.html` y pasa ruta con `--body-file`.
-2. Script reemplaza `[github]`/`[linkedin]`/`[cv]`/`[whatsapp]` por `<a href>` desde `perfil.md`.
-3. Provider auto-detectado de `preferencias.md`; `--provider` sobrescribe.
+2. Script reemplaza `[github]`/`[linkedin]`/`[cv]`/`[whatsapp]` por `<a href>` desde `perfil.json`.
+3. Provider auto-detectado de `preferencias.json`; `--provider` sobrescribe.
 4. Si ambos providers `sí`, pasar `--provider` con la elección del usuario.
 5. `cleanup.py` al final (éxito o error).
 6. Output: JSON `{"ok":bool, ...}` a stdout, errores a stderr con `code`.

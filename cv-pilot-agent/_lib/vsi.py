@@ -1,4 +1,4 @@
-"""Validación Semántica de Identidad (VSI) for CV-Pilot.
+"""Semantic Identity Validation (VSI) for CV-Pilot.
 
 Determines whether extracted text is a professional CV/resume or some other
 document (invoice, shopping list, recipe, etc.).

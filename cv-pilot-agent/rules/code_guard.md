@@ -50,7 +50,7 @@ Si un script es un parche único para un caso puntual, el agente DEBE:
 
 ### Incidente: Improvisación de código de extracción de CV (2026-07-13)
 
-Un agente improvisó código nuevo para extraer información del CV en vez de reutilizar `pdf_parser.extract()`. Resultado: el campo custom `pdf_soporte: true` en `data/preferencias.md` quedó en riesgo de sobrescritura.
+Un agente improvisó código nuevo para extraer información del CV en vez de reutilizar `pdf_parser.extract()`. Resultado: el campo custom `pdf_soporte: true` en `data/preferencias.json` quedó en riesgo de sobrescritura.
 
 **Regla:** Si necesitás re-extraer info del CV, usá la skill `cv-update`, nunca re-ejecutes `onboarding full` ni improvises código de extracción.
 
@@ -60,7 +60,7 @@ Un agente improvisó código nuevo para extraer información del CV en vez de re
 
 Mezclar información de CVs distintos viola fidelidad ATS. Un ATS real (Workday/Greenhouse/Lever) solo conoce el CV enviado en cada postulación. Mezclar campos de un CV anterior genera evaluaciones infladas para RRHH.
 
-**Regla:** `cv-update` reescribe `perfil.md` desde cero con cada nuevo CV. NO preserva campos del perfil viejo. Cada perfil.md es una instantánea independiente del último CV procesado.
+**Regla:** `cv-update` reescribe `perfil.json` desde cero con cada nuevo CV. NO preserva campos del perfil viejo. Cada `perfil.json` es una instantánea independiente del último CV procesado.
 
 ## Archivos temporales
 - Todo archivo temporal (borradores de correo, código generado, respuestas de scraping, etc.) DEBE guardarse en `cv-pilot-agent/temp/`. Nunca en otra ubicación.

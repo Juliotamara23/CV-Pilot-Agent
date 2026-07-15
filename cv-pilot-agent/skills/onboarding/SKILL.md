@@ -24,12 +24,12 @@ python skills/onboarding/scripts/cli.py full <pdf_path> [--fields-file <path>] [
 |---|---|
 | `extract` | Extrae texto + links de un PDF vía `pdf_parser.extract` (library import). |
 | `parse` | Regex/heurísticas sobre texto (archivo, stdin `-`, o PDF). Devuelve `fields` + `missing`. |
-| `generate` | Renderiza `perfil.md`, `correos.md`, `preferencias.md` desde `--fields-file` (JSON). |
+| `generate` | Renderiza `perfil.json`, `correos.md`, `preferencias.json` desde `--fields-file` (JSON). |
 | `full` | extract → parse → generate en una pasada. `--fields-file` aporta extras (preferencias, ejemplos de correos). |
 
 ## Flujo del agente
 
-1. **Detección de estado:** si `data/perfil.md` existe y está completo, cargar silenciosamente. Si no, ejecutar onboarding.
+1. **Detección de estado:** si `data/perfil.json` existe y está completo, cargar silenciosamente. Si no, ejecutar onboarding.
 2. **Recolección:** obtener el CV (PDF o texto pegado). Para PDF, ejecutar `full <pdf> --fields-file <extras.json>`. Para texto, `parse` → revisar `missing` → pedir campos faltantes al usuario → `generate`.
 3. **Verificación (conversacional, obligatoria):** presentar el resumen de `fields` al usuario y pedir confirmación explícita antes de escribir. NUNCA escribir sin confirmación.
 4. **Preferencias y correos:** recolectar sector, tono, idioma, borradores Gmail/Outlook y 2-3 ejemplos de correos. Pasarlos en el `--fields-file`.

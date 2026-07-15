@@ -84,7 +84,7 @@ def _parse_preferencias_md(text: str) -> dict:
     """Extract fields from the current preferencias.md format."""
     fields: dict = {}
 
-    # Mimetismo: - **Activado:** sí/no
+    # Mimicry toggle: - **Activado:** yes/no
     m = re.search(r"Activado:\*\*\s*(.+)$", text, re.MULTILINE)
     if m:
         val = m.group(1).strip().lower()

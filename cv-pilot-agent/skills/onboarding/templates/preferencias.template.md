@@ -1,6 +1,6 @@
 ---
 name: Plantilla de Preferencias
-description: Estructura para data/preferencias.md. Configuración de preferencias del usuario.
+description: Legacy structure for data/preferencias.json. No longer a contract — preferencias.json is now free-form. Kept for reference only.
 scope: ONBOARDING
 ---
 

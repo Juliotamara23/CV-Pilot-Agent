@@ -9,7 +9,7 @@ scope: GLOBAL
 ## Inicio de Sesión: Verificación de Perfil
 Al iniciar cualquier sesión, el agente debe verificar el estado de `data/` antes de ejecutar cualquier análisis:
 
-1. **Verificar `data/perfil.md`:**
+1. **Verificar `data/perfil.json`:**
    - Existe y contiene los campos requeridos (Identidad, Contacto, Experiencia) → cargar el perfil de forma silenciosa y continuar el flujo normal.
    - No existe o está incompleto → iniciar el flujo de onboarding (`skills/onboarding/SKILL.md`).
 

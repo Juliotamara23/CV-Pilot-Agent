@@ -1,6 +1,6 @@
 ---
 name: Plantilla de Perfil
-description: Estructura para data/perfil.md. CV unificado y datos de contacto en una sola fuente de verdad, sin duplicación.
+description: Legacy structure for data/perfil.json. No longer a contract — perfil.json is now free-form. Kept for reference only.
 scope: ONBOARDING
 ---
 
