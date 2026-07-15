@@ -44,7 +44,10 @@
 
 ```
 skills/onboarding/        → CLI cli.py (extract, parse, generate, full)
-                              Persistencia de perfil en data/
+                              VSI previa + persistencia de perfil en data/perfil.json
+skills/cv-update/         → CLI cli.py (update <pdf>)
+                              Reescritura completa de perfil.json desde un nuevo CV
+                              (fidelidad ATS, no merge)
 skills/apify/             → CLI cli.py con plugins por plataforma
                               (indeed, linkedin, computrabajo)
 skills/database/          → CLI query.py (ORM: list, insert, status, analysis)
@@ -52,12 +55,19 @@ skills/database/          → CLI query.py (ORM: list, insert, status, analysis)
 skills/mimetismo/         → CLI cli.py (email, question, cover-letter)
                               Redacción con estilo del usuario + borradores
                               en Gmail/Outlook (gws, m365) y extracción de contacto
-skills/formatos/          → CLI cli.py (reporte determinista)
-                              Reportes estructurados con opciones de postulación
-cv-pilot-agent/scripts/   → venv_setup (obligatorio), pdf_parser (PyMuPDF),
-                              init (DB), cleanup (temp/)
-data/                     → Perfil, correos de ejemplo y preferencias
-                              (local, gitignored)
+skills/formatos/          → CLI cli.py (main --job <hash>, all)
+                              Reporte determinista por vacante o análisis completo
+                              de todas las vacantes
+_lib/                     → pdf_parser, vsi, schemas (Pydantic), llm_extract
+                              Librerías compartidas entre skills
+data/                     → perfil.json, preferencias.json (Pydantic-validated),
+                              correos.md (markdown). Local, gitignored.
 ```
+
+### Componentes transversales
+
+- **VSI** (`_lib/vsi.py`): Validación Semántica de Identidad. Rechaza archivos no-CV antes de cualquier procesamiento.
+- **Pydantic schemas** (`_lib/schemas/`): `PerfilSchema` y `PreferenciasSchema` validan los datos persistidos.
+- **LLM extraction** (`_lib/llm_extract.py`, opcional): extracción de campos del CV con un LLM externo cuando se ejecuta sin agente. Cuando se usa dentro del agente, el LLM del chat hace la extracción directamente.
 
 Las skills son **contratos CLI** que el agente invoca. Cada script encapsula la lógica y devuelve resultados estructurados en JSON, así el agente pasa de leer e interpretar instrucciones largas a ejecutar comandos cortos y deterministas.

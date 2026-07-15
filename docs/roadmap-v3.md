@@ -163,3 +163,18 @@ Cada script sigue el ciclo completo:
 | Script no cubre edge case de la skill | Tests unitarios + verify contra skill original |
 | Skill y script se desincronizan | El script es la fuente de verdad; la skill se actualiza para documentar el script |
 | Sobrecarga de scripts | 6 scripts bien definidos con CLI consistente (`--help`, flags estándar) |
+
+---
+
+## Actualizaciones post-v3.0 (14 jul 2026)
+
+Cambios posteriores a la scriptification inicial:
+
+- **P0 — AGENTS.md v5.0**: índice orquestal (84 → 58 líneas). 24 redundancias con skills/rules eliminadas. La carga de `AGENTS.md` y rules es ahora responsabilidad explícita del LLM.
+- **P1 — Skill `cv-update`**: reescritura completa de `data/perfil.json` desde un nuevo CV (fidelidad ATS). Reutiliza `pdf_parser.extract` y `_onboarding_internal.parser`. No preserva campos del perfil viejo; cada actualización es una instantánea.
+- **P2.1 — VSI (Validación Semántica de Identidad)** en `_lib/vsi.py`: rechaza archivos no-CV (listas de compras, facturas, recetas) antes del parseo. Mensaje canónico: "Este documento no es un perfil profesional válido. Comparte un CV real."
+- **P2.2 — Formato JSON + Pydantic**: `data/perfil.json` y `data/preferencias.json` con schemas Pydantic v2. `correos.md` se mantiene en markdown (es contenido narrativo). Templates legacy marcados como referencia, no contrato.
+- **P2.3 — Suite de tests ampliada**: 13 tests nuevos en `test_cv_update.py` (VSI, cv-update E2E, reconstructor, fidelidad ATS, integridad de `data/`). Total: 257 tests passing.
+- **P3 — Comando `formatos all`**: genera un solo documento con todos los análisis. Paso 5b en `AGENTS.md` documenta la regla anti-improvisación ("análisis completo" → `formatos all`).
+- **Migración a `_lib/`**: `pdf_parser.py` movido de `scripts/` a `_lib/` (librería compartida). Stub retenido en `scripts/` por compatibilidad.
+- **Limpieza pre-push**: comentarios y docstrings en inglés, referencias a `data/*.md` actualizadas a `*.json`, `__pycache__` huérfanos eliminados.
