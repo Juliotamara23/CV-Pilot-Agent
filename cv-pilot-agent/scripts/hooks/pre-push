@@ -1,2 +1,7 @@
 #!/bin/bash
-python cv-pilot-agent/scripts/pre_push_check.py
+# Try python3 first (Linux/WSL), fall back to python (Windows/macOS)
+if command -v python3 &>/dev/null; then
+    python3 cv-pilot-agent/scripts/pre_push_check.py
+else
+    python cv-pilot-agent/scripts/pre_push_check.py
+fi
