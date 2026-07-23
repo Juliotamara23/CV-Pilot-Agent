@@ -5,6 +5,35 @@ All notable changes to CV-Pilot Agent are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.2] - 2026-07-23
+
+### Fixed
+- `pre_push_check.py`: offset bug in deprecation-hint detection now excludes
+  only fenced code blocks (not inline backticks), so Check A no longer
+  vacuously passes when all paths use markdown backtick formatting.
+- `pre_push_check.py`: word-boundary `\b` regex replaces substring matching
+  in Flujo coverage; a skill named `api` no longer false-matches inside
+  `apify`.
+- `pre_push_check.py`: `is_file()` guards and try/except with traceback
+  replace raw crash on missing `AGENTS.md`.
+- `pre_push_check.py`: `REQUIRED_FLUJO_SKILLS` derived from
+  `required_in_flujo: true` frontmatter in `skills/*/SKILL.md` instead of
+  hardcoded constant.
+- `pre_push_check.py`: removed dead code (`SKIP_DIRS`, `INLINE_CODE_PATTERN`,
+  `strip_code_blocks`).
+- `test_cv_update.py` / `test_llm_extract.py`: replaced hardcoded Windows
+  paths with repo-relative paths; tests now run on Linux/WSL.
+- `docs/outlook-setup.md`: normalized voseo ("elegís" → "eliges",
+  "dejalo" → "déjalo") to neutral Spanish.
+- `docs/agent.md`: fixed broken links to setup guides (resolved to correct
+  relative paths).
+
+### Added
+- `cv-pilot-agent/scripts/hooks/pre-push` tracked hook script with
+  `python3`/`python` fallback for cross-platform support.
+- `cv-pilot-agent/scripts/install-hooks.sh` idempotent installer (backs up
+  existing hook, validates source exists, exits on failure).
+
 ## [3.0.1] - 2026-07-17
 
 ### Fixed
