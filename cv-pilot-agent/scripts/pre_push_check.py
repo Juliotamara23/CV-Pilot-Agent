@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+import traceback
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -60,22 +61,9 @@ def find_repo_root(start: Path) -> Path:
 # Shared helpers
 # ---------------------------------------------------------------------------
 
-SKIP_DIRS = {
-    ".venv",
-    ".git",
-    "__pycache__",
-    ".pytest_cache",
-    ".ruff_cache",
-    "node_modules",
-}
-
 URL_PATTERN = re.compile(r"https?://", re.IGNORECASE)
 # Markdown code fences: ``` ... ``` (greedy across lines via DOTALL).
 FENCE_PATTERN = re.compile(r"```.*?```", re.DOTALL)
-# Inline code spans: `path/like/this`. We strip them so we don't false-positive
-# on paths that exist only as illustrative text (e.g. "data/.old-file.md is
-# removed in this version"). Single backticks only — no double.
-INLINE_CODE_PATTERN = re.compile(r"`[^`\n]+`")
 # A path-shaped token inside a markdown file. Conservative on purpose:
 # requires either a leading "./", "skills/", "rules/", "data/", "_lib/",
 # "scripts/", "docs/" or a "file.ext" with at least one slash.
@@ -103,15 +91,27 @@ DEPRECATION_HINT = re.compile(
 )
 
 
-def strip_code_blocks(markdown_text: str) -> str:
-    """Remove fenced code blocks and inline code spans before path extraction.
+def _get_code_spans(text: str) -> list[tuple[int, int]]:
+    """Return all (start, end) spans of fenced code blocks in text.
 
-    Both can contain paths that are illustrative rather than real references
-    (e.g. "this file is removed in this version").
+    Positions are indices into the original text.  Used to skip path-shaped
+    tokens that appear inside code fences (`` ``` ``) — those are illustrative,
+    not real file references.
+
+    Inline backtick spans (`` `...` ``) are intentionally NOT excluded:
+    markdown convention uses backticks to format paths (e.g.
+    `` `skills/onboarding/SKILL.md` ``), and skipping them would make
+    Check A blind to all real references in the project.
     """
-    text = FENCE_PATTERN.sub("", markdown_text)
-    text = INLINE_CODE_PATTERN.sub("", text)
-    return text
+    spans: list[tuple[int, int]] = []
+    for m in FENCE_PATTERN.finditer(text):
+        spans.append((m.start(), m.end()))
+    return spans
+
+
+def _is_inside_span(pos: int, spans: list[tuple[int, int]]) -> bool:
+    """Return True when *pos* falls inside ANY code span (inclusive of start)."""
+    return any(start <= pos < end for start, end in spans)
 
 
 def _is_template_fragment(source_text: str, span: tuple[int, int]) -> bool:
@@ -145,7 +145,7 @@ def is_bak(token: str) -> bool:
 # Check A: broken references
 # ---------------------------------------------------------------------------
 
-def _candidate_resolves(repo_root: Path, source_file: Path, token: str) -> bool:
+def _path_exists_on_disk(repo_root: Path, source_file: Path, token: str) -> bool:
     """Return True if `token` (a path-shaped string) resolves on disk.
 
     Resolution order:
@@ -206,22 +206,25 @@ def check_broken_references(repo_root: Path) -> CheckResult:
 
     for md_file in target_paths:
         original_text = md_file.read_text(encoding="utf-8", errors="replace")
-        searchable_text = strip_code_blocks(original_text)
-        for match in PATH_TOKEN_PATTERN.finditer(searchable_text):
+        code_spans = _get_code_spans(original_text)
+        for match in PATH_TOKEN_PATTERN.finditer(original_text):
+            # Skip matches that fall inside fenced code blocks — those are
+            # illustrative, not real file references.
+            if _is_inside_span(match.start(), code_spans):
+                continue
             token = match.group(0).strip()
             if not _is_interesting_token(token):
                 continue
-            if _candidate_resolves(repo_root, md_file, token):
+            if _path_exists_on_disk(repo_root, md_file, token):
                 continue
             # Skip template fragments like `scripts/cli.py` from
             # `skills/<skill>/scripts/cli.py`. The `<placeholder>` makes the
             # path a template, not a real reference.
-            if _is_template_fragment(searchable_text, match.span()):
+            if _is_template_fragment(original_text, match.span()):
                 continue
             # Downgrade to WARN when the surrounding line says the file was
-            # removed / deprecated. We look at the line in the ORIGINAL text
-            # (before stripping code spans) so the disambiguating word is
-            # visible.
+            # removed / deprecated.  Positions are in the original text so
+            # the disambiguating word is always visible.
             line_start = original_text.rfind("\n", 0, match.start()) + 1
             line_end = original_text.find("\n", match.end())
             if line_end == -1:
@@ -260,6 +263,8 @@ SKILLS_ROW_PATTERN = re.compile(
 
 def _extract_skill_names_from_skills_row(agents_md: Path) -> list[str]:
     """Parse the Skills cell of the AGENTS.md Dependencias table."""
+    if not agents_md.is_file():
+        return []
     text = agents_md.read_text(encoding="utf-8", errors="replace")
     match = SKILLS_ROW_PATTERN.search(text)
     if not match:
@@ -311,19 +316,64 @@ def check_bidirectional_skills(repo_root: Path) -> CheckResult:
 # Check C: Flujo coverage
 # ---------------------------------------------------------------------------
 
-# Skills that MUST be referenced in ## Flujo. The two main entry points.
-REQUIRED_FLUJO_SKILLS = {"onboarding", "cv-update"}
-
 FLUJO_SECTION_PATTERN = re.compile(
     r"^##\s*Flujo\s*$(.*?)(?=^##\s|\Z)",
     re.IGNORECASE | re.MULTILINE | re.DOTALL,
 )
+
+# Regex used by _parse_frontmatter_bool to extract the YAML frontmatter
+# block (the text between the first pair of ``---`` lines).
+_FRONTMATTER_PATTERN = re.compile(r"^---\s*\n(.*?)\n---", re.DOTALL)
+
+
+def _parse_frontmatter_bool(skill_md: Path, key: str) -> bool | None:
+    """Extract a boolean key from the YAML frontmatter of a SKILL.md file.
+
+    Returns True / False when the key is found with a valid boolean value,
+    or None when the key is missing, the frontmatter block is absent, or
+    the file does not exist.  Stdlib-only — no PyYAML dependency.
+    """
+    if not skill_md.is_file():
+        return None
+    text = skill_md.read_text(encoding="utf-8", errors="replace")
+    m = _FRONTMATTER_PATTERN.search(text)
+    if not m:
+        return None
+    # Match ``key: true`` or ``key: false`` on its own line.
+    val_match = re.search(
+        rf"^{re.escape(key)}:\s*(true|false)\s*$",
+        m.group(1),
+        re.MULTILINE | re.IGNORECASE,
+    )
+    if not val_match:
+        return None
+    return val_match.group(1).lower() == "true"
+
+
+def _get_required_flujo_skills(skills_dir: Path) -> set[str]:
+    """Return the set of skill directory names whose SKILL.md declares
+    ``required_in_flujo: true`` in its YAML frontmatter."""
+    required: set[str] = set()
+    if not skills_dir.is_dir():
+        return required
+    for child in skills_dir.iterdir():
+        if child.is_dir():
+            skill_md = child / "SKILL.md"
+            if _parse_frontmatter_bool(skill_md, "required_in_flujo"):
+                required.add(child.name)
+    return required
 
 
 def check_flujo_coverage(repo_root: Path) -> CheckResult:
     """WARN if a declared skill is missing from ## Flujo, FAIL for required ones."""
     result = CheckResult(name="Check C: Flujo coverage", status="PASS")
     agents_md = repo_root / "cv-pilot-agent" / "AGENTS.md"
+    if not agents_md.is_file():
+        result.status = "FAIL"
+        result.details.append(
+            f"  AGENTS.md not found at {agents_md.relative_to(repo_root)}"
+        )
+        return result
     text = agents_md.read_text(encoding="utf-8", errors="replace")
     declared = set(_extract_skill_names_from_skills_row(agents_md))
     if not declared:
@@ -338,9 +388,19 @@ def check_flujo_coverage(repo_root: Path) -> CheckResult:
         return result
     flujo_body = flujo_match.group(1).lower()
 
+    required_flujo_skills = _get_required_flujo_skills(
+        repo_root / "cv-pilot-agent" / "skills"
+    )
+
     for name in sorted(declared):
-        present = name.lower() in flujo_body
-        if name in REQUIRED_FLUJO_SKILLS and not present:
+        present = bool(
+            re.search(
+                r"\b" + re.escape(name) + r"\b",
+                flujo_body,
+                re.IGNORECASE,
+            )
+        )
+        if name in required_flujo_skills and not present:
             result.status = "FAIL"
             result.details.append(
                 f"  {name!r} is a required entry point but is not mentioned in ## Flujo"
@@ -383,11 +443,22 @@ def main(argv: list[str] | None = None) -> int:
 
     if not args.quiet:
         print(f"[pre-push] repo root: {repo_root}")
-    results = [
-        check_broken_references(repo_root),
-        check_bidirectional_skills(repo_root),
-        check_flujo_coverage(repo_root),
-    ]
+    results: list[CheckResult] = []
+    for check_fn in [
+        check_broken_references,
+        check_bidirectional_skills,
+        check_flujo_coverage,
+    ]:
+        try:
+            results.append(check_fn(repo_root))
+        except Exception as exc:
+            results.append(
+                CheckResult(
+                    name=f"{check_fn.__name__} crashed",
+                    status="FAIL",
+                    details=[f"  unhandled exception: {exc}\n{traceback.format_exc()}"],
+                )
+            )
     for r in results:
         # In quiet mode, only print failure details. PASS lines are silent.
         if args.quiet and r.passed():

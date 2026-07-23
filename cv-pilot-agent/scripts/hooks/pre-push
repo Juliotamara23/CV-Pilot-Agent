@@ -1,0 +1,2 @@
+#!/bin/bash
+python cv-pilot-agent/scripts/pre_push_check.py

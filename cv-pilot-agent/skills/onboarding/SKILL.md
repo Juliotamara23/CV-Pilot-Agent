@@ -3,6 +3,7 @@ name: Onboarding (CLI determinista)
 description: CLI `cli.py` — extrae, parsea y genera el perfil del usuario en data/.
 scope: GLOBAL
 version: 3.0
+required_in_flujo: true
 ---
 
 # Onboarding (CLI `cli.py`)

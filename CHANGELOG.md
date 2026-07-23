@@ -20,10 +20,10 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   bidirectional registration between `AGENTS.md` and `skills/`, and
   Flujo coverage of declared skills. The script exits non-zero when any
   check fails.
-- `.git/hooks/pre-push` (with `.cmd` fallback) runs the pre-push check
-  before every push. Successful runs are silent; failures print the
-  failing check and block the push. The hook is the line of defense
-  against the same class of bug recurring.
+- `cv-pilot-agent/scripts/hooks/pre-push` and
+  `cv-pilot-agent/scripts/install-hooks.sh` — tracked hook and installer.
+  Run `bash cv-pilot-agent/scripts/install-hooks.sh` once per clone to
+  activate the pre-push gate.
 
 ## [3.0.0] - 2026-07-14
 
