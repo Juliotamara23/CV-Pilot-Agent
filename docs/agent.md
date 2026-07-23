@@ -172,8 +172,8 @@ Cada análisis incluye:
 
 | Proveedor | Guía | Cuándo se usa |
 |-----------|------|---------------|
-| **Gmail** (`gws`) | [docs/gws-setup.md](docs/gws-setup.md) | Si quieres que el agente guarde borradores en Gmail |
-| **Outlook** (`m365` + Graph) | [docs/outlook-setup.md](docs/outlook-setup.md) | Si quieres que el agente guarde borradores en Outlook |
+| **Gmail** (`gws`) | [gws-setup.md](gws-setup.md) | Si quieres que el agente guarde borradores en Gmail |
+| **Outlook** (`m365` + Graph) | [outlook-setup.md](outlook-setup.md) | Si quieres que el agente guarde borradores en Outlook |
 
 El agente **pregunta antes de instalar** cualquier CLI externa; nunca lo hace sin tu confirmación.
 

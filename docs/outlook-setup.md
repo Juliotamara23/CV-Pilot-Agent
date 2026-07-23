@@ -26,8 +26,8 @@ Ve a [Azure Portal > App Registrations](https://portal.azure.com/#view/Microsoft
 ### 1.2. Crear la aplicación
 
 1. **New registration** → nombre: `CV-Pilot`
-2. **Supported account types**: **"Accounts in any organizational directory and personal Microsoft accounts"** ⚠️ Este paso es crítico. Si elegís otra opción, las cuentas personales no funcionarán.
-3. **Redirect URI**: dejalo vacío por ahora, se configura después.
+2. **Supported account types**: **"Accounts in any organizational directory and personal Microsoft accounts"** ⚠️ Este paso es crítico. Si eliges otra opción, las cuentas personales no funcionarán.
+3. **Redirect URI**: déjalo vacío por ahora, se configura después.
 4. Haz clic en **Register**.
 
 ### 1.3. Configurar autenticación
