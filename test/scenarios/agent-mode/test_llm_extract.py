@@ -38,7 +38,8 @@ _spec.loader.exec_module(llm_extract)
 # Also import pdf_parser for the real CV test
 from pdf_parser import extract as extract_pdf  # noqa: E402
 
-_PDF_JOSE = Path(r"E:\Hoja de Vida Jose.pdf")
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+_PDF_JOSE = _REPO_ROOT / "test" / "cv-test" / "Hoja de Vida Jose.pdf"
 
 
 # --------------------------------------------------------------------------- #
@@ -238,7 +239,7 @@ class TestCVFriendE2E:
         return result["text"]
 
     @pytest.mark.skipif(
-        not Path(r"E:\Hoja de Vida Jose.pdf").exists(),
+        not _PDF_JOSE.exists(),
         reason="CV friend PDF not found",
     )
     def test_cv_friend_extracts_10_fields(self, jose_text):
@@ -260,7 +261,7 @@ class TestCVFriendE2E:
         )
 
     @pytest.mark.skipif(
-        not Path(r"E:\Hoja de Vida Jose.pdf").exists(),
+        not _PDF_JOSE.exists(),
         reason="CV friend PDF not found",
     )
     def test_cv_friend_with_fallback_extracts_contact_fields(self, jose_text):

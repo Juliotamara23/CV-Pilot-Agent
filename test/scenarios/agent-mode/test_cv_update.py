@@ -61,8 +61,9 @@ _parser_spec.loader.exec_module(parser)
 # --------------------------------------------------------------------------- #
 
 _REAL_DATA_DIR = _AGENT_ROOT / "data"
-_PDF_JOSE = Path(r"E:\Hoja de Vida Jose.pdf")
-_PDF_GCCF = Path(r"E:\Documents\GCCF Academy Key Information.pdf")
+_REPO_ROOT = _AGENT_ROOT.parent
+_PDF_JOSE = _REPO_ROOT / "test" / "cv-test" / "Hoja de Vida Jose.pdf"
+_PDF_GCCF = _REPO_ROOT / "test" / "cv-test" / "GCCF Academy Key Information.pdf"
 
 # MD5 hashes of the real data/ files (computed once, hardcoded for pollution test).
 # After migration: perfil.md and preferencias.md deleted, replaced by .json files.
