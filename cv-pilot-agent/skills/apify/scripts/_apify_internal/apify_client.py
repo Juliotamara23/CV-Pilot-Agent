@@ -128,7 +128,43 @@ def launch_actor(actor: str, actor_input: dict) -> dict:
             err=True,
         )
         raise typer.Exit(code=1)
-    return json.loads(proc.stdout)
+    raw = json.loads(proc.stdout)
+
+    # --- CLI v1.7+ agentic envelope: {"ok":true,"run":{"id":…},…} ---------- #
+    if isinstance(raw, dict) and "run" in raw and isinstance(raw["run"], dict):
+        run_id = raw["run"]["id"]
+        # defaultDatasetId is NOT in the start response; fetch from runs info.
+        info_proc = subprocess.run(
+            ["apify", "runs", "info", run_id, "--json"],
+            capture_output=True, text=True, encoding="utf-8",
+        )
+        if info_proc.returncode != 0:
+            typer.echo(
+                json.dumps({
+                    "ok": False,
+                    "error": f"apify runs info failed: {info_proc.stderr.strip() or info_proc.stdout.strip()}",
+                    "code": "APIFY_RUNS_INFO_FAILED",
+                }, ensure_ascii=False),
+                err=True,
+            )
+            raise typer.Exit(code=1)
+        run_detail = json.loads(info_proc.stdout)
+        # runs info may also use the v1.7 envelope or API data wrapper.
+        if isinstance(run_detail, dict) and "run" in run_detail and isinstance(run_detail["run"], dict):
+            run_detail = run_detail["run"]
+        elif isinstance(run_detail, dict) and "data" in run_detail and isinstance(run_detail["data"], dict):
+            run_detail = run_detail["data"]
+        return {
+            "id": run_id,
+            "defaultDatasetId": run_detail.get("defaultDatasetId", ""),
+            "status": run_detail.get("status", raw["run"].get("status", "READY")),
+            "startedAt": run_detail.get("startedAt", ""),
+        }
+
+    # --- Legacy flat format / API data envelope ---------------------------- #
+    if isinstance(raw, dict) and "data" in raw and isinstance(raw["data"], dict):
+        raw = raw["data"]
+    return raw
 
 
 # Terminal run statuses — polling stops when the run reaches one of these.

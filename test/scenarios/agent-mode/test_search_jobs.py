@@ -271,8 +271,17 @@ class _FakeProc:
 
 def _make_run(info=INFO_JSON, dataset=INDEED_RAW, persist=PERSIST_JSON, calls=None,
               fail_call=False):
-    # Build run info for the new polling flow.
-    run_info = json.dumps({
+    # CLI v1.7+ agentic envelope for `apify actors start --json`.
+    start_env = json.dumps({
+        "ok": True,
+        "operation": "actors.start",
+        "run": {"id": "test-run-123", "status": "READY"},
+        "actor": {"id": "test-actor"},
+        "exitCode": 0,
+    })
+    # Detail returned by `apify runs info <id> --json` (called by launch_actor).
+    # Status must be terminal (SUCCEEDED) so poll_run_status exits immediately.
+    run_detail = json.dumps({
         "id": "test-run-123",
         "defaultDatasetId": "test-dataset-456",
         "status": "SUCCEEDED",
@@ -286,7 +295,10 @@ def _make_run(info=INFO_JSON, dataset=INDEED_RAW, persist=PERSIST_JSON, calls=No
         if args[0] == "apify" and args[1] == "actors" and args[2] == "start":
             if fail_call:
                 return _FakeProc(args, 1, stderr="boom")
-            return _FakeProc(args, 0, stdout=run_info)
+            return _FakeProc(args, 0, stdout=start_env)
+        # runs info is called by launch_actor to fetch defaultDatasetId.
+        if args[0] == "apify" and args[1] == "runs" and args[2] == "info":
+            return _FakeProc(args, 0, stdout=run_detail)
         if args[0] == "apify" and args[1] == "runs":
             return _FakeProc(args, 0, stdout=json.dumps({"status": "SUCCEEDED"}))
         if args[0] == "apify" and args[1] == "datasets":
