@@ -1,26 +1,28 @@
-"""LLM-based CV field extraction for CV-Pilot.
+"""LLM prompt builder and response parser for CV-Pilot.
 
-Extracts structured CV fields from raw text using an LLM with a JSON schema
-prompt. Falls back to regex parser if LLM fails.
+Generates the extraction prompt that the orchestrator agent sends to its LLM,
+and parses/validates the LLM's JSON response back into canonical CV fields.
 
-Configuration via environment variables:
-    CV_PILOT_LLM_API_KEY     — API key (required for LLM mode)
-    CV_PILOT_LLM_ENDPOINT    — API endpoint (default: https://api.openai.com/v1)
-    CV_PILOT_LLM_MODEL       — Model name (default: gpt-4o-mini)
+The agent (Hermes / CV-Pilot orchestrator) handles the actual LLM call.
+This module is PURELY deterministic: it builds prompts and parses responses.
+It NEVER makes HTTP calls or requires API keys.
 
 Usage:
-    from _lib.llm_extract import extract_cv_fields
+    from _lib.llm_extract import build_extraction_prompt, parse_llm_fields
 
-    result = extract_cv_fields(text, source_pdf="cv.pdf")
-    # result is a dict with canonical CV fields
+    # Agent builds the prompt:
+    prompt = build_extraction_prompt(cv_text)
+    # Agent sends prompt to its LLM, gets raw response...
+    # Agent parses the response:
+    fields = parse_llm_fields(raw_response)
 """
 
 from __future__ import annotations
 
 import json
-import os
 import re
-from typing import Any, Optional
+from pathlib import Path
+from typing import Any
 
 # Default model — cheap, fast, good enough for structured extraction.
 DEFAULT_LLM_MODEL = "gpt-4o-mini"
@@ -68,76 +70,30 @@ JSON SCHEMA:
 Return the extracted fields as a JSON object matching the schema above."""
 
 
-def _call_llm(prompt: str) -> str:
-    """Call the LLM API and return the response text.
+def build_extraction_prompt(text: str) -> str:
+    """Build the LLM extraction prompt for a given CV text.
 
-    Uses httpx to call an OpenAI-compatible API endpoint.
-    Configured via environment variables.
+    The orchestrator agent sends this prompt to its LLM and passes the raw
+    response to ``parse_llm_fields()``.
 
     Parameters
     ----------
-    prompt : str
-        The prompt to send to the LLM.
+    text : str
+        Raw text extracted from a CV/resume PDF.
 
     Returns
     -------
     str
-        The LLM's response text.
-
-    Raises
-    ------
-    RuntimeError
-        If the API call fails or returns an empty response.
+        Formatted prompt ready to send to an LLM.
     """
-    import httpx
-
-    api_key = os.environ.get("CV_PILOT_LLM_API_KEY")
-    if not api_key:
-        raise RuntimeError(
-            "CV_PILOT_LLM_API_KEY environment variable not set. "
-            "Set it to your API key or use regex fallback."
-        )
-
-    endpoint = os.environ.get("CV_PILOT_LLM_ENDPOINT", "https://api.openai.com/v1").rstrip("/")
-    model = os.environ.get("CV_PILOT_LLM_MODEL", DEFAULT_LLM_MODEL)
-
-    url = f"{endpoint}/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": "You are a precise CV field extractor. Return only valid JSON."},
-            {"role": "user", "content": prompt},
-        ],
-        "temperature": 0.0,
-        "max_tokens": 4000,
-    }
-
-    try:
-        with httpx.Client(timeout=30.0) as client:
-            response = client.post(url, json=payload, headers=headers)
-            response.raise_for_status()
-            data = response.json()
-    except Exception as exc:
-        raise RuntimeError(f"LLM API call failed: {exc}") from exc
-
-    # Extract the assistant's message content.
-    choices = data.get("choices", [])
-    if not choices:
-        raise RuntimeError("LLM returned empty choices array")
-
-    content = choices[0].get("message", {}).get("content", "")
-    if not content.strip():
-        raise RuntimeError("LLM returned empty response content")
-
-    return content.strip()
+    return EXTRACTION_PROMPT.format(
+        text=text[:8000],  # Truncate to avoid token limits
+        schema=json.dumps(CV_EXTRACTION_SCHEMA, indent=2),
+    )
 
 
-def _parse_llm_json(response: str) -> dict:
-    """Parse JSON from LLM response, handling markdown code blocks.
+def parse_llm_json(response: str) -> dict:
+    """Parse JSON from an LLM response, handling markdown code blocks.
 
     Parameters
     ----------
@@ -154,14 +110,13 @@ def _parse_llm_json(response: str) -> dict:
     ValueError
         If the response cannot be parsed as JSON.
     """
-    # Strip markdown code blocks if present.
     cleaned = response.strip()
+
     # Find JSON content — either in code blocks or raw JSON object/array.
     code_block = re.search(r"```(?:json)?\s*\n(.*?)\n?```", cleaned, re.DOTALL)
     if code_block:
         cleaned = code_block.group(1).strip()
     else:
-        # Try to find a raw JSON object or array.
         json_match = re.search(r"(\{.*\}|\[.*\])", cleaned, re.DOTALL)
         if json_match:
             cleaned = json_match.group(1).strip()
@@ -172,38 +127,28 @@ def _parse_llm_json(response: str) -> dict:
         raise ValueError(f"Failed to parse LLM response as JSON: {exc}") from exc
 
 
-def extract_cv_fields(text: str, source_pdf: str = None) -> dict[str, Any]:
-    """Extract CV fields from raw text using an LLM.
+def parse_llm_fields(response: str) -> dict[str, Any]:
+    """Parse and validate an LLM response into canonical CV fields.
 
     Parameters
     ----------
-    text : str
-        Raw text extracted from a CV/resume PDF.
-    source_pdf : str, optional
-        Path to the source PDF (for metadata).
+    response : str
+        Raw LLM response (JSON object, possibly wrapped in markdown code block).
 
     Returns
     -------
     dict
         Extracted CV fields matching CANONICAL_FIELDS.
+        Missing fields default to None.
 
     Raises
     ------
-    RuntimeError
-        If LLM API is not configured or the call fails.
     ValueError
-        If the LLM response cannot be parsed or validated.
+        If the response cannot be parsed as JSON.
     """
-    prompt = EXTRACTION_PROMPT.format(
-        text=text[:8000],  # Truncate to avoid token limits
-        schema=json.dumps(CV_EXTRACTION_SCHEMA, indent=2),
-    )
+    fields = parse_llm_json(response)
 
-    response = _call_llm(prompt)
-    fields = _parse_llm_json(response)
-
-    # Validate: ensure all canonical fields exist (default to None).
-    result = {}
+    result: dict[str, Any] = {}
     for key in CANONICAL_FIELDS:
         val = fields.get(key)
         if val is not None and isinstance(val, str):
@@ -215,64 +160,31 @@ def extract_cv_fields(text: str, source_pdf: str = None) -> dict[str, Any]:
     return result
 
 
-def extract_cv_fields_with_fallback(text: str, source_pdf: str = None) -> dict[str, Any]:
-    """Extract CV fields, falling back to regex if LLM fails.
+def parse_cv_text_with_regex(text: str, links: list[str] | None = None) -> dict[str, Any]:
+    """Extract CV fields using regex/heuristic fallback (from onboarding parser).
+
+    This is the deterministic fallback when no LLM response is available.
+    Only extracts contact fields reliably; section-based fields
+    (educacion, skills, experiencia) depend on standard header names.
 
     Parameters
     ----------
     text : str
         Raw text extracted from a CV/resume PDF.
-    source_pdf : str, optional
-        Path to the source PDF (for metadata).
+    links : list[str] | None
+        Optional list of URLs extracted from the PDF.
 
     Returns
     -------
     dict
-        Extracted fields with metadata:
-        - fields: dict of extracted canonical fields
-        - extraccion_metodo: "llm" or "regex_fallback"
-        - campos_faltantes: list of fields that are None
-        - aviso_usuario: warning message if fields are missing
+        Extracted fields matching CANONICAL_FIELDS.
     """
-    campos_faltantes = []
-    extraccion_metodo = "llm"
+    import importlib.util as _ilu
 
-    try:
-        fields = extract_cv_fields(text, source_pdf)
-    except (RuntimeError, ValueError) as exc:
-        # LLM failed — fall back to regex parser.
-        extraccion_metodo = "regex_fallback"
-        try:
-            # Import parser from onboarding (shared dependency).
-            import importlib.util as _ilu
-            from pathlib import Path as _Path
-            _agent_root = _Path(__file__).resolve().parent.parent
-            _parser_path = _agent_root / "skills" / "onboarding" / "scripts" / "_onboarding_internal" / "parser.py"
-            _parser_spec = _ilu.spec_from_file_location("_onboarding_parser", str(_parser_path))
-            _parser_mod = _ilu.module_from_spec(_parser_spec)
-            _parser_spec.loader.exec_module(_parser_mod)
-            parsed = _parser_mod.parse_text(text)
-            fields = parsed["fields"]
-        except Exception:
-            # Both failed — return empty fields.
-            fields = {key: None for key in CANONICAL_FIELDS}
-
-    # Count missing fields.
-    campos_faltantes = [
-        key for key in CANONICAL_FIELDS
-        if not fields.get(key)
-    ]
-
-    result = {
-        "fields": fields,
-        "extraccion_metodo": extraccion_metodo,
-        "campos_faltantes": campos_faltantes,
-    }
-
-    if campos_faltantes:
-        result["aviso_usuario"] = (
-            "Algunos campos no se pudieron extraer. "
-            "Revise el JSON y complete manualmente."
-        )
-
-    return result
+    _agent_root = Path(__file__).resolve().parent.parent
+    _parser_path = _agent_root / "skills" / "onboarding" / "scripts" / "_onboarding_internal" / "parser.py"
+    _parser_spec = _ilu.spec_from_file_location("_onboarding_parser", str(_parser_path))
+    _parser_mod = _ilu.module_from_spec(_parser_spec)
+    _parser_spec.loader.exec_module(_parser_mod)
+    parsed = _parser_mod.parse_text(text, links=links)
+    return parsed["fields"]
