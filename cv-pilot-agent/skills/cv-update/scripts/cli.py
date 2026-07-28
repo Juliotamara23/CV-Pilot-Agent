@@ -126,6 +126,9 @@ def apply(
     data_dir: Path = typer.Option(
         Path("data"), "--data-dir", help="Directory containing perfil.json (default: data/)."
     ),
+    source_pdf: str = typer.Option(
+        "", "--source-pdf", help="Original PDF path for the 'fuente' field in perfil.json."
+    ),
 ) -> None:
     """Apply LLM-extracted fields to reconstruct perfil.json.
 
@@ -160,10 +163,10 @@ def apply(
             _emit({"ok": False, "step": "parse", "error": f"Invalid JSON: {exc}"})
             raise typer.Exit(code=1)
 
-    source_pdf = new_fields.get("fuente", str(fields_file))
+    source = source_pdf or new_fields.get("fuente", str(fields_file))
 
     # Step 2: Reconstruct perfil.json from scratch
-    result = reconstruct_profile(new_fields, source_pdf=source_pdf)
+    result = reconstruct_profile(new_fields, source_pdf=source)
 
     # Step 3: Write new perfil.json
     data_dir.mkdir(parents=True, exist_ok=True)

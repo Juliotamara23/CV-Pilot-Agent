@@ -411,6 +411,26 @@ class TestApplyCommand:
         output = json.loads(result.stdout)
         assert output["ok"] is False
 
+    def test_apply_source_pdf_overrides_fuente(self, clean_data_dir, sandbox_dir):
+        """--source-pdf must override the fuente field in perfil.json."""
+        fields = {"nombre": "Test", "correo": "test@test.com"}
+        fields_file = sandbox_dir / "fields.json"
+        fields_file.write_text(json.dumps(fields), encoding="utf-8")
+
+        result = subprocess.run(
+            [_venv_python(), str(_CV_UPDATE_SCRIPTS / "cli.py"),
+             "apply", str(fields_file),
+             "--data-dir", str(clean_data_dir),
+             "--source-pdf", "cv_original.pdf"],
+            capture_output=True, text=True, encoding="utf-8", timeout=30,
+        )
+        assert result.returncode == 0
+
+        perfil_data = json.loads((clean_data_dir / "perfil.json").read_text(encoding="utf-8"))
+        assert perfil_data["fuente"] == "cv_original.pdf", (
+            f"Expected fuente='cv_original.pdf', got '{perfil_data['fuente']}'"
+        )
+
 
 # =========================================================================== #
 #  Integration: extract → agent → apply flow
