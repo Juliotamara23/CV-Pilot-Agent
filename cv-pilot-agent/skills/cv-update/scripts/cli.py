@@ -109,6 +109,7 @@ def extract(
         "ok": True,
         "step": "extract",
         "text": text,
+        "links": extracted.get("links", []),
         "vsi": {
             "secciones_detectadas": vsi_result["secciones_detectadas"],
             "confianza": vsi_result["confianza"],

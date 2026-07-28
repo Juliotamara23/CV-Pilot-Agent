@@ -130,6 +130,9 @@ def parse_llm_json(response: str) -> dict:
 def parse_llm_fields(response: str) -> dict[str, Any]:
     """Parse and validate an LLM response into canonical CV fields.
 
+    Canonical fields are validated and normalized (stripped, empty→None).
+    Non-canonical fields are passed through as-is (preserving lists, objects, etc.).
+
     Parameters
     ----------
     response : str
@@ -138,8 +141,8 @@ def parse_llm_fields(response: str) -> dict[str, Any]:
     Returns
     -------
     dict
-        Extracted CV fields matching CANONICAL_FIELDS.
-        Missing fields default to None.
+        Extracted CV fields with CANONICAL_FIELDS normalized plus any extras.
+        Missing canonical fields default to None.
 
     Raises
     ------
@@ -156,6 +159,11 @@ def parse_llm_fields(response: str) -> dict[str, Any]:
             if not val:
                 val = None
         result[key] = val
+
+    # Pass through non-canonical fields as-is (arrays, objects, etc.)
+    for key, val in fields.items():
+        if key not in CANONICAL_FIELDS:
+            result[key] = val
 
     return result
 

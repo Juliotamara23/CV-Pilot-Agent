@@ -186,6 +186,24 @@ class TestParseLLMFields:
         assert result["correo"] is None
         assert result["experiencia"] is None
 
+    def test_parse_preserves_non_canonical_fields(self):
+        """Non-canonical fields must pass through — strings, lists, objects."""
+        response = json.dumps({
+            "nombre": "Test",
+            "correo": "test@test.com",
+            "certificaciones": ["AWS SA", "CKAD"],
+            "proyectos": {"destacado": "CV-Pilot"},
+            "idiomas": "Inglés C1",
+        })
+        result = llm_extract.parse_llm_fields(response)
+        # Canonical fields normalized
+        assert result["nombre"] == "Test"
+        assert result["correo"] == "test@test.com"
+        # Non-canonical fields preserved as-is
+        assert result["certificaciones"] == ["AWS SA", "CKAD"]
+        assert result["proyectos"] == {"destacado": "CV-Pilot"}
+        assert result["idiomas"] == "Inglés C1"
+
 
 # --------------------------------------------------------------------------- #
 # Unit: parse_cv_text_with_regex (fallback)

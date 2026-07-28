@@ -294,6 +294,22 @@ class TestExtractCommand:
         assert "canonical_fields" in output
         assert "nombre" in output["prompt"]
 
+    def test_extract_includes_pdf_links(self, sandbox_dir):
+        """extract must include PDF hyperlinks so the agent can extract linkedin/github."""
+        pdf_path = str(sandbox_dir / "input_valid.pdf")
+        result = _run_extract(pdf_path)
+        assert result.returncode == 0
+
+        output = json.loads(result.stdout)
+        assert "links" in output, "extract output missing 'links' field"
+        assert isinstance(output["links"], list)
+        # Jose's CV has at least linkedin and github URLs
+        linkedin_found = any("linkedin.com" in link for link in output["links"])
+        github_found = any("github.com" in link for link in output["links"])
+        assert linkedin_found or github_found, (
+            f"Expected linkedin/github URLs in links, got: {output['links']}"
+        )
+
     def test_extract_invalid_pdf_rejected_by_vsi(self, sandbox_dir):
         """extract on a non-CV must fail with VSI_REJECTED."""
         pdf_path = str(sandbox_dir / "input_invalid.pdf")
@@ -550,6 +566,36 @@ class TestReconstructor:
         all_values = json.dumps(perfil)
         assert "Julio" not in all_values
         assert "Támara" not in all_values
+
+    def test_reconstructor_accepts_list_extras(self):
+        """Non-canonical fields with list/array values must appear in extras."""
+        fields = {
+            "nombre": "Test User",
+            "correo": "test@example.com",
+            "certificaciones": ["AWS SA", "CKAD", "Terraform Associate"],
+            "idiomas": ["Español nativo", "Inglés C1"],
+        }
+        result = reconstructor.reconstruct_profile(fields, source_pdf="test.pdf")
+        perfil = result["perfil_content"]
+
+        assert "extras" in perfil
+        assert perfil["extras"]["certificaciones"] == ["AWS SA", "CKAD", "Terraform Associate"]
+        assert perfil["extras"]["idiomas"] == ["Español nativo", "Inglés C1"]
+
+    def test_reconstructor_filters_none_extras(self):
+        """None-valued extras must be excluded."""
+        fields = {
+            "nombre": "Test User",
+            "correo": "test@example.com",
+            "certificaciones": None,
+            "idiomas": "",
+        }
+        result = reconstructor.reconstruct_profile(fields, source_pdf="test.pdf")
+        perfil = result["perfil_content"]
+
+        if "extras" in perfil:
+            assert "certificaciones" not in perfil["extras"]
+            assert "idiomas" not in perfil["extras"]
 
 
 # =========================================================================== #
