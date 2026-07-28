@@ -66,7 +66,8 @@ def reconstruct_profile(new_fields: dict[str, str], source_pdf: str) -> dict[str
     extracted: list[str] = []
     missing: list[str] = []
     for key in CANONICAL_FIELDS:
-        if new_fields.get(key, "").strip():
+        raw = new_fields.get(key) or ""
+        if raw.strip():
             extracted.append(key)
         else:
             missing.append(key)
@@ -74,13 +75,22 @@ def reconstruct_profile(new_fields: dict[str, str], source_pdf: str) -> dict[str
     # Build the PerfilSchema fields dict.
     schema_fields: dict[str, Any] = {}
     for key in CANONICAL_FIELDS:
-        val = new_fields.get(key, "").strip()
+        raw = new_fields.get(key) or ""
+        val = raw.strip()
         schema_fields[key] = val if val else None
 
     # Non-canonical fields go to extras.
+    # Accept strings (non-empty), lists, dicts, and other truthy scalars.
+    def _is_valid_extra(val: Any) -> bool:
+        if val is None:
+            return False
+        if isinstance(val, str):
+            return bool(val.strip())
+        return True
+
     extras = {
         k: v for k, v in new_fields.items()
-        if k not in CANONICAL_FIELDS and isinstance(v, str) and v.strip()
+        if k not in CANONICAL_FIELDS and _is_valid_extra(v)
     }
     if extras:
         schema_fields["extras"] = extras

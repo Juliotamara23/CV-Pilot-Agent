@@ -1,19 +1,23 @@
 """Deterministic CV update CLI for CV-Pilot.
 
-Rewrites ``data/perfil.json`` from scratch using ONLY the new CV PDF.
-Each update is a full snapshot — old fields are NEVER preserved.
+Two-step workflow — the agent bridges extract and apply with its LLM:
+
+    # Step 1: extract text + VSI + prompt
+    cv-update extract cv.pdf
+
+    # Step 2: agent sends prompt to its LLM, saves response as fields.json
+    cv-update apply fields.json --data-dir data/
+
+Each update is a FULL snapshot — old fields are NEVER preserved.
 This ensures ATS fidelity: a real ATS only knows the CV you submit.
 
 NEVER touches ``correos.md`` or ``preferencias.json``.
 
 Reuses:
 - ``_lib/pdf_parser.py`` for PDF text extraction.
+- ``_lib/llm_extract.py`` for prompt building and response parsing.
 - ``_onboarding_internal/parser.py`` for field parsing (regex/heuristics).
-
-Invoked by the orchestrator via the venv Python::
-
-    .venv/Scripts/python.exe skills/cv-update/scripts/cli.py <pdf_path>
-    .venv/Scripts/python.exe skills/cv-update/scripts/cli.py --data-dir <dir> <pdf_path>
+- ``_cv_update_internal/reconstructor.py`` for perfil.json generation.
 """
 
 from __future__ import annotations
@@ -21,7 +25,6 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Optional
 
 # Force UTF-8 on std streams so unicode never depends on host codepage.
 for _stream in (sys.stdout, sys.stderr):
@@ -37,17 +40,13 @@ sys.path.insert(0, str(_AGENT_ROOT / "_lib"))
 
 import typer  # noqa: E402
 from _lib.pdf_parser import extract as extract_pdf  # noqa: E402
-
-# Import parser from onboarding (shared dependency, not duplicated).
-# NOTE: add AFTER _SCRIPTS_DIR so our own _cv_update_internal is found first.
-_ONBOARDING_SCRIPTS = _AGENT_ROOT / "skills" / "onboarding" / "scripts"
-if str(_ONBOARDING_SCRIPTS) not in sys.path:
-    sys.path.append(str(_ONBOARDING_SCRIPTS))
-
-from _onboarding_internal.parser import parse_text  # noqa: E402
+from _lib.llm_extract import (  # noqa: E402
+    build_extraction_prompt,
+    parse_llm_fields,
+    CANONICAL_FIELDS,
+)
+from _lib.vsi import validate_cv  # noqa: E402
 from _cv_update_internal.reconstructor import reconstruct_profile  # noqa: E402
-from vsi import validate_cv  # noqa: E402
-from llm_extract import extract_cv_fields_with_fallback  # noqa: E402
 
 # Canonical rejection message from rules/integridad.md:32.
 VSI_REJECTION_MESSAGE = (
@@ -56,7 +55,7 @@ VSI_REJECTION_MESSAGE = (
 
 app = typer.Typer(
     name="cv-update",
-    help="CV-Pilot CV update CLI: update perfil.json from a new PDF.",
+    help="CV-Pilot CV update CLI: extract fields from PDF, apply extracted fields to perfil.json.",
     add_completion=False,
     no_args_is_help=True,
 )
@@ -67,27 +66,30 @@ def _emit(result: dict) -> None:
 
 
 @app.command()
-def update(
-    pdf_path: Path = typer.Argument(..., help="Path to the new CV PDF."),
-    data_dir: Path = typer.Option(
-        Path("data"), "--data-dir", help="Directory containing perfil.json (default: data/)."
-    ),
+def extract(
+    pdf_path: Path = typer.Argument(..., help="Path to the CV PDF."),
 ) -> None:
-    """Rewrite perfil.json from scratch with data from a new CV PDF.
+    """Extract text, validate VSI, and build the LLM extraction prompt.
 
-    Each update is a FULL snapshot — old perfil.json content is discarded.
-    NEVER touches correos.md or preferencias.json.
+    Outputs JSON with:
+    - ok: true/false
+    - text: raw extracted text (if ok)
+    - vsi: VSI validation result (if ok)
+    - prompt: LLM extraction prompt for the agent (if ok)
+
+    The agent sends this prompt to its LLM, then passes the response
+    to the ``apply`` command.
     """
-    perfil_path = data_dir / "perfil.json"
-
-    # Step 1: Extract from PDF
+    # Step 1: Extract text from PDF
     extracted = extract_pdf(str(pdf_path))
     if not extracted.get("ok"):
         _emit({"ok": False, "step": "extract", "error": extracted.get("error", "")})
         raise typer.Exit(code=1)
 
-    # Step 2: VSI — Validate Semantic Identity (integridad.md:26-35)
-    vsi_result = validate_cv(extracted.get("text", ""))
+    text = extracted.get("text", "")
+
+    # Step 2: VSI — Validate Semantic Identity
+    vsi_result = validate_cv(text)
     if not vsi_result["is_valid"]:
         _emit({
             "ok": False,
@@ -95,28 +97,85 @@ def update(
             "error": "VSI_REJECTED",
             "razon_rechazo": vsi_result["razon_rechazo"],
             "mensaje": VSI_REJECTION_MESSAGE,
+            "secciones_detectadas": vsi_result["secciones_detectadas"],
+            "confianza": vsi_result["confianza"],
         })
         raise typer.Exit(code=1)
 
-    # Step 3: Parse CV fields (LLM with regex fallback)
-    extraction_result = extract_cv_fields_with_fallback(
-        extracted.get("text", ""), source_pdf=str(pdf_path)
-    )
-    new_fields = extraction_result["fields"]
-    extraccion_metodo = extraction_result["extraccion_metodo"]
-    campos_faltantes = extraction_result.get("campos_faltantes", [])
+    # Step 3: Build extraction prompt for the agent's LLM
+    prompt = build_extraction_prompt(text)
 
-    # Step 4: Reconstruct perfil.json from scratch (NO old data consulted)
-    result = reconstruct_profile(new_fields, source_pdf=str(pdf_path))
+    _emit({
+        "ok": True,
+        "step": "extract",
+        "text": text,
+        "links": extracted.get("links", []),
+        "vsi": {
+            "secciones_detectadas": vsi_result["secciones_detectadas"],
+            "confianza": vsi_result["confianza"],
+        },
+        "prompt": prompt,
+        "canonical_fields": CANONICAL_FIELDS,
+        "source_pdf": str(pdf_path),
+    })
 
-    # Step 5: Write new perfil.json
+
+@app.command()
+def apply(
+    fields_file: Path = typer.Argument(..., help="Path to JSON file with LLM-extracted fields."),
+    data_dir: Path = typer.Option(
+        Path("data"), "--data-dir", help="Directory containing perfil.json (default: data/)."
+    ),
+    source_pdf: str = typer.Option(
+        "", "--source-pdf", help="Original PDF path for the 'fuente' field in perfil.json."
+    ),
+) -> None:
+    """Apply LLM-extracted fields to reconstruct perfil.json.
+
+    Reads a JSON file containing either:
+    - Raw LLM response (will be parsed via parse_llm_fields)
+    - Already-parsed canonical fields dict
+
+    Reconstructs perfil.json from scratch and writes it.
+    NEVER touches correos.md or preferencias.json.
+    """
+    perfil_path = data_dir / "perfil.json"
+
+    # Step 1: Read and parse fields
+    try:
+        raw = fields_file.read_text(encoding="utf-8")
+    except OSError as exc:
+        _emit({"ok": False, "step": "read", "error": str(exc)})
+        raise typer.Exit(code=1)
+
+    # Try parsing as raw LLM response first, then as plain fields dict
+    try:
+        new_fields = parse_llm_fields(raw)
+    except ValueError:
+        try:
+            fields_data = json.loads(raw)
+            if isinstance(fields_data, dict):
+                new_fields = fields_data
+            else:
+                _emit({"ok": False, "step": "parse", "error": "Fields file must be a JSON object"})
+                raise typer.Exit(code=1)
+        except json.JSONDecodeError as exc:
+            _emit({"ok": False, "step": "parse", "error": f"Invalid JSON: {exc}"})
+            raise typer.Exit(code=1)
+
+    source = source_pdf or new_fields.get("fuente", str(fields_file))
+
+    # Step 2: Reconstruct perfil.json from scratch
+    result = reconstruct_profile(new_fields, source_pdf=source)
+
+    # Step 3: Write new perfil.json
     data_dir.mkdir(parents=True, exist_ok=True)
     perfil_path.write_text(
         json.dumps(result["perfil_content"], ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
 
-    # Step 6: Post-update validation — verify written content matches
+    # Step 4: Post-update validation — verify written content matches
     written = json.loads(perfil_path.read_text(encoding="utf-8"))
     if written != result["perfil_content"]:
         import logging
@@ -125,26 +184,23 @@ def update(
             "Posible race condition o encoding issue."
         )
 
-    # Step 7: Report
+    # Step 5: Report
     report = {
         "ok": True,
+        "step": "apply",
         "perfil_path": str(perfil_path),
         "campos_extraidos": result["campos_extraidos"],
         "campos_no_encontrados": result["campos_no_encontrados"],
         "fuente": result["fuente"],
         "timestamp": result["timestamp"],
-        "extraccion_metodo": extraccion_metodo,
-        "vsi": {
-            "secciones_detectadas": vsi_result["secciones_detectadas"],
-            "confianza": vsi_result["confianza"],
-        },
     }
-    if campos_faltantes:
-        report["campos_faltantes"] = campos_faltantes
+
+    if result["campos_no_encontrados"]:
         report["aviso_usuario"] = (
             "Algunos campos no se pudieron extraer. "
             "Revise el JSON y complete manualmente."
         )
+
     _emit(report)
 
 
