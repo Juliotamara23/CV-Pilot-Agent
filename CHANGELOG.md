@@ -5,7 +5,7 @@ All notable changes to CV-Pilot Agent are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.1.0] - 2026-07-28
+## [3.0.3] - 2026-07-28
 
 ### Changed
 - **cv-update**: eliminada la dependencia de API key externa (`CV_PILOT_LLM_API_KEY`,
