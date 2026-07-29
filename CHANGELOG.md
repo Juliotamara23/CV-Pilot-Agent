@@ -5,6 +5,36 @@ All notable changes to CV-Pilot Agent are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-07-28
+
+### Changed
+- **cv-update**: eliminada la dependencia de API key externa (`CV_PILOT_LLM_API_KEY`,
+  `CV_PILOT_LLM_ENDPOINT`, `CV_PILOT_LLM_MODEL`). El CLI ahora sigue un flujo en
+  dos pasos donde el script solo hace trabajo deterministico (PDF -> texto, VSI,
+  JSON I/O) y el agente maneja la extraccion inteligente de campos con su propio LLM.
+- **cv-update**: contrato CLI roto intencionalmente. El comando unico
+  `cli.py <pdf>` se reemplaza por dos subcomandos: `extract <pdf>` y
+  `apply <fields.json> [--source-pdf] [--data-dir]`.
+- `_lib/llm_extract.py`: eliminada `_call_llm()` (HTTP directo con `httpx`).
+  Nueva API publica: `build_extraction_prompt()`, `parse_llm_fields()`,
+  `parse_llm_json()`, `parse_cv_text_with_regex()`.
+
+### Added
+- `cv-update extract`: nuevo subcomando que expone `text`, `links`, `prompt`
+  y `vsi` para que el agente procese con su LLM.
+- `cv-update apply --source-pdf`: flag para preservar la ruta del PDF original
+  en el campo `fuente` de `perfil.json`.
+- `.github/pull_request_template.md`: template de PR adaptado al stack Python
+  (pytest, venv).
+
+### Fixed
+- `extract` ahora incluye `links` del PDF en su output (antes el agente no
+  tenia acceso a los hipervinculos de LinkedIn/GitHub).
+- `parse_llm_fields()` ahora preserva campos no canonicos (certificaciones,
+  proyectos, idiomas) en lugar de descartarlos.
+- `reconstructor.py`: acepta listas/objetos en `extras` (antes solo strings).
+- `reconstructor.py`: maneja valores `None` en campos canonicos sin crash.
+
 ## [3.0.2] - 2026-07-23
 
 ### Fixed
