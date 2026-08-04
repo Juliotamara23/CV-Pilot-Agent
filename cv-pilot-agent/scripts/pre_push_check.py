@@ -95,8 +95,8 @@ def _get_code_spans(text: str) -> list[tuple[int, int]]:
     """Return all (start, end) spans of fenced code blocks in text.
 
     Positions are indices into the original text.  Used to skip path-shaped
-    tokens that appear inside code fences (`` ``` ``) — those are illustrative,
-    not real file references.
+    tokens that appear inside *pure example* code fences — those are
+    illustrative, not real file references.
 
     Inline backtick spans (`` `...` ``) are intentionally NOT excluded:
     markdown convention uses backticks to format paths (e.g.
@@ -112,6 +112,35 @@ def _get_code_spans(text: str) -> list[tuple[int, int]]:
 def _is_inside_span(pos: int, spans: list[tuple[int, int]]) -> bool:
     """Return True when *pos* falls inside ANY code span (inclusive of start)."""
     return any(start <= pos < end for start, end in spans)
+
+
+def _span_for(text: str, spans: list[tuple[int, int]], pos: int) -> tuple[int, int]:
+    """Return the code span containing *pos*, or (pos, pos) if none."""
+    for start, end in spans:
+        if start <= pos < end:
+            return start, end
+    return (pos, pos)
+
+
+def _block_is_shell_example(text: str, span: tuple[int, int]) -> bool:
+    """Return True if a fenced code block looks like shell output/examples.
+
+    Shell prompts (``$``, ``>``), the ``cd``/``python`` invocation prefix, and
+    output-echo patterns indicate the block is illustrative rather than a
+    literal file reference list.  Such blocks are excluded from Check A so we
+    don't flag broken paths that were never meant to resolve.
+    """
+    start, end = span
+    block = text[start:end]
+    # Strip fence markers.
+    body = block.strip("` \n")
+    lines = [ln.strip() for ln in body.splitlines() if ln.strip()]
+    if not lines:
+        return True
+    # If most lines start with a shell prompt / command prefix, treat as example.
+    prompt_prefixes = ("$ ", "> ", "cd ", "python", "pip ", "npm ", "gh ", "git ")
+    cmd_count = sum(1 for ln in lines if ln.startswith(prompt_prefixes))
+    return cmd_count >= max(1, len(lines) // 2)
 
 
 def _is_template_fragment(source_text: str, span: tuple[int, int]) -> bool:
@@ -161,9 +190,9 @@ def _path_exists_on_disk(repo_root: Path, source_file: Path, token: str) -> bool
     # Strip leading "./" so pathlib treats it as a regular relative path.
     if clean.startswith("./"):
         clean = clean[2:]
-    # Already absolute paths (rare in our docs) — resolve from repo_root.
+    # Already absolute paths (rare in our docs) — check directly.
     if clean.startswith("/") or re.match(r"^[a-zA-Z]:[\\/]", clean):
-        return (repo_root / clean.lstrip("/\\")).exists()
+        return Path(clean).exists()
     # Default: resolve relative to the markdown file's directory.
     base = source_file.parent
     if (base / clean).exists():
@@ -208,9 +237,11 @@ def check_broken_references(repo_root: Path) -> CheckResult:
         original_text = md_file.read_text(encoding="utf-8", errors="replace")
         code_spans = _get_code_spans(original_text)
         for match in PATH_TOKEN_PATTERN.finditer(original_text):
-            # Skip matches that fall inside fenced code blocks — those are
-            # illustrative, not real file references.
-            if _is_inside_span(match.start(), code_spans):
+            # Skip matches inside fenced code blocks that are pure shell
+            # examples (prompts / commands).  Fenced blocks containing plain
+            # file references are still validated — those are real paths.
+            in_span = _is_inside_span(match.start(), code_spans)
+            if in_span and _block_is_shell_example(original_text, _span_for(original_text, code_spans, match.start())):
                 continue
             token = match.group(0).strip()
             if not _is_interesting_token(token):
