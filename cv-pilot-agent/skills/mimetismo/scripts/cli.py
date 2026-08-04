@@ -43,7 +43,7 @@ from _lib import db  # noqa: E402
 from _lib.errors import CV_PilotError  # noqa: E402
 from _lib.shared.profile_loader import load_profile  # noqa: E402
 
-from _mimetismo_internal.drafts import create_draft_gmail, create_draft_outlook  # noqa: E402
+from _mimetismo_internal.drafts import _wrap_draft, get_provider  # noqa: E402
 from _mimetismo_internal.links import format_links, signature_footer  # noqa: E402
 from _mimetismo_internal.providers import (  # noqa: E402
     detect_provider,
@@ -118,15 +118,6 @@ def _read_body_file(body_file: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def _wrap_gmail(body: str, profile: dict) -> str:
-    return format_links(body, profile) + signature_footer(profile)
-
-
-def _wrap_outlook(body: str, profile: dict) -> str:
-    # Outlook uses the same HTML body (contentType: HTML) as Gmail.
-    return format_links(body, profile) + signature_footer(profile)
-
-
 def _cleanup() -> None:
     cleanup = _AGENT_ROOT / "scripts" / "cleanup.py"
     if not cleanup.is_file():
@@ -164,13 +155,14 @@ def email_cmd(
         prefs = _load_preferences()
         prov = detect_provider(prefs, provider)
         profile = load_profile(_AGENT_ROOT)
-        html = _wrap_gmail(body, profile) if prov == "gmail" else _wrap_outlook(body, profile)
+        html = _wrap_draft(body, profile)
         subj = subject or default_subject("Postulación", job_row)
         if dry_run:
             _emit({"ok": True, "mode": "email", "dry_run": True, "provider": prov,
                    "to": to, "subject": subj, "html": html, "job_hash": job})
             return
-        drafter = create_draft_gmail if prov == "gmail" else create_draft_outlook
+        # Use the provider registry to get the correct drafter function
+        drafter = get_provider(prov)
         draft_id = drafter(to, subj, html)
         db.update_status(job, "applied")
         _emit({"ok": True, "mode": "email", "provider": prov, "draft_id": draft_id,
@@ -221,7 +213,8 @@ def cover_letter_cmd(
                    "provider": prov, "html": wrapped, "job_hash": job})
             return
         if prov is not None and to:
-            drafter = create_draft_gmail if prov == "gmail" else create_draft_outlook
+            # Use the provider registry to get the correct drafter function
+            drafter = get_provider(prov)
             draft_id = drafter(to, subj, wrapped)
             db.update_status(job, "applied")
             _emit({"ok": True, "mode": "cover-letter", "provider": prov,
