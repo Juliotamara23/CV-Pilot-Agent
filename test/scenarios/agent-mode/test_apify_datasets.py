@@ -55,7 +55,7 @@ def _get_real_run(actor: str, kind: str = "latest") -> dict:
 
 def _run_cli(args: list[str]) -> subprocess.CompletedProcess:
     """Run the CLI script with the given arguments."""
-    cmd = [sys.executable, str(_SCRIPTS_DIR / "cli.py")] + args
+    cmd = [sys.executable, str(_SCRIPTS_DIR / "datasets_cli.py")] + args
     return subprocess.run(
         cmd, capture_output=True, text=True, encoding="utf-8",
     )
