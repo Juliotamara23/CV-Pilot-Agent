@@ -70,3 +70,8 @@ class ComputrabajoAdapter(PlatformAdapter):
                 )
             )
         return jobs
+
+
+from .registry import register as _register_adapter
+
+_register_adapter("computrabajo", ComputrabajoAdapter)

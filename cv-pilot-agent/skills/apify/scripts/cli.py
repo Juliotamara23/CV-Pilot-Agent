@@ -37,12 +37,8 @@ sys.path.insert(0, str(_AGENT_ROOT))
 import typer  # noqa: E402
 from pydantic import ValidationError  # noqa: E402
 
-from platforms import (  # noqa: E402
-    ComputrabajoAdapter,
-    IndeedAdapter,
-    LinkedinAdapter,
-)
 from platforms.base import PlatformAdapter, SearchParams  # noqa: E402
+from platforms.registry import resolve as _resolve_platform  # noqa: E402
 
 from _apify_internal.apify_client import (  # noqa: E402
     actor_cost,
@@ -63,11 +59,7 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-ADAPTERS: dict[str, type[PlatformAdapter]] = {
-    "indeed": IndeedAdapter,
-    "linkedin": LinkedinAdapter,
-    "computrabajo": ComputrabajoAdapter,
-}
+
 
 _QUERY_PY = str(_AGENT_ROOT / "skills" / "database" / "scripts" / "query.py")
 
@@ -84,14 +76,16 @@ def _emit_error(message: str, code: str) -> None:
 
 
 def _resolve_adapter(platform: str) -> PlatformAdapter:
-    cls = ADAPTERS.get(platform)
-    if cls is None:
+    try:
+        return _resolve_platform(platform)
+    except SystemExit as exc:
+        # Registry raised SystemExit for unknown platform; surface as JSON error.
+        from platforms.registry import list_platforms
         _emit_error(
-            f"Invalid platform '{platform}'. Valid: {', '.join(ADAPTERS)}.",
+            f"Invalid platform '{platform}'. Valid: {', '.join(list_platforms())}.",
             "INVALID_PLATFORM",
         )
         raise typer.Exit(code=1)
-    return cls()
 
 
 @app.command()

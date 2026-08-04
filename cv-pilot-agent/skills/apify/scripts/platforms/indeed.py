@@ -44,3 +44,8 @@ class IndeedAdapter(PlatformAdapter):
                 )
             )
         return jobs
+
+
+from .registry import register as _register_adapter
+
+_register_adapter("indeed", IndeedAdapter)
