@@ -59,7 +59,7 @@ Estos tres comandos permiten recuperar datos de runs interrumpidos o inspecciona
 Lista runs recientes de un actor. Sirve para encontrar el `dataset_id` de un run pasado.
 
 ```bash
-python skills/apify/scripts/cli.py datasets-list \
+python skills/apify/scripts/datasets_cli.py datasets-list \
   --actor <actor-full-name> \
   [--since-minutes 60] \
   [--limit 10]
@@ -102,7 +102,7 @@ python skills/apify/scripts/cli.py datasets-list \
 Inspeciona un dataset: cuenta items y muestra las claves del schema. Útil para verificar cuántos items tiene antes de hacer fetch.
 
 ```bash
-python skills/apify/scripts/cli.py datasets-inspect \
+python skills/apify/scripts/datasets_cli.py datasets-inspect \
   --dataset-id <apify-dataset-id>
 ```
 
@@ -130,7 +130,7 @@ python skills/apify/scripts/cli.py datasets-inspect \
 Trae items de un dataset y persiste los que no están ya en la DB (idempotente, no duplica). Sirve para recuperar runs interrumpidos.
 
 ```bash
-python skills/apify/scripts/cli.py datasets-fetch \
+python skills/apify/scripts/datasets_cli.py datasets-fetch \
   --dataset-id <apify-dataset-id> \
   [--persist|--no-persist]
 ```
