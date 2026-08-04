@@ -339,7 +339,7 @@ def test_cli_invalid_platform_errors(monkeypatch):
     monkeypatch.setattr(search_jobs.subprocess, "run", _make_run())
     result = runner.invoke(
         search_jobs.app,
-        ["search", "--platform", "glassdoor", "--position", "Dev", "--location", "Bog"],
+        ["--platform", "glassdoor", "--position", "Dev", "--location", "Bog"],
     )
     assert result.exit_code == 1
     assert "INVALID_PLATFORM" in (result.output + (result.stderr or ""))
@@ -352,7 +352,7 @@ def test_cost_phase_does_not_call_actor(monkeypatch):
                         _make_run(calls=calls, fail_call=True))
     result = runner.invoke(
         search_jobs.app,
-        ["search", "--platform", "indeed", "--position", "React Developer",
+        ["--platform", "indeed", "--position", "React Developer",
          "--location", "Bogota", "--count", "5"],
     )
     assert result.exit_code == 0, result.output
@@ -370,7 +370,7 @@ def test_confirm_phase_normalizes_persists_and_labels(monkeypatch):
     monkeypatch.setattr(search_jobs.subprocess, "run", _make_run())
     result = runner.invoke(
         search_jobs.app,
-        ["search", "--platform", "indeed", "--position", "React Developer",
+        ["--platform", "indeed", "--position", "React Developer",
          "--location", "Bogota", "--count", "5", "--confirm"],
     )
     assert result.exit_code == 0, result.output
@@ -387,7 +387,7 @@ def test_confirm_phase_empty_dataset(monkeypatch):
     monkeypatch.setattr(search_jobs.subprocess, "run", _make_run(dataset=[]))
     result = runner.invoke(
         search_jobs.app,
-        ["search", "--platform", "indeed", "--position", "React Developer",
+        ["--platform", "indeed", "--position", "React Developer",
          "--location", "Bogota", "--count", "5", "--confirm"],
     )
     assert result.exit_code == 0, result.output
@@ -401,7 +401,7 @@ def test_apify_cli_missing_errors(monkeypatch):
     monkeypatch.setattr(search_jobs.shutil, "which", lambda name: None)
     result = runner.invoke(
         search_jobs.app,
-        ["search", "--platform", "indeed", "--position", "Dev", "--location", "Bog", "--confirm"],
+        ["--platform", "indeed", "--position", "Dev", "--location", "Bog", "--confirm"],
     )
     assert result.exit_code == 1
     assert "APIFY_CLI_MISSING" in (result.output + (result.stderr or ""))
