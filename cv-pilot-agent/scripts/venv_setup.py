@@ -10,7 +10,6 @@ Outputs JSON to stdout on success, to stderr on failure.
 from __future__ import annotations
 
 import json
-import os
 import re
 import shutil
 import subprocess

@@ -45,9 +45,9 @@ def init() -> None:
         _ensure_schema(conn)
 
         conn.close()
-        print("DB Ready")
+        print('{"ok": true, "message": "DB Ready"}')
     except Exception as exc:
-        print(f"ERROR: {exc}")
+        print(f'{{"ok": false, "error": "{exc}"}}')
 
 
 if __name__ == "__main__":

@@ -158,7 +158,7 @@ def email_cmd(
         analysis = _load_analysis(job)
         if analysis.get("contact_method") == "portal":
             raise CV_PilotError(
-                "Portal postulation — use --mode cover-letter", code="PORTAL_POSTULATION"
+                "Portal postulation — use cover-letter subcommand", code="PORTAL_POSTULATION"
             )
         body = _read_body_file(body_file)
         prefs = _load_preferences()
