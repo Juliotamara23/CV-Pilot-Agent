@@ -1,6 +1,9 @@
-"""Draft creation for Gmail and Outlook via external CLIs.
+"""Draft creation for email providers via external CLIs.
 
-Gmail uses ``gws`` CLI; Outlook uses ``m365`` CLI + PowerShell Graph API call.
+Provider implementations:
+- Gmail uses ``gws`` CLI
+- Outlook uses ``m365`` CLI + PowerShell Graph API call
+- Extensible registry-based architecture
 """
 
 from __future__ import annotations
@@ -10,10 +13,47 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+from typing import Callable
 
 from _lib.errors import CV_PilotError
+from _mimetismo_internal.links import format_links, signature_footer
+
+# Type alias for provider callable
+ProviderCallable = Callable[[str, str, str], str]
+
+# Global registry - providers are auto-registered when imported
+_registry: dict[str, ProviderCallable] = {}
 
 
+def register_provider(name: str):
+    """Decorator to register a provider function with the provider registry."""
+    def decorator(func: ProviderCallable) -> ProviderCallable:
+        _registry[name] = func
+        return func
+    return decorator
+
+
+def get_provider(name: str) -> ProviderCallable:
+    """Get a provider by name. Raises CV_PilotError if not found."""
+    if name not in _registry:
+        raise CV_PilotError(
+            f"Provider '{name}' not found. Available providers: {list(_registry.keys())}",
+            code="PROVIDER_NOT_FOUND",
+        )
+    return _registry[name]
+
+
+def list_providers() -> list[str]:
+    """Get list of all registered provider names."""
+    return list(_registry.keys())
+
+
+def _wrap_draft(body: str, profile: dict) -> str:
+    """Apply formatting links and signature footer to a draft body."""
+    return format_links(body, profile) + signature_footer(profile)
+
+
+@register_provider("gmail")
 def create_draft_gmail(to: str, subject: str, body_html: str) -> str:
     """Create a Gmail draft via ``gws`` CLI. Returns the draft id string.
 
@@ -79,6 +119,7 @@ def create_draft_gmail(to: str, subject: str, body_html: str) -> str:
     return "draft"
 
 
+@register_provider("outlook")
 def create_draft_outlook(to: str, subject: str, body_html: str) -> str:
     """Create an Outlook draft via ``m365`` CLI + PowerShell. Returns the message id."""
     if shutil.which("m365") is None:
