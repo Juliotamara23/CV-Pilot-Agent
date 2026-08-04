@@ -38,7 +38,7 @@ from _apify_internal.apify_client import (  # noqa: E402
     persist_jobs,
 )
 
-from .platforms.registry import resolve as _resolve_platform  # noqa: E402
+from platforms.registry import resolve as _resolve_platform  # noqa: E402
 
 app = typer.Typer(
     name="datasets",
