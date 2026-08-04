@@ -48,6 +48,7 @@ def init() -> None:
         print('{"ok": true, "message": "DB Ready"}')
     except Exception as exc:
         print(f'{{"ok": false, "error": "{exc}", "code": "INIT_FAILED"}}', file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -178,8 +178,19 @@ def datasets_fetch(
     """
     check_apify_cli()
 
-    # Resolve platform adapter for normalization.
-    adapter = _resolve_platform(platform)
+    # Resolve platform adapter for normalization. Guard against unknown
+    # platforms so the failure is a parseable JSON envelope (matching the
+    # INVALID_PLATFORM contract used by cli.py search) instead of a raw
+    # SystemExit text on stderr.
+    try:
+        adapter = _resolve_platform(platform)
+    except SystemExit:
+        from platforms.registry import list_platforms
+        _emit_error(
+            f"Invalid platform '{platform}'. Valid: {', '.join(list_platforms())}.",
+            "INVALID_PLATFORM",
+        )
+        raise typer.Exit(code=1)
 
     raw_items = fetch_dataset(dataset_id)
     fetched = len(raw_items)

@@ -42,14 +42,27 @@ def _find_python() -> str:
 
 
 def _create_venv(python_exe: str) -> Path:
-    """Create .venv/ using the detected Python. Returns Path to venv python."""
-    if (VENV_DIR / "Scripts" / "python.exe").exists():
-        return VENV_DIR / "Scripts" / "python.exe"
+    """Create .venv/ using the detected Python. Returns Path to venv python.
+
+    Handles both venv layouts: Windows ``Scripts/python.exe`` and
+    POSIX ``bin/python``.
+    """
+    candidates = [
+        VENV_DIR / "Scripts" / "python.exe",
+        VENV_DIR / "bin" / "python",
+        VENV_DIR / "bin" / "python3",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
     subprocess.run([python_exe, "-m", "venv", str(VENV_DIR)], check=True)
-    venv_python = VENV_DIR / "Scripts" / "python.exe"
-    if not venv_python.exists():
-        raise RuntimeError(f"venv creation failed — no python at {venv_python}")
-    return venv_python
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    raise RuntimeError(
+        f"venv creation failed — no python at any of: "
+        f"{', '.join(str(c) for c in candidates)}"
+    )
 
 
 def _install_deps(venv_python: Path) -> None:

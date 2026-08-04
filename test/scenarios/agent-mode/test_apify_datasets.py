@@ -14,6 +14,7 @@ Test strategy:
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -53,11 +54,20 @@ def _get_real_run(actor: str, kind: str = "latest") -> dict:
     return items[0]
 
 
-def _run_cli(args: list[str]) -> subprocess.CompletedProcess:
-    """Run the CLI script with the given arguments."""
+def _run_cli(args: list[str], env: dict | None = None) -> subprocess.CompletedProcess:
+    """Run the CLI script with the given arguments.
+
+    ``env`` (when provided) is merged into the process environment so tests
+    can redirect the database via ``CV_PILOT_DB`` without touching the real
+    production DB at ``cv-pilot-agent/db/cv-pilot.db``.
+    """
     cmd = [sys.executable, str(_SCRIPTS_DIR / "datasets_cli.py")] + args
+    full_env = dict(os.environ)
+    if env:
+        full_env.update(env)
     return subprocess.run(
         cmd, capture_output=True, text=True, encoding="utf-8",
+        env=full_env,
     )
 
 
@@ -171,19 +181,34 @@ def test_datasets_fetch_returns_items_without_persisting():
     assert out["fetched"] >= 0
 
 
-def test_datasets_fetch_idempotent_with_persist():
-    """Running fetch twice should not create duplicates in DB."""
+def test_datasets_fetch_idempotent_with_persist(tmp_path):
+    """Running fetch twice should not create duplicates in DB.
+
+    Uses a temporary database via ``CV_PILOT_DB`` so the test never writes
+    to the real production DB at ``cv-pilot-agent/db/cv-pilot.db``.
+    """
     real_run = _get_real_run("curious_coder/linkedin-jobs-scraper", "latest")
     dataset_id = real_run.get("defaultDatasetId", "")
     if not dataset_id:
         pytest.skip("Latest run has no defaultDatasetId")
+
+    tmp_db = tmp_path / "test-cvpilot.db"
+    test_env = {"CV_PILOT_DB": str(tmp_db)}
+
+    # Initialize the temporary DB schema (matches scripts/init.py contract)
+    # so persistence has the jobs/analyses tables to write into.
+    import sqlite3
+    from _lib._schema import get_schema_sql
+    conn = sqlite3.connect(str(tmp_db))
+    conn.executescript(get_schema_sql())
+    conn.close()
 
     # First run — should insert new items
     result1 = _run_cli([
         "datasets-fetch",
         "--dataset-id", dataset_id,
         "--persist",
-    ])
+    ], env=test_env)
     assert result1.returncode == 0, f"First run failed: {result1.stderr}"
     out1 = json.loads(result1.stdout)
     assert out1["ok"] is True
@@ -193,7 +218,7 @@ def test_datasets_fetch_idempotent_with_persist():
         "datasets-fetch",
         "--dataset-id", dataset_id,
         "--persist",
-    ])
+    ], env=test_env)
     assert result2.returncode == 0, f"Second run failed: {result2.stderr}"
     out2 = json.loads(result2.stdout)
     assert out2["ok"] is True
