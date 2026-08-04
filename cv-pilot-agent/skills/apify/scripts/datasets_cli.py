@@ -38,6 +38,8 @@ from _apify_internal.apify_client import (  # noqa: E402
     persist_jobs,
 )
 
+from .platforms.registry import resolve as _resolve_platform  # noqa: E402
+
 app = typer.Typer(
     name="datasets",
     help="CLI tools for listing, inspecting, and fetching Apify datasets.",
@@ -168,12 +170,16 @@ def datasets_inspect(
 def datasets_fetch(
     dataset_id: str = typer.Option(..., help="The Apify dataset ID to fetch from."),
     persist: bool = typer.Option(True, help="If True, persist items not already in DB. If False, just return them."),
+    platform: str = typer.Option("linkedin", help="Platform actor to use for normalization (linkedin|indeed|computrabajo)."),
 ) -> None:
     """Fetch a dataset and (optionally) persist items not already in our DB.
     The agent uses this to recover from interrupted runs or to retry validation
     on items that previously failed.
     """
     check_apify_cli()
+
+    # Resolve platform adapter for normalization.
+    adapter = _resolve_platform(platform)
 
     raw_items = fetch_dataset(dataset_id)
     fetched = len(raw_items)
@@ -194,46 +200,27 @@ def datasets_fetch(
             })
             continue
 
-        # Extract fields using common actor field name patterns.
-        company = (
-            item.get("company")
-            or item.get("companyName")
-            or ""
-        )
-        position = (
-            item.get("positionName")
-            or item.get("title")
-            or ""
-        )
-        location = (
-            item.get("location")
-            or item.get("jobLocation")
-            or ""
-        )
-
-        if not company or not position:
-            validation_failures.append({
-                "index": idx,
-                "raw_preview": str(item)[:200],
-                "error": f"Missing required fields: company='{company}', position='{position}'",
-            })
-            continue
-
+        # Normalize raw item using the platform adapter.
         try:
+            normalized = adapter.normalize_raw_item(item)
+            # Convert normalized dict to JobInsert.
+            # Required fields: company, position; location defaults to "".
+            if not normalized.get("company") or not normalized.get("position"):
+                validation_failures.append({
+                    "index": idx,
+                    "raw_preview": str(item)[:200],
+                    "error": f"Missing required fields after normalization: company='{normalized.get('company')}', position='{normalized.get('position')}'",
+                })
+                continue
             job = JobInsert(
-                company=company,
-                position=position,
-                location=location,
-                external_id=str(item.get("id", "")) or None,
+                company=normalized.get("company", ""),
+                position=normalized.get("position", ""),
+                location=normalized.get("location", ""),
+                external_id=normalized.get("external_id"),
                 public_date=item.get("postedAt") or item.get("postedDate") or item.get("date") or None,
-                url=item.get("link") or item.get("url") or None,
-                salary=item.get("salary") or None,
-                description=(
-                    item.get("descriptionText")
-                    or item.get("descriptionHtml")
-                    or item.get("description")
-                    or None
-                ),
+                url=normalized.get("url"),
+                salary=normalized.get("salary"),
+                description=normalized.get("description"),
                 source="apify-dataset-recovery",
             )
             jobs.append(job)

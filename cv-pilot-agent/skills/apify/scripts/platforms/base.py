@@ -145,3 +145,26 @@ class PlatformAdapter(ABC):
             if value not in (None, ""):
                 return str(value)
         return default
+
+    def normalize_raw_item(self, raw: dict) -> dict:
+        """Normalize a single raw item dict into a dict suitable for JobInsert.
+        
+        Default implementation uses _pick for common fields.
+        Returns a dict with standardized keys: company, position, location,
+        external_id, url, description, salary, source.
+        """
+        return {
+            "company": self._pick(raw, "company", "companyName"),
+            "position": self._pick(raw, "position", "positionName", "title"),
+            "location": self._pick(raw, "location", "jobLocation"),
+            "external_id": str(raw.get("id")) if raw.get("id") is not None else None,
+            "url": raw.get("link") or raw.get("url") or None,
+            "description": (
+                raw.get("descriptionText")
+                or raw.get("descriptionHtml")
+                or raw.get("description")
+                or None
+            ),
+            "salary": raw.get("salary") or None,
+            "source": self.get_platform_name(),
+        }
