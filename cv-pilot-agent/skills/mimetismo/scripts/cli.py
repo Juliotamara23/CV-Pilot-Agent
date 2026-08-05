@@ -119,14 +119,22 @@ def _read_body_file(body_file: str) -> str:
 
 
 def _resolve_cv_path(profile: dict) -> Optional[Path]:
-    """Resolve the CV path from profile['cv_path'] relative to _AGENT_ROOT."""
+    """Resolve the CV path from ``profile['cv_path']``.
+
+    Handles absolute paths, agent-root-relative (``data/cv.pdf``) and
+    repo-root-relative (``cv-pilot-agent/data/cv.pdf``) forms.
+    """
     cv_path = profile.get("cv_path")
     if not cv_path:
         return None
     p = Path(cv_path)
+    if p.is_file():
+        return p
     if not p.is_absolute():
-        p = _AGENT_ROOT / p
-    return p if p.is_file() else None
+        cand = _AGENT_ROOT / p
+        if cand.is_file():
+            return cand
+    return None
 
 
 def _cleanup() -> None:
