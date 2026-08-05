@@ -12,6 +12,7 @@ import base64
 import json
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import Callable, Optional
@@ -133,7 +134,8 @@ def create_draft_outlook(to: str, subject: str, body_html: str, attachment: Opti
     If ``attachment`` is provided, after creating the draft the attachment is
     uploaded via a Graph API POST to the draft's attachments endpoint.
     """
-    if shutil.which("m365") is None:
+    m365_path = shutil.which("m365")
+    if m365_path is None:
         raise CV_PilotError(
             "m365 CLI not found. Install and login to m365 (see docs/outlook-setup.md).",
             code="PROVIDER_CLI_MISSING",
@@ -144,6 +146,21 @@ def create_draft_outlook(to: str, subject: str, body_html: str, attachment: Opti
             "PowerShell not found (need pwsh or powershell for the Graph API call).",
             code="PROVIDER_CLI_MISSING",
         )
+    # Fetch the token in Python so the same m365 session used by the agent
+    # (e.g. the Linux m365 under WSL) authenticates the Graph calls. Calling
+    # `m365` from inside PowerShell would use the Windows-side m365, whose
+    # auth is separate and can hang on an interactive device-code prompt.
+    token_proc = subprocess.run(
+        [m365_path, "util", "accesstoken", "get",
+         "--resource", "https://graph.microsoft.com", "--output", "text"],
+        capture_output=True, text=True, encoding="utf-8",
+    )
+    if token_proc.returncode != 0 or not token_proc.stdout.strip():
+        raise CV_PilotError(
+            f"m365 token retrieval failed: {token_proc.stderr.strip()[:300]}",
+            code="DRAFT_FAILED",
+        )
+    token = token_proc.stdout.strip()
     payload = json.dumps(
         {"subject": subject, "body": {"contentType": "HTML", "content": body_html},
          "toRecipients": [{"emailAddress": {"address": to}}]},
@@ -152,16 +169,25 @@ def create_draft_outlook(to: str, subject: str, body_html: str, attachment: Opti
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as fh:
         body_path = fh.name
         fh.write(payload)
+    # Windows PowerShell (WSL interop) cannot read Linux /tmp paths — convert
+    # to a \\wsl.localhost\... path when wslpath is available.
+    body_script_path = body_path
+    wslpath = shutil.which("wslpath")
+    if wslpath and not sys.platform.startswith("win"):
+        conv = subprocess.run(
+            [wslpath, "-w", body_path], capture_output=True, text=True
+        )
+        if conv.returncode == 0 and conv.stdout.strip():
+            body_script_path = conv.stdout.strip()
     script = (
         "$ErrorActionPreference='Stop';"
-        "$token = m365 util accesstoken get --resource "
-        "'https://graph.microsoft.com' --output text;"
-        f"$body = Get-Content -Path '{body_path}' -Raw -Encoding UTF8;"
+        f"$token = '{token}';"
+        f"$body = Get-Content -Path '{body_script_path}' -Raw -Encoding UTF8;"
         "$resp = Invoke-RestMethod -Uri "
         "'https://graph.microsoft.com/v1.0/me/messages' -Method Post "
         "-ContentType 'application/json; charset=utf-8' "
         "-Headers @{Authorization = \"Bearer $token\"} -Body $body;"
-        "Write-Output $resp.id"
+        "Write-Output $resp.id;"
     )
     if attachment:
         att_path = Path(attachment)
@@ -169,12 +195,23 @@ def create_draft_outlook(to: str, subject: str, body_html: str, attachment: Opti
         with open(attachment, "rb") as f:
             b64 = base64.b64encode(f.read()).decode("ascii")
         script += (
+            "$ErrorActionPreference='Stop';"
+            "try {"
             f"$attBody = @{{ '@odata.type' = '#microsoft.graph.fileAttachment'; "
             f"name = '{filename}'; contentBytes = '{b64}' }} | ConvertTo-Json -Depth 3;"
             f"Invoke-RestMethod -Uri (\"https://graph.microsoft.com/v1.0/me/messages/\" + "
             f"$resp.id + \"/attachments\") -Method Post "
             f"-ContentType 'application/json; charset=utf-8' "
             f"-Headers @{{Authorization = \"Bearer $token\"}} -Body $attBody | Out-Null;"
+            "} catch {"
+            "  $respBody = '';"
+            "  if ($_.Exception.Response) {"
+            "    try { $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream());"
+            "          $respBody = $reader.ReadToEnd() } catch { $respBody = '' }"
+            "  }"
+            "  throw (\"Graph attachment POST failed: \" + $_.Exception.Message + "
+            "         $(if ($respBody) { \" | \" + $respBody } else { '' }));"
+            "}"
         )
     try:
         proc = subprocess.run(

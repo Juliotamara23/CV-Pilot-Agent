@@ -391,6 +391,19 @@ class TestErrorEnvelopes:
         assert result.exit_code == 1
         assert json.loads(result.stderr)["code"] == "PROVIDER_CLI_MISSING"
 
+    def test_outlook_token_failure_raises(self, tmp_db, tmp_path, monkeypatch):
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": False, "outlook_drafts": True})
+        h = _seed_job(contact_method="email")
+        body = tmp_path / "body.html"; body.write_text("<p>Hola</p>", encoding="utf-8")
+        def fake_run(args, **kwargs):
+            return subprocess.CompletedProcess(args, 1, stdout="", stderr="auth boom")
+        _patch_environment(monkeypatch, root, which=lambda n: f"/fake/{n}", run=fake_run)
+        result = runner.invoke(generate.app, [
+            "email", "--job", h, "--body-file", str(body), "--to", "r@x.com", "--provider", "outlook",
+        ])
+        assert result.exit_code == 1
+        assert json.loads(result.stderr)["code"] == "DRAFT_FAILED"
+
 
 # --------------------------------------------------------------------------- #
 # 3.3 Integration tests (subprocess mocked)
