@@ -53,9 +53,11 @@ def _write_data(
     preferencias: dict | None = None,
     *,
     perfil: dict | None = None,
+    correos: str | None = None,
 ) -> Path:
     """Create a tmp cv-pilot-agent root with data/perfil.json, preferencias.json
-    and a scripts/cleanup.py stub so _cleanup() actually invokes subprocess.run (mocked)."""
+    and a scripts/cleanup.py stub so _cleanup() actually invokes subprocess.run (mocked).
+    Optionally writes data/correos.md when `correos` is provided."""
     if preferencias is None:
         preferencias = {"gmail_drafts": False, "outlook_drafts": False}
     if perfil is None:
@@ -67,6 +69,8 @@ def _write_data(
         json.dump(perfil, f, ensure_ascii=False, indent=2)
     with (root / "data" / "preferencias.json").open("w", encoding="utf-8") as f:
         json.dump(preferencias, f, ensure_ascii=False, indent=2)
+    if correos is not None:
+        (root / "data" / "correos.md").write_text(correos, encoding="utf-8")
     (root / "scripts" / "cleanup.py").write_text("print('cleaned')\n", encoding="utf-8")
     return root
 
@@ -210,7 +214,7 @@ class TestFormatLinks:
         assert '<a href="https://github.com/x">GitHub</a>' in out
         assert '<a href="https://linkedin.com/in/x">LinkedIn</a>' in out
         assert '<a href="https://drive.google.com/cv">CV</a>' in out
-        assert '<a href="+57 320 1">WhatsApp</a>' in out
+        assert '<a href="https://wa.me/573201">+57 320 1</a>' in out
 
     def test_missing_url_falls_back_to_label(self):
         out = _format_links("link [github]", {"github": None})
@@ -219,6 +223,18 @@ class TestFormatLinks:
     def test_special_chars_preserved(self):
         out = _format_links("ñ &aacute; &lt;script&gt; [cv]", {"cv_url": None})
         assert "ñ" in out and "&aacute;" in out and "&lt;script&gt;" in out
+
+    def test_whatsapp_missing_falls_back_to_plain_text(self):
+        out = _format_links("link [whatsapp]", {"whatsapp": None})
+        assert out == "link WhatsApp"
+
+    def test_whatsapp_already_url_keeps_label(self):
+        out = _format_links("[whatsapp]", {"whatsapp": "https://wa.me/999"})
+        assert out == '<a href="https://wa.me/999">WhatsApp</a>'
+
+    def test_whatsapp_phone_no_digits_falls_back_to_plain_text(self):
+        out = _format_links("[whatsapp]", {"whatsapp": "???"})
+        assert out == "WhatsApp"
 
 
 class TestSignatureFooter:
@@ -233,6 +249,16 @@ class TestSignatureFooter:
         assert '<a href="https://l">LinkedIn</a>' in footer
         assert '<a href="https://cv">CV</a>' in footer
         assert "WhatsApp" not in footer  # whatsapp URL was None
+
+    def test_footer_includes_whatsapp_number_when_present(self):
+        profile = {
+            "name": "Julio", "github": "https://g", "linkedin": "https://l",
+            "cv_url": "https://cv", "whatsapp": "+57 320 7581183",
+        }
+        footer = _signature_footer(profile)
+        assert "Julio" in footer
+        assert '<a href="https://wa.me/573207581183">+57 320 7581183</a>' in footer
+        assert "|" in footer
 
     def test_no_name_no_links(self):
         assert _signature_footer({}) == "<br><br>Saludos cordiales,<br>"
@@ -672,3 +698,34 @@ class TestIntegration:
         assert result.exit_code == 0, result.stderr
         html = json.loads(result.stdout)["html"]
         assert "ñ" in html and "&aacute;" in html and "&lt;script&gt;" in html and "José" in html
+
+
+# --------------------------------------------------------------------------- #
+# 3.4 Mimetismo source (data/correos.md) — read-only, no DB access
+# --------------------------------------------------------------------------- #
+class TestMimetismoSource:
+    def test_returns_examples_when_correos_exists(self, tmp_path, monkeypatch):
+        content = "Buenos días,\n\nMe postulo a la vacante...\n\nQuedo atento.\nSaludos cordiales,\nJulio"
+        root = _write_data(tmp_path, correos=content)
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        result = runner.invoke(generate.app, ["mimetismo"])
+        assert result.exit_code == 0, result.stderr
+        payload = json.loads(result.stdout)
+        assert payload["ok"] is True
+        assert payload["mode"] == "mimetismo"
+        assert payload["has_examples"] is True
+        assert payload["source"] == "data/correos.md"
+        assert payload["examples"] == content
+
+    def test_has_examples_false_when_correos_missing(self, tmp_path, monkeypatch):
+        root = _write_data(tmp_path)
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        result = runner.invoke(generate.app, ["mimetismo"])
+        assert result.exit_code == 0, result.stderr
+        payload = json.loads(result.stdout)
+        assert payload["ok"] is True
+        assert payload["mode"] == "mimetismo"
+        assert payload["has_examples"] is False
+        assert payload["source"] == "data/correos.md"
+        assert isinstance(payload["suggestion"], str) and payload["suggestion"]
+        assert "examples" not in payload

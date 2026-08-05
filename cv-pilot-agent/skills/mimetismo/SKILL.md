@@ -1,7 +1,24 @@
 ---
 name: Mimetismo — Generate CLI
-description: CLI cli.py para correos, preguntas y cartas.
+description: Contrato de redacción con la voz del usuario + CLI cli.py para correos, preguntas y cartas.
 scope: GLOBAL
+---
+
+# Redacción con Mimetismo (OBLIGATORIO)
+
+Toda comunicación saliente (email, cover-letter, question) se redacta imitando los ejemplos de correos del usuario. Los ejemplos delatan su forma de hablar (saludo, tono, estructura, cierre).
+
+## Paso obligatorio: `cli.py mimetismo`
+
+Ejecutar `python skills/mimetismo/scripts/cli.py mimetismo` ANTES de redactar cualquier comunicación saliente.
+
+- **`has_examples: true`** → los `examples` recibidos SON la voz del usuario. Uso obligatorio, no opcional.
+- **`has_examples: false`** → sugerir al usuario configurar sus ejemplos de correos; mientras tanto, redactar con estilo profesional estándar.
+
+## Límite: tono sí, contenido NO
+
+`correos.md` define SOLO el tono (saludo, formalidad, estructura de párrafos, frases de cierre, firma). NUNCA es fuente de skills, experiencia ni logros: el contenido técnico SIEMPRE sale del perfil actual (`perfil.json`) y del análisis de la vacante. Los ejemplos pueden estar desactualizados.
+
 ---
 
 # cli.py CLI
@@ -15,6 +32,7 @@ La redacción la hace el agente; el envío, el script.
 | `email --job <h> --body-file <p> --to <e> [--provider gmail\|outlook] [--subject ...] [--dry-run]` | Sí | Bloquea si `contact_method=="portal"` |
 | `question --job <h> --body-file <p>` | No | Error si cuerpo vacío |
 | `cover-letter --job <h> --body-file <p> [--provider ...] [--to ...] [--subject ...] [--dry-run]` | Solo con provider+to | Funciona siempre |
+| `mimetismo` | No | Devuelve los ejemplos de `data/correos.md` (fuente de estilo). `has_examples: false` si no existen |
 
 ## Contrato
 

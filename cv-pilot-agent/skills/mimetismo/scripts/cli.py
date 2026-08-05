@@ -11,7 +11,7 @@ Invoked by the orchestration layer (AGENTS.md) via subprocess::
     python cv-pilot-agent/skills/mimetismo/scripts/cli.py email \\
         --job <hash> --body-file temp/cvp-<hash>-body.html --to rrhh@x.com
 
-Three subcommands: ``email``, ``question``, ``cover-letter``. Every command
+Four subcommands: ``email``, ``question``, ``cover-letter``, ``mimetismo``. Every command
 prints a JSON envelope to stdout on success (``{"ok": true, ...}``) and an
 error envelope to stderr (``{"ok": false, "error": "...", "code": "..."}``)
 on failure, then exits non-zero. ``scripts/cleanup.py`` runs at the end of
@@ -223,6 +223,43 @@ def cover_letter_cmd(
             _emit({"ok": True, "mode": "cover-letter", "provider": None,
                    "text_preview": wrapped.strip()[:100], "text": wrapped,
                    "job_hash": job})
+
+    _run_with_cleanup(action)
+
+
+@app.command("mimetismo")
+def mimetismo_cmd() -> None:
+    """Return user's email style examples from data/correos.md (read-only)."""
+    def action() -> None:
+        path = _AGENT_ROOT / "data" / "correos.md"
+        if not path.is_file():
+            _emit({
+                "ok": True,
+                "mode": "mimetismo",
+                "has_examples": False,
+                "source": "data/correos.md",
+                "suggestion": "No se detectaron ejemplos de correos. Sugiere al usuario configurarlos para imitar su estilo."
+            })
+            return
+        try:
+            content = path.read_text(encoding="utf-8")
+        except OSError as exc:
+            print(f"warning: cannot read correos.md ({exc}); treating as missing", file=sys.stderr)
+            _emit({
+                "ok": True,
+                "mode": "mimetismo",
+                "has_examples": False,
+                "source": "data/correos.md",
+                "suggestion": "No se detectaron ejemplos de correos. Sugiere al usuario configurarlos para imitar su estilo."
+            })
+            return
+        _emit({
+            "ok": True,
+            "mode": "mimetismo",
+            "has_examples": True,
+            "source": "data/correos.md",
+            "examples": content
+        })
 
     _run_with_cleanup(action)
 
