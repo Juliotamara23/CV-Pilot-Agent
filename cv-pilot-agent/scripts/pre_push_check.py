@@ -1,10 +1,11 @@
 """Pre-push check for CV-Pilot Agent.
 
-Validates three categories of breakage that have shipped in past releases:
+Validates categories of breakage that have shipped in past releases:
 
   Check A: Broken path references in orchestrator markdown files.
   Check B: Bidirectional registration between AGENTS.md and skills/.
   Check C: Flujo coverage of the skills that AGENTS.md declares.
+  Check D: pyright type errors on Python files changed vs origin/main.
 
 Exit codes:
   0  all checks passed (or only WARN-level issues)
@@ -20,6 +21,8 @@ from __future__ import annotations
 
 import argparse
 import re
+import shutil
+import subprocess
 import sys
 import traceback
 from dataclasses import dataclass, field
@@ -449,6 +452,93 @@ def check_flujo_coverage(repo_root: Path) -> CheckResult:
 
 
 # ---------------------------------------------------------------------------
+# Check D: pyright type check on changed Python files
+# ---------------------------------------------------------------------------
+
+def _find_pyright(repo_root: Path) -> str | None:
+    """Locate the pyright executable (venv-first, then PATH)."""
+    venv = repo_root / "cv-pilot-agent" / ".venv"
+    for candidate in (venv / "bin" / "pyright", venv / "Scripts" / "pyright.exe"):
+        if candidate.is_file():
+            return str(candidate)
+    return shutil.which("pyright")
+
+
+def _changed_python_files(repo_root: Path) -> list[Path]:
+    """Python files changed vs origin/main (committed only)."""
+    try:
+        base = subprocess.run(
+            ["git", "rev-parse", "--verify", "origin/main"],
+            cwd=repo_root, capture_output=True, text=True,
+        )
+        if base.returncode != 0:
+            return []
+        proc = subprocess.run(
+            ["git", "diff", "--name-only", "--diff-filter=ACM", "origin/main", "HEAD"],
+            cwd=repo_root, capture_output=True, text=True,
+        )
+        if proc.returncode != 0:
+            return []
+        changed = []
+        for line in proc.stdout.splitlines():
+            p = repo_root / line.strip()
+            if p.suffix == ".py" and p.is_file():
+                changed.append(p)
+        return changed
+    except OSError:
+        return []
+
+
+def check_pyright(repo_root: Path) -> CheckResult:
+    """FAIL when pyright reports type errors on Python files changed vs origin/main.
+
+    Scoped to changed files so pre-existing type errors in untouched files do
+    not block pushes. WARN (non-blocking) when pyright is not installed or
+    there is nothing to compare against (no origin/main).
+    """
+    result = CheckResult(name="Check D: pyright type check", status="PASS")
+    pyright = _find_pyright(repo_root)
+    if pyright is None:
+        result.status = "WARN"
+        result.details.append(
+            "  pyright not found; install with cv-pilot-agent/.venv/bin/pip install pyright"
+        )
+        return result
+
+    changed = _changed_python_files(repo_root)
+    if not changed:
+        result.status = "WARN"
+        result.details.append(
+            "  no changed Python files vs origin/main (or origin/main missing); skipping"
+        )
+        return result
+
+    proc = subprocess.run(
+        [pyright, *(str(p) for p in changed)],
+        cwd=repo_root, capture_output=True, text=True,
+    )
+    # pyright exit codes: 0 = clean, 1 = type errors, 2 = config error, 3 = fatal.
+    if proc.returncode == 0:
+        result.details.append(
+            f"  {len(changed)} changed Python file(s) type-check clean"
+        )
+        return result
+    if proc.returncode >= 2:
+        result.status = "WARN"
+        result.details.append(
+            f"  pyright could not run (exit {proc.returncode}): "
+            f"{proc.stderr.strip()[:300]}; skipping"
+        )
+        return result
+    errors = proc.stdout.strip() or proc.stderr.strip()
+    result.status = "FAIL"
+    result.details.append(
+        f"  pyright reported type errors in {len(changed)} changed file(s):\n{errors}"
+    )
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
@@ -479,6 +569,7 @@ def main(argv: list[str] | None = None) -> int:
         check_broken_references,
         check_bidirectional_skills,
         check_flujo_coverage,
+        check_pyright,
     ]:
         try:
             results.append(check_fn(repo_root))
