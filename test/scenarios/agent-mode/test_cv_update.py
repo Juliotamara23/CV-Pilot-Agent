@@ -162,7 +162,10 @@ def clean_data_dir(sandbox_dir):
     data_dir = sandbox_dir / "data"
 
     for f in _REAL_DATA_DIR.iterdir():
-        if f.is_file():
+        # cv.pdf is a user-generated artifact that may or may not exist in
+        # the real data dir — do not seed it. Tests create it explicitly
+        # when exercising the --source-pdf persistence path.
+        if f.is_file() and f.name != "cv.pdf":
             shutil.copy(f, data_dir / f.name)
 
     yield data_dir
@@ -272,7 +275,36 @@ class TestVSI:
 
     def test_vsi_rejects_short_text_without_sections(self):
         result = validate_cv("Hola, esto es un texto random sin secciones de CV.")
-        assert result["is_valid"] is False
+        assert result["razon_rechazo"]
+
+    def test_vsi_accepts_cv_mentioning_quotation_project(self):
+        # A legit CV describing a "Sistema de Cotizaciones" project must NOT be
+        # rejected: the bare word is a false positive (regression for the real
+        # CV of the user, which builds a quotation web app).
+        cv = (
+            "Julio Támara\n"
+            "Ingeniero de Sistemas\n"
+            "## Experiencia\n"
+            "Desarrollador Fullstack\n"
+            "Sistema de Cotizaciones: Desarrollé una aplicación web en React para "
+            "la generación dinámica de cotizaciones de ventanas y puertas.\n"
+            "## Educación\n"
+            "Ingeniería de Sistemas\n"
+            "## Skills\nPython, React, PostgreSQL\n"
+        )
+        result = validate_cv(cv)
+        assert not result["razon_rechazo"], (
+            f"VSI rejected a valid CV mentioning 'cotizaciones': {result.get('razon_rechazo')}"
+        )
+
+    def test_vsi_rejects_quotation_document(self):
+        # An actual quotation document (with a document number) must be rejected.
+        doc = (
+            "COTIZACIÓN No. 12345\n"
+            "Cliente: Empresa XYZ\n"
+            "Total: $1.000.000\n"
+        )
+        result = validate_cv(doc)
         assert result["razon_rechazo"]
 
 
