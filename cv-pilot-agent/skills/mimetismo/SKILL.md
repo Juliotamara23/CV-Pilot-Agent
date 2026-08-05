@@ -26,7 +26,7 @@ Ejecutar `python skills/mimetismo/scripts/cli.py mimetismo` ANTES de redactar cu
 Ejecutar `python skills/mimetismo/scripts/cli.py cv` ANTES de redactar. Informa dónde está el CV real persistido y si existe.
 
 - **`exists: true`** → el correo se envía con el CV adjunto (`attached: true`). Redactar "Adjunto mi Currículum" y `[cv]` se resuelve a texto plano.
-- **`exists: false`** → sin adjunto; `[cv]` usa el link `cv_url` si existe.
+- **`exists: false`** → sin adjunto; `[cv]` usa el link `cv_url` si existe. **Sugerir al usuario subir su CV real (cv-update) para que se adjunte en futuros correos.**
 
 ---
 
