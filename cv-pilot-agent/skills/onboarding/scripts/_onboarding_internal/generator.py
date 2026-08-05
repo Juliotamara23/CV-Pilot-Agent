@@ -29,7 +29,7 @@ def _build_perfil_json(fields: dict) -> dict:
 
     schema_fields = {}
     canonical = [
-        "nombre", "correo", "telefono", "linkedin", "github", "cv_url",
+        "nombre", "correo", "telefono", "linkedin", "github", "cv_url", "cv_path",
         "resumen", "experiencia", "educacion", "skills",
     ]
     for key in canonical:

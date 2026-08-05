@@ -25,6 +25,7 @@ CANONICAL_FIELDS = [
     "telefono",
     "correo",
     "cv_url",
+    "cv_path",
     "experiencia",
     "educacion",
     "skills",

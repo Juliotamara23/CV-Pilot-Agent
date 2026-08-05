@@ -19,6 +19,7 @@ _JSON_TO_PROFILE: dict[str, str] = {
     "telefono": "whatsapp",
     "correo": "email",
     "cv_url": "cv_url",
+    "cv_path": "cv_path",
 }
 
 

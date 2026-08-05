@@ -1,0 +1,43 @@
+{
+  "include": [
+    "cv-pilot-agent",
+    "test/scenarios/agent-mode"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "**/.venv",
+    "**/.pytest_cache"
+  ],
+  "venvPath": "cv-pilot-agent",
+  "venv": ".venv",
+  "extraPaths": [
+    "cv-pilot-agent",
+    "cv-pilot-agent/_lib",
+    "cv-pilot-agent/skills/onboarding/scripts",
+    "cv-pilot-agent/skills/cv-update/scripts",
+    "cv-pilot-agent/skills/mimetismo/scripts",
+    "cv-pilot-agent/skills/formatos/scripts",
+    "cv-pilot-agent/skills/database/scripts",
+    "cv-pilot-agent/skills/apify/scripts"
+  ],
+  "executionEnvironments": [
+    {
+      "root": "test/scenarios/agent-mode/test_email_generate.py",
+      "extraPaths": [
+        "cv-pilot-agent",
+        "cv-pilot-agent/_lib",
+        "cv-pilot-agent/skills/mimetismo/scripts"
+      ]
+    },
+    {
+      "root": "test/scenarios/agent-mode/test_format_report.py",
+      "extraPaths": [
+        "cv-pilot-agent",
+        "cv-pilot-agent/_lib",
+        "cv-pilot-agent/skills/formatos/scripts"
+      ]
+    }
+  ],
+  "pythonVersion": "3.14",
+  "typeCheckingMode": "basic"
+}

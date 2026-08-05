@@ -17,6 +17,7 @@ All commands emit JSON to stdout and exit 0 on ``ok: true``, 1 otherwise
 from __future__ import annotations
 
 import json
+import shutil
 import sys
 from pathlib import Path
 from typing import Optional
@@ -141,6 +142,15 @@ def full(
         except (OSError, json.JSONDecodeError) as exc:
             _emit({"ok": False, "step": "generate", "error": f"Cannot read fields file: {exc}"})
             raise typer.Exit(code=1)
+
+    # Persist the real CV PDF to data/cv.pdf and record cv_path
+    if pdf_path.exists():
+        out_dir.mkdir(parents=True, exist_ok=True)
+        cv_dest = out_dir / "cv.pdf"
+        shutil.copy2(pdf_path, cv_dest)
+        # Store the path where the file was actually copied
+        fields["cv_path"] = str(cv_dest)
+
     outputs = generate_files(fields, out_dir, no_backup)
     _emit({
         "ok": True,
