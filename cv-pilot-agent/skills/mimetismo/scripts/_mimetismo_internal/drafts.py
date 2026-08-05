@@ -52,7 +52,9 @@ def list_providers() -> list[str]:
 
 def _wrap_draft(body: str, profile: dict, attach_cv: bool = False) -> str:
     """Apply formatting links and signature footer to a draft body."""
-    return format_links(body, profile, attach_cv=attach_cv) + signature_footer(profile)
+    return format_links(body, profile, attach_cv=attach_cv) + signature_footer(
+        profile, attach_cv=attach_cv
+    )
 
 
 @register_provider("gmail")

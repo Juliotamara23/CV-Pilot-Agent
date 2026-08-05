@@ -274,6 +274,20 @@ class TestSignatureFooter:
         assert '<a href="https://wa.me/573207581183">+57 320 7581183</a>' in footer
         assert "|" in footer
 
+    def test_footer_omits_cv_link_when_attached(self):
+        profile = {
+            "name": "Julio", "github": "https://g", "linkedin": "https://l",
+            "cv_url": "https://drive.google.com/cv", "whatsapp": None,
+        }
+        footer_attached = _signature_footer(profile, attach_cv=True)
+        assert '<a href="https://drive.google.com/cv">CV</a>' not in footer_attached
+        assert "CV" not in footer_attached
+        assert '<a href="https://g">GitHub</a>' in footer_attached
+        assert '<a href="https://l">LinkedIn</a>' in footer_attached
+
+        footer_plain = _signature_footer(profile)
+        assert '<a href="https://drive.google.com/cv">CV</a>' in footer_plain
+
     def test_no_name_no_links(self):
         assert _signature_footer({}) == "<br><br>Saludos cordiales,<br>"
 
