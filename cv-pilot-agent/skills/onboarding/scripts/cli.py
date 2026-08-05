@@ -148,8 +148,12 @@ def full(
         out_dir.mkdir(parents=True, exist_ok=True)
         cv_dest = out_dir / "cv.pdf"
         shutil.copy2(pdf_path, cv_dest)
-        # Store the path where the file was actually copied
-        fields["cv_path"] = str(cv_dest)
+        # Store cv_path relative to the agent root when possible so consumers
+        # resolve it consistently regardless of the --out-dir value.
+        try:
+            fields["cv_path"] = str(cv_dest.relative_to(_AGENT_ROOT))
+        except ValueError:
+            fields["cv_path"] = str(cv_dest)
 
     outputs = generate_files(fields, out_dir, no_backup)
     _emit({
