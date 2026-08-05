@@ -2,6 +2,10 @@
 
 Replaces ``[github]``, ``[linkedin]``, ``[cv]``, ``[whatsapp]`` markers in
 the body with ``<a>`` tags and builds the HTML signature footer.
+
+When ``attach_cv=True`` the ``[cv]`` marker resolves to plain text
+``Currículum`` (no anchor) regardless of ``cv_url``. The signature footer
+is unaffected — it still shows a CV link when ``cv_url`` exists.
 """
 
 from __future__ import annotations
@@ -29,13 +33,20 @@ def _whatsapp_tag(phone: str | None) -> str:
     return f'<a href="https://wa.me/{digits}">{phone}</a>'
 
 
-def format_links(body: str, profile: dict) -> str:
-    """Replace ``[github]``, ``[linkedin]``, ``[cv]``, ``[whatsapp]`` markers."""
+def format_links(body: str, profile: dict, attach_cv: bool = False) -> str:
+    """Replace ``[github]``, ``[linkedin]``, ``[cv]``, ``[whatsapp]`` markers.
+
+    When ``attach_cv=True``, the ``[cv]`` marker becomes plain text
+    ``Currículum`` (no anchor) regardless of ``cv_url``.
+    """
     for key, marker in (("github", "[github]"), ("linkedin", "[linkedin]"),
                         ("cv_url", "[cv]")):
         url = profile.get(key)
         label = _LABEL_TEXT[key]
-        tag = f'<a href="{url}">{label}</a>' if url else label
+        if key == "cv_url" and attach_cv:
+            tag = "Currículum"
+        else:
+            tag = f'<a href="{url}">{label}</a>' if url else label
         body = body.replace(marker, tag)
 
     whatsapp_tag = _whatsapp_tag(profile.get("whatsapp"))

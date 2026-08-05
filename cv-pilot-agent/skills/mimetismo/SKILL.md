@@ -21,6 +21,15 @@ Ejecutar `python skills/mimetismo/scripts/cli.py mimetismo` ANTES de redactar cu
 
 ---
 
+## Paso obligatorio: `cli.py cv`
+
+Ejecutar `python skills/mimetismo/scripts/cli.py cv` ANTES de redactar. Informa dónde está el CV real persistido y si existe.
+
+- **`exists: true`** → el correo se envía con el CV adjunto (`attached: true`). Redactar "Adjunto mi Currículum" y `[cv]` se resuelve a texto plano.
+- **`exists: false`** → sin adjunto; `[cv]` usa el link `cv_url` si existe.
+
+---
+
 # cli.py CLI
 
 La redacción la hace el agente; el envío, el script.
@@ -33,6 +42,7 @@ La redacción la hace el agente; el envío, el script.
 | `question --job <h> --body-file <p>` | No | Error si cuerpo vacío |
 | `cover-letter --job <h> --body-file <p> [--provider ...] [--to ...] [--subject ...] [--dry-run]` | Solo con provider+to | Funciona siempre |
 | `mimetismo` | No | Devuelve los ejemplos de `data/correos.md` (fuente de estilo). `has_examples: false` si no existen |
+| `cv` | No | Devuelve info del CV real persistido (exists/path/filename). `exists: true` = el correo llevará adjunto |
 
 ## Contrato
 
@@ -43,6 +53,7 @@ La redacción la hace el agente; el envío, el script.
 5. `cleanup.py` al final (éxito o error).
 6. Output: JSON `{"ok":bool, ...}` a stdout, errores a stderr con `code`.
 7. Proveedores: Gmail `gws`, Outlook `m365` (ver docs/gws-setup.md, docs/outlook-setup.md).
+8. Si `cli.py cv` reporta `exists: true`, el borrador se crea con el CV adjunto (`attached: true` en el output).
 
 ## Flags opcionales
 
