@@ -42,6 +42,8 @@ _recon_spec = _ilu.spec_from_file_location(
     "reconstructor",
     str(_CV_UPDATE_SCRIPTS / "_cv_update_internal" / "reconstructor.py"),
 )
+if _recon_spec is None or _recon_spec.loader is None:
+    raise ImportError("Could not load reconstructor module")
 reconstructor = _ilu.module_from_spec(_recon_spec)
 sys.modules["reconstructor"] = reconstructor
 _recon_spec.loader.exec_module(reconstructor)
@@ -50,6 +52,8 @@ _parser_spec = _ilu.spec_from_file_location(
     "onboard_parser",
     str(_ONBOARDING_SCRIPTS / "_onboarding_internal" / "parser.py"),
 )
+if _parser_spec is None or _parser_spec.loader is None:
+    raise ImportError("Could not load onboard parser module")
 parser = _ilu.module_from_spec(_parser_spec)
 sys.modules["onboard_parser"] = parser
 _parser_spec.loader.exec_module(parser)
@@ -429,6 +433,76 @@ class TestApplyCommand:
         perfil_data = json.loads((clean_data_dir / "perfil.json").read_text(encoding="utf-8"))
         assert perfil_data["fuente"] == "cv_original.pdf", (
             f"Expected fuente='cv_original.pdf', got '{perfil_data['fuente']}'"
+        )
+
+    def test_apply_with_source_pdf_copies_pdf_and_records_cv_path(self, clean_data_dir, sandbox_dir):
+        """apply with --source-pdf must copy the PDF to data_dir/cv.pdf and record cv_path."""
+        fields = {"nombre": "Test", "correo": "test@test.com"}
+        fields_file = sandbox_dir / "fields.json"
+        fields_file.write_text(json.dumps(fields), encoding="utf-8")
+
+        # Use the valid PDF from sandbox
+        source_pdf = str(sandbox_dir / "input_valid.pdf")
+        result = subprocess.run(
+            [_venv_python(), str(_CV_UPDATE_SCRIPTS / "cli.py"),
+             "apply", str(fields_file),
+             "--data-dir", str(clean_data_dir),
+             "--source-pdf", source_pdf],
+            capture_output=True, text=True, encoding="utf-8", timeout=30,
+        )
+        assert result.returncode == 0, f"apply failed: {result.stderr}"
+
+        # Verify cv.pdf was created
+        cv_pdf_path = clean_data_dir / "cv.pdf"
+        assert cv_pdf_path.is_file(), "cv.pdf was not created in data_dir"
+
+        # Verify cv_path recorded in perfil.json
+        perfil_data = json.loads((clean_data_dir / "perfil.json").read_text(encoding="utf-8"))
+        assert perfil_data.get("cv_path") is not None, "cv_path not recorded in perfil.json"
+        assert "cv.pdf" in perfil_data["cv_path"], f"cv_path should reference cv.pdf, got: {perfil_data['cv_path']}"
+
+    def test_apply_without_source_pdf_does_not_create_cv_pdf(self, clean_data_dir, sandbox_dir):
+        """apply without --source-pdf must NOT create cv.pdf or record cv_path."""
+        fields = {"nombre": "Test", "correo": "test@test.com"}
+        fields_file = sandbox_dir / "fields.json"
+        fields_file.write_text(json.dumps(fields), encoding="utf-8")
+
+        result = _run_apply(str(fields_file), str(clean_data_dir))
+        assert result.returncode == 0
+
+        # Verify cv.pdf was NOT created
+        cv_pdf_path = clean_data_dir / "cv.pdf"
+        assert not cv_pdf_path.exists(), "cv.pdf should not be created without --source-pdf"
+
+        # Verify cv_path not recorded in perfil.json
+        perfil_data = json.loads((clean_data_dir / "perfil.json").read_text(encoding="utf-8"))
+        assert "cv_path" not in perfil_data or perfil_data.get("cv_path") is None, (
+            f"cv_path should not be recorded without --source-pdf, got: {perfil_data.get('cv_path')}"
+        )
+
+    def test_apply_with_nonexistent_source_pdf_does_not_create_cv_pdf(self, clean_data_dir, sandbox_dir):
+        """apply with nonexistent --source-pdf must NOT create cv.pdf or record cv_path."""
+        fields = {"nombre": "Test", "correo": "test@test.com"}
+        fields_file = sandbox_dir / "fields.json"
+        fields_file.write_text(json.dumps(fields), encoding="utf-8")
+
+        result = subprocess.run(
+            [_venv_python(), str(_CV_UPDATE_SCRIPTS / "cli.py"),
+             "apply", str(fields_file),
+             "--data-dir", str(clean_data_dir),
+             "--source-pdf", "/nonexistent/path.pdf"],
+            capture_output=True, text=True, encoding="utf-8", timeout=30,
+        )
+        assert result.returncode == 0
+
+        # Verify cv.pdf was NOT created
+        cv_pdf_path = clean_data_dir / "cv.pdf"
+        assert not cv_pdf_path.exists(), "cv.pdf should not be created with nonexistent --source-pdf"
+
+        # Verify cv_path not recorded in perfil.json
+        perfil_data = json.loads((clean_data_dir / "perfil.json").read_text(encoding="utf-8"))
+        assert "cv_path" not in perfil_data or perfil_data.get("cv_path") is None, (
+            f"cv_path should not be recorded with nonexistent --source-pdf, got: {perfil_data.get('cv_path')}"
         )
 
 

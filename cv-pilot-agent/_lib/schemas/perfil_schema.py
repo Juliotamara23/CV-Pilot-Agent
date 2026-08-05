@@ -28,6 +28,7 @@ class PerfilSchema(BaseModel):
     linkedin: Optional[str] = Field(None, description="LinkedIn profile URL")
     github: Optional[str] = Field(None, description="GitHub profile URL")
     cv_url: Optional[str] = Field(None, description="Link to the original CV")
+    cv_path: Optional[str] = Field(None, description="Local path to the persisted CV PDF (relative to agent root)")
     resumen: Optional[str] = Field(None, description="Professional summary")
     experiencia: Optional[str] = Field(None, description="Work experience (text or structured)")
     educacion: Optional[str] = Field(None, description="Education (text or structured)")

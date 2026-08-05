@@ -17,6 +17,7 @@ import pytest
 from typer.testing import CliRunner
 
 from _lib import db
+from _lib.errors import CV_PilotError
 from _lib.models import AnalysisInsert, JobInsert
 
 # Import the cli module (it lives in a scripts dir without a parent
@@ -132,6 +133,13 @@ class TestLoadProfile:
         assert profile["email"] == "julio@example.com"
         assert profile["cv_url"] == "https://drive.google.com/cv"
 
+    def test_parses_cv_path_when_present(self, tmp_path, monkeypatch):
+        """When perfil.json contains cv_path, _load_profile exposes profile['cv_path']."""
+        perfil = dict(PERFIL_JSON, cv_path="data/cv.pdf")
+        root = _write_data(tmp_path, perfil=perfil)
+        profile = _load_profile(root)
+        assert profile["cv_path"] == "data/cv.pdf"
+
     def test_missing_file_raises_file_not_found(self, tmp_path, monkeypatch):
         root = tmp_path / "no-data-root"
         root.mkdir()
@@ -202,7 +210,7 @@ class TestDetectProvider:
         ) == "outlook"
 
     def test_none_raises_no_provider(self):
-        with pytest.raises(Exception) as exc:
+        with pytest.raises(CV_PilotError) as exc:
             _detect_provider({"gmail_drafts": False, "outlook_drafts": False}, None)
         assert "NO_PROVIDER" in exc.value.code
 

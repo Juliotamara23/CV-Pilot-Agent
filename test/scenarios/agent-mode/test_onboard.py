@@ -22,6 +22,8 @@ sys.path.insert(0, str(_SCRIPTS_DIR))
 
 import importlib.util as _ilu
 _spec = _ilu.spec_from_file_location("onboard_cli", str(_SCRIPTS_DIR / "cli.py"))
+if _spec is None or _spec.loader is None:
+    raise ImportError(f"Could not load onboarding CLI from {_SCRIPTS_DIR / 'cli.py'}")
 onboard = _ilu.module_from_spec(_spec)
 sys.modules["onboard_cli"] = onboard
 _spec.loader.exec_module(onboard)
@@ -273,6 +275,24 @@ def test_cli_generate_invalid_fields_file(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
+# CLI: generate — cv_path tests
+# --------------------------------------------------------------------------- #
+def test_cli_generate_includes_cv_path_from_fields_file(tmp_path):
+    """generate with fields file containing cv_path must persist it in perfil.json."""
+    fields = {**FIELDS, "cv_path": "data/cv.pdf"}
+    fields_path = tmp_path / "fields.json"
+    fields_path.write_text(json.dumps(fields), encoding="utf-8")
+    out_dir = tmp_path / "out"
+    result = runner.invoke(
+        onboard.app,
+        ["generate", "--fields-file", str(fields_path), "--out-dir", str(out_dir)],
+    )
+    assert result.exit_code == 0
+    perfil = json.loads((out_dir / "perfil.json").read_text(encoding="utf-8"))
+    assert perfil.get("cv_path") == "data/cv.pdf"
+
+
+# --------------------------------------------------------------------------- #
 # CLI: extract
 # --------------------------------------------------------------------------- #
 def test_cli_extract_missing_pdf(tmp_path):
@@ -313,6 +333,11 @@ def test_cli_full_end_to_end(tmp_path):
     assert data["step"] == "full"
     assert data["parse"]["fields"]["correo"] == "ana@correo.com"
     assert (out_dir / "perfil.json").is_file()
+    # Verify cv.pdf was copied and cv_path recorded
+    assert (out_dir / "cv.pdf").is_file(), "cv.pdf was not copied to out_dir"
+    perfil = json.loads((out_dir / "perfil.json").read_text(encoding="utf-8"))
+    assert perfil.get("cv_path") is not None, "cv_path not recorded in perfil.json"
+    assert "cv.pdf" in perfil["cv_path"], f"cv_path should reference cv.pdf, got: {perfil['cv_path']}"
 
 
 def test_cli_full_missing_pdf(tmp_path):

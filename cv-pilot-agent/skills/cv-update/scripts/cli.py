@@ -23,6 +23,7 @@ Reuses:
 from __future__ import annotations
 
 import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -127,7 +128,7 @@ def apply(
         Path("data"), "--data-dir", help="Directory containing perfil.json (default: data/)."
     ),
     source_pdf: str = typer.Option(
-        "", "--source-pdf", help="Original PDF path for the 'fuente' field in perfil.json."
+        "", "--source-pdf", help="Original PDF path for the 'fuente' field in perfil.json. Also persists the PDF to data_dir/cv.pdf."
     ),
 ) -> None:
     """Apply LLM-extracted fields to reconstruct perfil.json.
@@ -164,6 +165,13 @@ def apply(
             raise typer.Exit(code=1)
 
     source = source_pdf or new_fields.get("fuente", str(fields_file))
+
+    # Persist the real CV PDF to data_dir/cv.pdf and record cv_path
+    if source_pdf and Path(source_pdf).exists():
+        data_dir.mkdir(parents=True, exist_ok=True)
+        cv_dest = data_dir / "cv.pdf"
+        shutil.copy2(source_pdf, cv_dest)
+        new_fields["cv_path"] = str(cv_dest)
 
     # Step 2: Reconstruct perfil.json from scratch
     result = reconstruct_profile(new_fields, source_pdf=source)
