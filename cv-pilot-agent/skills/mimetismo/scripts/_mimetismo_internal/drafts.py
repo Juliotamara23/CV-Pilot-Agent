@@ -8,18 +8,19 @@ Provider implementations:
 
 from __future__ import annotations
 
+import base64
 import json
 import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Optional
 
 from _lib.errors import CV_PilotError
 from _mimetismo_internal.links import format_links, signature_footer
 
 # Type alias for provider callable
-ProviderCallable = Callable[[str, str, str], str]
+ProviderCallable = Callable[[str, str, str, Optional[str]], str]
 
 # Global registry - providers are auto-registered when imported
 _registry: dict[str, ProviderCallable] = {}
@@ -48,13 +49,13 @@ def list_providers() -> list[str]:
     return list(_registry.keys())
 
 
-def _wrap_draft(body: str, profile: dict) -> str:
+def _wrap_draft(body: str, profile: dict, attach_cv: bool = False) -> str:
     """Apply formatting links and signature footer to a draft body."""
-    return format_links(body, profile) + signature_footer(profile)
+    return format_links(body, profile, attach_cv=attach_cv) + signature_footer(profile)
 
 
 @register_provider("gmail")
-def create_draft_gmail(to: str, subject: str, body_html: str) -> str:
+def create_draft_gmail(to: str, subject: str, body_html: str, attachment: Optional[str] = None) -> str:
     """Create a Gmail draft via ``gws`` CLI. Returns the draft id string.
 
     On Windows, ``gws`` is distributed as a wrapper script via npm
@@ -63,6 +64,9 @@ def create_draft_gmail(to: str, subject: str, body_html: str) -> str:
     Windows, and cannot execute ``.ps1`` at all — both cases must be wrapped
     in the appropriate shell. On Linux/macOS, ``gws`` is a native binary
     invoked directly.
+
+    If ``attachment`` is provided, the ``-a`` flag is passed to gws before
+    ``--draft`` to attach the file.
     """
     gws_path = shutil.which("gws")
     if gws_path is None:
@@ -80,7 +84,7 @@ def create_draft_gmail(to: str, subject: str, body_html: str) -> str:
             )
         cmd = [shell, "-NoProfile", "-File", gws_path,
                "gmail", "+send", "--to", to, "--subject", subject,
-               "--body", body_html, "--html", "--draft"]
+               "--body", body_html, "--html"]
     elif suffix in (".cmd", ".bat"):
         # Windows shell wrappers from npm: invoke via cmd.exe to ensure
         # PATHEXT resolution and proper argument quoting.
@@ -92,11 +96,14 @@ def create_draft_gmail(to: str, subject: str, body_html: str) -> str:
             )
         cmd = [cmd_path, "/c", gws_path,
                "gmail", "+send", "--to", to, "--subject", subject,
-               "--body", body_html, "--html", "--draft"]
+               "--body", body_html, "--html"]
     else:
         # Native binary on Linux/macOS, or .exe on Windows.
         cmd = [gws_path, "gmail", "+send", "--to", to, "--subject", subject,
-               "--body", body_html, "--html", "--draft"]
+               "--body", body_html, "--html"]
+    if attachment:
+        cmd.extend(["-a", attachment])
+    cmd.append("--draft")
     proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
     if proc.returncode != 0:
         raise CV_PilotError(
@@ -120,8 +127,12 @@ def create_draft_gmail(to: str, subject: str, body_html: str) -> str:
 
 
 @register_provider("outlook")
-def create_draft_outlook(to: str, subject: str, body_html: str) -> str:
-    """Create an Outlook draft via ``m365`` CLI + PowerShell. Returns the message id."""
+def create_draft_outlook(to: str, subject: str, body_html: str, attachment: Optional[str] = None) -> str:
+    """Create an Outlook draft via ``m365`` CLI + PowerShell. Returns the message id.
+
+    If ``attachment`` is provided, after creating the draft the attachment is
+    uploaded via a Graph API POST to the draft's attachments endpoint.
+    """
     if shutil.which("m365") is None:
         raise CV_PilotError(
             "m365 CLI not found. Install and login to m365 (see docs/outlook-setup.md).",
@@ -152,6 +163,19 @@ def create_draft_outlook(to: str, subject: str, body_html: str) -> str:
         "-Headers @{Authorization = \"Bearer $token\"} -Body $body;"
         "Write-Output $resp.id"
     )
+    if attachment:
+        att_path = Path(attachment)
+        filename = att_path.name
+        with open(attachment, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode("ascii")
+        script += (
+            f"$attBody = @{{ '@odata.type' = '#microsoft.graph.fileAttachment'; "
+            f"name = '{filename}'; contentBytes = '{b64}' }} | ConvertTo-Json -Depth 3;"
+            f"Invoke-RestMethod -Uri (\"https://graph.microsoft.com/v1.0/me/messages/\" + "
+            f"$resp.id + \"/attachments\") -Method Post "
+            f"-ContentType 'application/json; charset=utf-8' "
+            f"-Headers @{{Authorization = \"Bearer $token\"}} -Body $attBody | Out-Null;"
+        )
     try:
         proc = subprocess.run(
             [shell, "-NoProfile", "-Command", script],

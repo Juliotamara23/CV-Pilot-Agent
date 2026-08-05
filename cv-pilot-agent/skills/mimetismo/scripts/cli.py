@@ -118,6 +118,17 @@ def _read_body_file(body_file: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def _resolve_cv_path(profile: dict) -> Optional[Path]:
+    """Resolve the CV path from profile['cv_path'] relative to _AGENT_ROOT."""
+    cv_path = profile.get("cv_path")
+    if not cv_path:
+        return None
+    p = Path(cv_path)
+    if not p.is_absolute():
+        p = _AGENT_ROOT / p
+    return p if p.is_file() else None
+
+
 def _cleanup() -> None:
     cleanup = _AGENT_ROOT / "scripts" / "cleanup.py"
     if not cleanup.is_file():
@@ -155,18 +166,21 @@ def email_cmd(
         prefs = _load_preferences()
         prov = detect_provider(prefs, provider)
         profile = load_profile(_AGENT_ROOT)
-        html = _wrap_draft(body, profile)
+        cv_path = _resolve_cv_path(profile)
+        attachment = str(cv_path) if cv_path else None
+        attach_cv = attachment is not None
+        html = _wrap_draft(body, profile, attach_cv=attach_cv)
         subj = subject or default_subject("Postulación", job_row)
         if dry_run:
             _emit({"ok": True, "mode": "email", "dry_run": True, "provider": prov,
-                   "to": to, "subject": subj, "html": html, "job_hash": job})
+                   "to": to, "subject": subj, "html": html, "job_hash": job, "attached": False})
             return
         # Use the provider registry to get the correct drafter function
         drafter = get_provider(prov)
-        draft_id = drafter(to, subj, html)
+        draft_id = drafter(to, subj, html, attachment)
         db.update_status(job, "applied")
         _emit({"ok": True, "mode": "email", "provider": prov, "draft_id": draft_id,
-               "to": to, "subject": subj, "job_hash": job})
+               "to": to, "subject": subj, "job_hash": job, "attached": attach_cv})
 
     _run_with_cleanup(action)
 
@@ -206,23 +220,26 @@ def cover_letter_cmd(
         prefs = _load_preferences()
         # Cover letter is the portal fallback — no PORTAL_POSTULATION block.
         prov = detect_provider_optional(prefs, provider)
-        wrapped = format_links(body, profile) + signature_footer(profile)
+        cv_path = _resolve_cv_path(profile)
+        attachment = str(cv_path) if cv_path else None
+        attach_cv = attachment is not None
+        wrapped = _wrap_draft(body, profile, attach_cv=attach_cv)
         subj = subject or default_subject("Carta de presentación", job_row)
         if dry_run:
             _emit({"ok": True, "mode": "cover-letter", "dry_run": True,
-                   "provider": prov, "html": wrapped, "job_hash": job})
+                   "provider": prov, "html": wrapped, "job_hash": job, "attached": False})
             return
         if prov is not None and to:
             # Use the provider registry to get the correct drafter function
             drafter = get_provider(prov)
-            draft_id = drafter(to, subj, wrapped)
+            draft_id = drafter(to, subj, wrapped, attachment)
             db.update_status(job, "applied")
             _emit({"ok": True, "mode": "cover-letter", "provider": prov,
-                   "draft_id": draft_id, "to": to, "subject": subj, "job_hash": job})
+                   "draft_id": draft_id, "to": to, "subject": subj, "job_hash": job, "attached": attach_cv})
         else:
             _emit({"ok": True, "mode": "cover-letter", "provider": None,
                    "text_preview": wrapped.strip()[:100], "text": wrapped,
-                   "job_hash": job})
+                   "job_hash": job, "attached": False})
 
     _run_with_cleanup(action)
 
@@ -261,6 +278,23 @@ def mimetismo_cmd() -> None:
             "examples": content
         })
 
+    _run_with_cleanup(action)
+
+
+@app.command("cv")
+def cv_cmd() -> None:
+    """Return persisted CV PDF info (read-only)."""
+    def action() -> None:
+        try:
+            profile = load_profile(_AGENT_ROOT)
+        except FileNotFoundError:
+            _emit({"ok": True, "mode": "cv", "exists": False, "path": None, "filename": None})
+            return
+        cv_path = _resolve_cv_path(profile)
+        if cv_path:
+            _emit({"ok": True, "mode": "cv", "exists": True, "path": str(cv_path), "filename": cv_path.name})
+        else:
+            _emit({"ok": True, "mode": "cv", "exists": False, "path": None, "filename": None})
     _run_with_cleanup(action)
 
 

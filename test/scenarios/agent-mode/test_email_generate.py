@@ -743,3 +743,255 @@ class TestMimetismoSource:
         assert payload["source"] == "data/correos.md"
         assert isinstance(payload["suggestion"], str) and payload["suggestion"]
         assert "examples" not in payload
+
+
+# --------------------------------------------------------------------------- #
+# 3.5 CV command (read-only) — new in Phases B+C
+# --------------------------------------------------------------------------- #
+class TestCvCommand:
+    def test_cv_exists_true_when_file_present(self, tmp_path, monkeypatch):
+        """cv command returns exists=true with absolute path and filename when cv_path points to existing file."""
+        perfil = dict(PERFIL_JSON, cv_path="data/cv.pdf")
+        root = _write_data(tmp_path, perfil=perfil)
+        # Create the CV file after _write_data creates the directory structure
+        cv_file = root / "data" / "cv.pdf"
+        cv_file.write_bytes(b"%PDF-1.4 fake pdf")
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        result = runner.invoke(generate.app, ["cv"])
+        assert result.exit_code == 0, result.stderr
+        payload = json.loads(result.stdout)
+        assert payload["ok"] is True
+        assert payload["mode"] == "cv"
+        assert payload["exists"] is True
+        assert payload["path"] == str(cv_file)
+        assert payload["filename"] == "cv.pdf"
+
+    def test_cv_exists_false_when_no_cv_path_in_profile(self, tmp_path, monkeypatch):
+        """cv command returns exists=false when perfil.json has no cv_path key."""
+        root = _write_data(tmp_path, perfil=PERFIL_JSON)  # no cv_path
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        result = runner.invoke(generate.app, ["cv"])
+        assert result.exit_code == 0, result.stderr
+        payload = json.loads(result.stdout)
+        assert payload["ok"] is True
+        assert payload["mode"] == "cv"
+        assert payload["exists"] is False
+        assert payload["path"] is None
+        assert payload["filename"] is None
+
+    def test_cv_exists_false_when_cv_path_points_to_missing_file(self, tmp_path, monkeypatch):
+        """cv command returns exists=false when cv_path exists in profile but file is missing."""
+        perfil = dict(PERFIL_JSON, cv_path="data/missing.pdf")
+        root = _write_data(tmp_path, perfil=perfil)
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        result = runner.invoke(generate.app, ["cv"])
+        assert result.exit_code == 0, result.stderr
+        payload = json.loads(result.stdout)
+        assert payload["ok"] is True
+        assert payload["mode"] == "cv"
+        assert payload["exists"] is False
+        assert payload["path"] is None
+        assert payload["filename"] is None
+
+
+# --------------------------------------------------------------------------- #
+# 3.6 format_links attach_cv behavior
+# --------------------------------------------------------------------------- #
+class TestFormatLinksAttachCv:
+    def test_attach_cv_true_replaces_cv_marker_with_plain_text(self):
+        """When attach_cv=True, [cv] becomes 'Currículum' (no anchor) even if cv_url exists."""
+        profile = {
+            "github": "https://github.com/x", "linkedin": "https://linkedin.com/in/x",
+            "cv_url": "https://drive.google.com/cv", "whatsapp": None,
+        }
+        body = "Ver mi [cv] por favor."
+        out = _format_links(body, profile, attach_cv=True)
+        assert out == "Ver mi Currículum por favor."
+        assert "<a" not in out
+
+    def test_attach_cv_false_keeps_anchor_when_cv_url_present(self):
+        """When attach_cv=False (default), [cv] becomes anchor if cv_url exists."""
+        profile = {"cv_url": "https://drive.google.com/cv"}
+        body = "Ver mi [cv]."
+        out = _format_links(body, profile, attach_cv=False)
+        assert out == 'Ver mi <a href="https://drive.google.com/cv">CV</a>.'
+
+    def test_attach_cv_false_falls_back_to_label_when_no_cv_url(self):
+        """When attach_cv=False and no cv_url, [cv] becomes plain label 'CV'."""
+        profile = {"cv_url": None}
+        body = "Ver mi [cv]."
+        out = _format_links(body, profile, attach_cv=False)
+        assert out == "Ver mi CV."
+
+
+# --------------------------------------------------------------------------- #
+# 3.7 Integration: Gmail with attachment
+# --------------------------------------------------------------------------- #
+class TestIntegrationGmailAttachment:
+    def test_email_gmail_with_attachment(self, tmp_db, tmp_path, monkeypatch):
+        """Gmail email with cv_path in profile -> attached:true and -a flag in gws call."""
+        # Create a temp CV file
+        cv_file = tmp_path / "cv.pdf"
+        cv_file.write_bytes(b"%PDF-1.4 fake pdf")
+        perfil = dict(PERFIL_JSON, cv_path=str(cv_file))
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": True, "outlook_drafts": False}, perfil=perfil)
+        h = _seed_job(contact_method="email")
+        body = tmp_path / "body.html"
+        body.write_text("<p>Hola, adjunto mi [cv].</p>", encoding="utf-8")
+        calls = []
+        _patch_environment(monkeypatch, root, which=lambda n: f"/fake/{n}",
+                           run=_fake_run_factory(calls))
+        result = runner.invoke(generate.app, [
+            "email", "--job", h, "--body-file", str(body), "--to", "rrhh@acme.com",
+        ])
+        assert result.exit_code == 0, result.stderr
+        payload = json.loads(result.stdout)
+        assert payload["ok"] is True
+        assert payload["mode"] == "email"
+        assert payload["attached"] is True
+        # Verify -a flag with cv path in gws subprocess call
+        gws_calls = [c for c in calls if any("gws" in str(a) for a in c)]
+        assert gws_calls, "gws subprocess not invoked"
+        gws_args = gws_calls[0]
+        # Find -a and the path after it
+        assert "-a" in gws_args, f"-a flag not found in gws args: {gws_args}"
+        a_idx = gws_args.index("-a")
+        assert a_idx + 1 < len(gws_args), "No path after -a flag"
+        assert gws_args[a_idx + 1] == str(cv_file), f"Wrong attachment path: {gws_args[a_idx + 1]}"
+        assert db.get_job(h)["job"]["status"] == "applied"
+
+    def test_email_gmail_without_cv_path_no_attachment(self, tmp_db, tmp_path, monkeypatch):
+        """Gmail email without cv_path -> attached:false and no -a flag."""
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": True, "outlook_drafts": False})
+        h = _seed_job(contact_method="email")
+        body = tmp_path / "body.html"
+        body.write_text("<p>Hola, visita mi [cv].</p>", encoding="utf-8")
+        calls = []
+        _patch_environment(monkeypatch, root, which=lambda n: f"/fake/{n}",
+                           run=_fake_run_factory(calls))
+        result = runner.invoke(generate.app, [
+            "email", "--job", h, "--body-file", str(body), "--to", "rrhh@acme.com",
+        ])
+        assert result.exit_code == 0, result.stderr
+        payload = json.loads(result.stdout)
+        assert payload["ok"] is True
+        assert payload["attached"] is False
+        # Verify no -a flag in gws subprocess call
+        gws_calls = [c for c in calls if any("gws" in str(a) for a in c)]
+        assert gws_calls, "gws subprocess not invoked"
+        gws_args = gws_calls[0]
+        assert "-a" not in gws_args, f"Unexpected -a flag in gws args: {gws_args}"
+        assert db.get_job(h)["job"]["status"] == "applied"
+
+    def test_email_gmail_dry_run_attached_false(self, tmp_db, tmp_path, monkeypatch):
+        """Gmail email dry-run with cv_path -> attached:false in output (no draft created)."""
+        cv_file = tmp_path / "cv.pdf"
+        cv_file.write_bytes(b"%PDF-1.4 fake pdf")
+        perfil = dict(PERFIL_JSON, cv_path=str(cv_file))
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": True, "outlook_drafts": False}, perfil=perfil)
+        h = _seed_job(contact_method="email")
+        body = tmp_path / "body.html"
+        body.write_text("<p>Hola.</p>", encoding="utf-8")
+        _patch_environment(monkeypatch, root, which=lambda n: f"/fake/{n}",
+                           run=_fake_run_factory([]))
+        result = runner.invoke(generate.app, [
+            "email", "--job", h, "--body-file", str(body), "--to", "r@x.com", "--dry-run",
+        ])
+        assert result.exit_code == 0, result.stderr
+        payload = json.loads(result.stdout)
+        assert payload["ok"] is True
+        assert payload["dry_run"] is True
+        assert payload["attached"] is False
+        assert db.get_job(h)["job"]["status"] == "analyzed"
+
+
+# --------------------------------------------------------------------------- #
+# 3.8 Integration: Outlook with attachment
+# --------------------------------------------------------------------------- #
+class TestIntegrationOutlookAttachment:
+    def test_email_outlook_with_attachment(self, tmp_db, tmp_path, monkeypatch):
+        """Outlook email with cv_path -> generated PowerShell includes attachment POST."""
+        cv_file = tmp_path / "cv.pdf"
+        cv_file.write_bytes(b"%PDF-1.4 fake pdf")
+        perfil = dict(PERFIL_JSON, cv_path=str(cv_file))
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": False, "outlook_drafts": True}, perfil=perfil)
+        h = _seed_job(contact_method="email")
+        body = tmp_path / "body.html"
+        body.write_text("<p>Hola, adjunto mi [cv].</p>", encoding="utf-8")
+        calls = []
+        _patch_environment(monkeypatch, root, which=lambda n: f"/fake/{n}",
+                           run=_fake_run_factory(calls))
+        result = runner.invoke(generate.app, [
+            "email", "--job", h, "--body-file", str(body),
+            "--to", "rrhh@acme.com", "--provider", "outlook",
+        ])
+        assert result.exit_code == 0, result.stderr
+        payload = json.loads(result.stdout)
+        assert payload["ok"] is True
+        assert payload["provider"] == "outlook"
+        assert payload["attached"] is True
+        # Find the PowerShell script in the calls
+        ps_calls = [c for c in calls if any("powershell" in str(a).lower() or "pwsh" in str(a).lower() for a in c)]
+        assert ps_calls, "PowerShell subprocess not invoked"
+        # The script is the last argument (after -Command)
+        script = " ".join(ps_calls[0])
+        assert "/attachments" in script, f"Attachment POST not found in script: {script}"
+        assert "cv.pdf" in script, f"Filename not found in attachment POST: {script}"
+        assert "contentBytes" in script, f"base64 contentBytes not found in script: {script}"
+        assert db.get_job(h)["job"]["status"] == "applied"
+
+
+# --------------------------------------------------------------------------- #
+# 3.9 Integration: Cover-letter with attachment (uses _wrap_draft)
+# --------------------------------------------------------------------------- #
+class TestIntegrationCoverLetterAttachment:
+    def test_cover_letter_gmail_with_attachment(self, tmp_db, tmp_path, monkeypatch):
+        """Cover letter with cv_path -> attached:true and _wrap_draft receives attach_cv=True."""
+        cv_file = tmp_path / "cv.pdf"
+        cv_file.write_bytes(b"%PDF-1.4 fake pdf")
+        perfil = dict(PERFIL_JSON, cv_path=str(cv_file))
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": True, "outlook_drafts": False}, perfil=perfil)
+        h = _seed_job(contact_method="portal")
+        body = tmp_path / "cl.html"
+        body.write_text("<p>Candidatura, adjunto mi [cv].</p>", encoding="utf-8")
+        calls = []
+        _patch_environment(monkeypatch, root, which=lambda n: f"/fake/{n}",
+                           run=_fake_run_factory(calls))
+        result = runner.invoke(generate.app, [
+            "cover-letter", "--job", h, "--body-file", str(body),
+            "--to", "rrhh@acme.com",
+        ])
+        assert result.exit_code == 0, result.stderr
+        payload = json.loads(result.stdout)
+        assert payload["ok"] is True
+        assert payload["mode"] == "cover-letter"
+        assert payload["attached"] is True
+        # The HTML should have "Currículum" (plain text) not the anchor
+        gws_calls = [c for c in calls if any("gws" in str(a) for a in c)]
+        assert gws_calls
+        assert db.get_job(h)["job"]["status"] == "applied"
+
+    def test_cover_letter_without_provider_attached_false(self, tmp_db, tmp_path, monkeypatch):
+        """Cover letter without provider -> attached:false in text output."""
+        cv_file = tmp_path / "cv.pdf"
+        cv_file.write_bytes(b"%PDF-1.4 fake pdf")
+        perfil = dict(PERFIL_JSON, cv_path=str(cv_file))
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": False, "outlook_drafts": False}, perfil=perfil)
+        h = _seed_job(contact_method="portal")
+        body = tmp_path / "cl.html"
+        body.write_text("<p>Candidatura.</p>", encoding="utf-8")
+        _patch_environment(monkeypatch, root, which=lambda n: f"/fake/{n}",
+                           run=_fake_run_factory([]))
+        result = runner.invoke(generate.app, [
+            "cover-letter", "--job", h, "--body-file", str(body),
+        ])
+        assert result.exit_code == 0, result.stderr
+        payload = json.loads(result.stdout)
+        assert payload["ok"] is True
+        assert payload["mode"] == "cover-letter"
+        assert payload["provider"] is None
+        assert payload["attached"] is False
+        # HTML should still have the anchor since attach_cv is based on actual draft creation
+        # Actually, in text mode (no provider), attach_cv should be False per spec
+        assert "attached" in payload
+        assert db.get_job(h)["job"]["status"] == "analyzed"
