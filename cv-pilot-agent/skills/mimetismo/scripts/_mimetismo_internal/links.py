@@ -3,9 +3,10 @@
 Replaces ``[github]``, ``[linkedin]``, ``[cv]``, ``[whatsapp]`` markers in
 the body with ``<a>`` tags and builds the HTML signature footer.
 
-When ``attach_cv=True`` the ``[cv]`` marker resolves to plain text
-``Currículum`` (no anchor) regardless of ``cv_url``. The signature footer
-is unaffected — it still shows a CV link when ``cv_url`` exists.
+When ``attach_cv=True`` (the real CV file is attached to the draft) the
+``[cv]`` marker resolves to plain text ``Currículum`` and the signature
+footer omits the CV link — there is no point linking the Drive copy when
+the PDF is already attached.
 """
 
 from __future__ import annotations
@@ -54,11 +55,16 @@ def format_links(body: str, profile: dict, attach_cv: bool = False) -> str:
     return body
 
 
-def signature_footer(profile: dict) -> str:
-    """Build the HTML signature block with name and available profile links."""
+def signature_footer(profile: dict, attach_cv: bool = False) -> str:
+    """Build the HTML signature block with name and available profile links.
+
+    When ``attach_cv=True`` the CV link is omitted (the real PDF is already
+    attached to the draft, so linking the Drive copy adds no value).
+    """
+    link_keys = ("github", "linkedin") if attach_cv else ("github", "linkedin", "cv_url")
     links = [
         f'<a href="{profile[key]}">{_LABEL_TEXT[key]}</a>'
-        for key in ("github", "linkedin", "cv_url") if profile.get(key)
+        for key in link_keys if profile.get(key)
     ]
     if profile.get("whatsapp"):
         links.append(_whatsapp_tag(profile["whatsapp"]))
