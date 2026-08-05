@@ -138,6 +138,12 @@ class TestLoadProfile:
         with pytest.raises(FileNotFoundError):
             _load_profile(root)
 
+    def test_all_caps_name_normalized_to_title_case(self, tmp_path, monkeypatch):
+        perfil = dict(PERFIL_JSON, nombre="JULIO ANDRÉS TÁMARA HERNÁNDEZ")
+        root = _write_data(tmp_path, perfil=perfil)
+        profile = _load_profile(root)
+        assert profile["name"] == "Julio Andrés Támara Hernández"
+
 
 class TestLoadPreferences:
     def test_true_loaded_from_json(self, tmp_path, monkeypatch):

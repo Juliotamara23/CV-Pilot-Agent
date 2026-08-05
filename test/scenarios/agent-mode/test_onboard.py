@@ -226,6 +226,21 @@ def test_cli_generate_writes_three_files(tmp_path):
     assert perfil["correo"] == "ana@correo.com"
 
 
+def test_cli_generate_normalizes_nombre_to_title_case(tmp_path):
+    fields_path = tmp_path / "fields.json"
+    fields_path.write_text(
+        json.dumps({**FIELDS, "nombre": "ANA LOPEZ PÉREZ"}), encoding="utf-8"
+    )
+    out_dir = tmp_path / "out"
+    result = runner.invoke(
+        onboard.app,
+        ["generate", "--fields-file", str(fields_path), "--out-dir", str(out_dir)],
+    )
+    assert result.exit_code == 0
+    perfil = json.loads((out_dir / "perfil.json").read_text(encoding="utf-8"))
+    assert perfil["nombre"] == "Ana Lopez Pérez"
+
+
 def test_cli_generate_creates_backup_on_rerun(tmp_path):
     fields_path = _write_fields(tmp_path)
     out_dir = tmp_path / "out"

@@ -34,7 +34,14 @@ def _build_perfil_json(fields: dict) -> dict:
     ]
     for key in canonical:
         val = fields.get(key, "")
-        schema_fields[key] = val.strip() if isinstance(val, str) and val.strip() else None
+        if isinstance(val, str) and val.strip():
+            value = val.strip()
+            # Presentación canónica del nombre: cada inicial en mayúscula.
+            if key == "nombre":
+                value = value.title()
+            schema_fields[key] = value
+        else:
+            schema_fields[key] = None
 
     # Non-canonical fields -> extras
     extras = {}

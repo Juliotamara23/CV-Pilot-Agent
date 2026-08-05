@@ -30,11 +30,14 @@ def _load_from_json(agent_root: Path) -> dict:
     """
     path = agent_root / "data" / "perfil.json"
     data = json.loads(path.read_text(encoding="utf-8"))
-    profile = {key: None for key in _JSON_TO_PROFILE.values()}
+    profile: dict[str, str | None] = {key: None for key in _JSON_TO_PROFILE.values()}
     for json_key, profile_key in _JSON_TO_PROFILE.items():
         val = data.get(json_key)
         if val and isinstance(val, str) and val.strip():
-            profile[profile_key] = val.strip()
+            value = val.strip()
+            if profile_key == "name":
+                value = value.title()
+            profile[profile_key] = value
     return profile
 
 
