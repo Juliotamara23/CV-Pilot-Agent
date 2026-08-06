@@ -282,7 +282,7 @@ class TestVSI:
         # rejected: the bare word is a false positive (regression for the real
         # CV of the user, which builds a quotation web app).
         cv = (
-            "Julio Támara\n"
+            "Ana Lopez\n"
             "Ingeniero de Sistemas\n"
             "## Experiencia\n"
             "Desarrollador Fullstack\n"
@@ -690,8 +690,8 @@ class TestReconstructor:
 
         assert perfil["nombre"] == "Snapshot User"
         all_values = json.dumps(perfil)
-        assert "Julio" not in all_values
-        assert "Támara" not in all_values
+        assert "Ana" not in all_values
+        assert "Lopez" not in all_values
 
     def test_reconstructor_accepts_list_extras(self):
         """Non-canonical fields with list/array values must appear in extras."""

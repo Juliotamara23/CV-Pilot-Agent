@@ -45,7 +45,7 @@ runner = CliRunner()
 # Fixtures
 # --------------------------------------------------------------------------- #
 PERFIL_JSON = {
-    "nombre": "Julio Andrés Támara Hernández",
+    "nombre": "Ana Lopez",
     "linkedin": "https://linkedin.com/in/example",
     "github": "https://github.com/example",
     "cv_url": "https://drive.google.com/cv",
@@ -247,7 +247,7 @@ class TestBuildProfile:
     def test_parses_name_and_links(self, tmp_path, monkeypatch):
         root = _write_perfil(tmp_path)
         p = _load_profile(root)
-        assert p["name"] == "Julio Andrés Támara Hernández"
+        assert p["name"] == "Ana Lopez"
         assert p["linkedin"] == "https://linkedin.com/in/example"
         assert p["github"] == "https://github.com/example"
         assert p["cv_url"] == "https://drive.google.com/cv"

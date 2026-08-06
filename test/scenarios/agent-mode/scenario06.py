@@ -276,7 +276,7 @@ def load_user_data() -> dict:
 
     Reads:
       - identidad.md → name, linkedin, github
-      - JulioTamara-CV.md → title, HABILIDADES TÉCNICAS section
+      - Ana-CV.md → title, HABILIDADES TÉCNICAS section
 
     Returns a dict with keys: identity, stack, primary_categories,
     all_aliases, category_labels, total_items.
@@ -285,8 +285,8 @@ def load_user_data() -> dict:
     identity_path = CV_TEST_DIR / "identidad.md"
     raw_identity = _parse_identity(identity_path)
 
-    # ── CV data from JulioTamara-CV.md ────────────────────────────────
-    cv_path = CV_TEST_DIR / "JulioTamara-CV.md"
+    # ── CV data from Ana-CV.md ────────────────────────────────
+    cv_path = CV_TEST_DIR / "Ana-CV.md"
     cv_text = cv_path.read_text(encoding="utf-8")
 
     # Extract professional title from the profile line

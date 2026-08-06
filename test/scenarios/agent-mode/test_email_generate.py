@@ -39,12 +39,12 @@ runner = CliRunner()
 # Fixtures
 # --------------------------------------------------------------------------- #
 PERFIL_JSON = {
-    "nombre": "Julio Andrés Támara Hernández",
+    "nombre": "Ana Lopez",
     "resumen": "Dev.",
     "linkedin": "https://linkedin.com/in/example",
     "github": "https://github.com/example",
     "telefono": "+57 320 5551234",
-    "correo": "julio@example.com",
+    "correo": "ana@example.com",
     "cv_url": "https://drive.google.com/cv",
 }
 
@@ -126,11 +126,11 @@ class TestLoadProfile:
     def test_parses_contact_fields(self, tmp_path, monkeypatch):
         root = _write_data(tmp_path)
         profile = _load_profile(root)
-        assert profile["name"] == "Julio Andrés Támara Hernández"
+        assert profile["name"] == "Ana Lopez"
         assert profile["linkedin"] == "https://linkedin.com/in/example"
         assert profile["github"] == "https://github.com/example"
         assert profile["whatsapp"] == "+57 320 5551234"
-        assert profile["email"] == "julio@example.com"
+        assert profile["email"] == "ana@example.com"
         assert profile["cv_url"] == "https://drive.google.com/cv"
 
     def test_parses_cv_path_when_present(self, tmp_path, monkeypatch):
@@ -147,10 +147,10 @@ class TestLoadProfile:
             _load_profile(root)
 
     def test_all_caps_name_normalized_to_title_case(self, tmp_path, monkeypatch):
-        perfil = dict(PERFIL_JSON, nombre="JULIO ANDRÉS TÁMARA HERNÁNDEZ")
+        perfil = dict(PERFIL_JSON, nombre="ANA LOPEZ")
         root = _write_data(tmp_path, perfil=perfil)
         profile = _load_profile(root)
-        assert profile["name"] == "Julio Andrés Támara Hernández"
+        assert profile["name"] == "Ana Lopez"
 
 
 class TestLoadPreferences:
@@ -254,11 +254,11 @@ class TestFormatLinks:
 class TestSignatureFooter:
     def test_includes_name_and_available_links(self):
         profile = {
-            "name": "Julio", "github": "https://g", "linkedin": "https://l",
+            "name": "Ana", "github": "https://g", "linkedin": "https://l",
             "cv_url": "https://cv", "whatsapp": None,
         }
         footer = _signature_footer(profile)
-        assert "Julio" in footer
+        assert "Ana" in footer
         assert '<a href="https://g">GitHub</a>' in footer
         assert '<a href="https://l">LinkedIn</a>' in footer
         assert '<a href="https://cv">CV</a>' in footer
@@ -266,17 +266,17 @@ class TestSignatureFooter:
 
     def test_footer_includes_whatsapp_number_when_present(self):
         profile = {
-            "name": "Julio", "github": "https://g", "linkedin": "https://l",
-            "cv_url": "https://cv", "whatsapp": "+57 320 7581183",
+            "name": "Ana", "github": "https://g", "linkedin": "https://l",
+            "cv_url": "https://cv", "whatsapp": "+57 300 1112233",
         }
         footer = _signature_footer(profile)
-        assert "Julio" in footer
-        assert '<a href="https://wa.me/573207581183">+57 320 7581183</a>' in footer
+        assert "Ana" in footer
+        assert '<a href="https://wa.me/573001112233">+57 300 1112233</a>' in footer
         assert "|" in footer
 
     def test_footer_omits_cv_link_when_attached(self):
         profile = {
-            "name": "Julio", "github": "https://g", "linkedin": "https://l",
+            "name": "Ana", "github": "https://g", "linkedin": "https://l",
             "cv_url": "https://drive.google.com/cv", "whatsapp": None,
         }
         footer_attached = _signature_footer(profile, attach_cv=True)
@@ -746,7 +746,7 @@ class TestIntegration:
 # --------------------------------------------------------------------------- #
 class TestMimetismoSource:
     def test_returns_examples_when_correos_exists(self, tmp_path, monkeypatch):
-        content = "Buenos días,\n\nMe postulo a la vacante...\n\nQuedo atento.\nSaludos cordiales,\nJulio"
+        content = "Buenos días,\n\nMe postulo a la vacante...\n\nQuedo atento.\nSaludos cordiales,\nAna"
         root = _write_data(tmp_path, correos=content)
         monkeypatch.setattr(generate, "_AGENT_ROOT", root)
         result = runner.invoke(generate.app, ["mimetismo"])
