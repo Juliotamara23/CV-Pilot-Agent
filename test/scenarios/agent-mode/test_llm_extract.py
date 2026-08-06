@@ -32,6 +32,8 @@ if str(_AGENT_ROOT) not in sys.path:
 import importlib.util as _ilu
 
 _spec = _ilu.spec_from_file_location("llm_extract", str(_LIB_DIR / "llm_extract.py"))
+if _spec is None or _spec.loader is None:
+    raise ImportError(f"Could not load llm_extract from {_LIB_DIR}")
 llm_extract = _ilu.module_from_spec(_spec)
 sys.modules["llm_extract"] = llm_extract
 _spec.loader.exec_module(llm_extract)
@@ -270,6 +272,8 @@ class TestCVFriendRegex:
         _pdf_spec = _ilu.spec_from_file_location(
             "pdf_parser", str(_LIB_DIR / "pdf_parser.py")
         )
+        if _pdf_spec is None or _pdf_spec.loader is None:
+            raise ImportError(f"Could not load pdf_parser from {_LIB_DIR}")
         pdf_parser = _ilu.module_from_spec(_pdf_spec)
         sys.modules["pdf_parser"] = pdf_parser
         _pdf_spec.loader.exec_module(pdf_parser)
