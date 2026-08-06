@@ -7,7 +7,7 @@
 - **Onboarding conversacional**: el agente chatea contigo, ejecuta el script de onboarding para extraer tu CV (texto o PDF con PyMuPDF), verifica los datos y genera tu perfil automáticamente. Nunca más repetir el setup.
 - **Búsqueda automática multi-plataforma**: Indeed, LinkedIn y Computrabajo con un presupuesto desde $5 USD/mes.
 - **Análisis técnico riguroso**: compara cada vacante contra tu CV real, tecnología por tecnología.
-- **Borradores en tu correo**: guarda las postulaciones como borrador en Gmail (`gws`) u Outlook (`m365` / Microsoft Graph) para que las revises antes de enviar. HTML con hipervínculos, sin URLs crudas.
+- **Borradores en tu correo**: guarda las postulaciones como borrador en Gmail (`gws`) u Outlook (`m365` / Microsoft Graph) para que las revises antes de enviar, con tu **CV real adjunto** en PDF. HTML con hipervínculos, sin URLs crudas.
 - **Reportes accionables**: porcentaje de compatibilidad, veredicto, carta de presentación o borrador de email.
 - **Privacidad total**: tus datos se almacenan localmente en `data/`. Compatible con LLMs locales.
 
@@ -45,23 +45,25 @@
 ```
 skills/onboarding/        → CLI cli.py (extract, parse, generate, full)
                               VSI previa + persistencia de perfil en data/perfil.json
-skills/cv-update/         → CLI cli.py (update <pdf>)
+skills/cv-update/         → CLI cli.py (extract <pdf>, apply <fields.json> [--source-pdf])
                               Reescritura completa de perfil.json desde un nuevo CV
-                              (fidelidad ATS, no merge)
+                              (fidelidad ATS, no merge). Persiste data/cv.pdf y cv_path
 skills/apify/             → CLI cli.py con plugins por plataforma
                               (indeed, linkedin, computrabajo)
 skills/database/          → CLI query.py (ORM: list, insert, status, analysis)
                               Persistencia y deduplicación en SQLite
-skills/mimetismo/         → CLI cli.py (email, question, cover-letter)
-                              Redacción con estilo del usuario + borradores
-                              en Gmail/Outlook (gws, m365) y extracción de contacto
+skills/mimetismo/         → CLI cli.py (email, question, cover-letter, mimetismo, cv)
+                              Redacción con estilo del usuario + borradores en
+                              Gmail/Outlook (gws, m365) con el CV real adjunto
+                              (cli.py cv informa dónde está el PDF persistido)
 skills/formatos/          → CLI cli.py (main --job <hash>, all)
                               Reporte determinista por vacante o análisis completo
                               de todas las vacantes
 _lib/                     → pdf_parser, vsi, schemas (Pydantic), llm_extract
                               Librerías compartidas entre skills
 data/                     → perfil.json, preferencias.json (Pydantic-validated),
-                              correos.md (markdown). Local, gitignored.
+                              correos.md (markdown), cv.pdf (CV real persistido).
+                              Local, gitignored.
 ```
 
 ### Componentes transversales
