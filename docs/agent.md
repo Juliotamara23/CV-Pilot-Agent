@@ -6,54 +6,64 @@ CV-Pilot Agent es un orquestador inteligente de reclutamiento que busca, analiza
 
 ## Requisitos
 
-### SQLite CLI
-
-Persistencia de vacantes y análisis.
-
-| OS | Comando |
-|----|---------|
-| Windows | `winget install -e --id SQLite.SQLite` |
-| macOS | `brew install sqlite3` |
-| Linux (Debian/Ubuntu) | `sudo apt install sqlite3` |
-
-El agente detecta si `sqlite3` está disponible y pregunta antes de instalar (nunca instala sin permiso).
-
-### Python + PyMuPDF (soporte PDF opcional)
-
-El Camino B del onboarding (subir un PDF en lugar de pegar el texto del CV) requiere un entorno virtual de Python con `pymupdf` instalado. El agente configura el venv por su cuenta la primera vez (hasta 3 reintentos automáticos) llamando a `scripts/venv_setup.py`; solo te avisa si fallan los 3 intentos.
-
-| OS | Comando manual (opcional) |
-|----|---------|
-| Windows (PowerShell) | `pwsh -File cv-pilot-agent/scripts/setup.ps1` (o `.\scripts\setup.ps1` desde `cv-pilot-agent/`) |
-| Linux / macOS | `bash cv-pilot-agent/scripts/setup.sh` |
-
-Los scripts `setup.ps1` y `setup.sh` son alternativas legacy; el método actual es `scripts/venv_setup.py`, que el agente invoca automáticamente. Todos crean `cv-pilot-agent/.venv/`, instalan las dependencias de `cv-pilot-agent/requirements.txt` y verifican PyMuPDF. Requieren Python 3.9+ en el PATH. Si el venv no se puede crear, el agente continúa con el Camino A (pegar el CV manualmente).
-
-### Apify CLI
-
-Búsqueda automática en Indeed, LinkedIn y Computrabajo.
-
-| OS | Comando | Recomendado |
-|----|---------|-------------|
-| Windows | `irm https://apify.com/install-cli.ps1 \| iex` | ✅ |
-| macOS | `brew install apify-cli` | ✅ |
-| Cualquiera | `npm install -g apify-cli` | ❌ (mejor deja de usar npm) |
-
-### Token Apify
-
-1. Crea una cuenta en [Apify](https://apify.com).
-2. Genera un token en [Settings > Integrations](https://console.apify.com/settings/integrations).
-3. Configúralo:
-```
-apify login --token TU_TOKEN
-```
+- **Python 3.9+** con `pip` en el PATH.
+- **Git** (para clonar el repositorio).
+- **SQLite**: no requiere instalación — el sistema usa el módulo integrado de Python (`sqlite3`).
+- **Opcional — Apify CLI**: solo si vas a usar búsqueda automática de vacantes.
+- **Opcional — Gmail/Outlook**: solo si quieres que el agente guarde borradores en tu correo (paso 5 de la instalación).
 
 ---
 
-## Instalación del agente
+## Instalación
 
-1. Clona o descarga el repositorio.
-2. La estructura debe quedar así:
+### 1. Clonar el repositorio
+
+```bash
+git clone https://github.com/Juliotamara23/CV-Pilot-Agent.git
+cd CV-Pilot-Agent
+```
+
+### 2. Crear el entorno virtual
+
+Instala las dependencias de `cv-pilot-agent/requirements.txt` (PyMuPDF, typer, pydantic, httpx, pytest, pyright):
+
+```bash
+python cv-pilot-agent/scripts/venv_setup.py
+```
+
+> El agente también crea el venv automáticamente la primera vez (hasta 3 intentos) si no existe. Verifica que quedó listo:
+> ```bash
+> cv-pilot-agent/.venv/bin/python --version
+> ```
+
+### 3. Inicializar la base de datos
+
+```bash
+cv-pilot-agent/.venv/bin/python cv-pilot-agent/scripts/init.py
+```
+
+Crea `db/cv-pilot.db` con el esquema canónico. Es idempotente: se puede repetir sin riesgo.
+
+### 4. (Opcional) Búsqueda automática — Apify
+
+```bash
+apify login --token TU_TOKEN
+```
+
+### 5. (Opcional) Borradores en tu correo
+
+- **Gmail**: sigue [gws-setup.md](gws-setup.md).
+- **Outlook**: sigue [outlook-setup.md](outlook-setup.md).
+
+### 6. Primer uso
+
+Abre el proyecto en tu entorno de agentes (OpenCode, Claude Code, etc.) y pide al agente analizar una vacante o iniciar el onboarding.
+
+> **Onboarding (obligatorio la primera vez):** el agente detecta que `data/perfil.json` no existe y arranca el flujo guiado. Sube tu CV en **PDF** — el agente valida, extrae y persiste `data/perfil.json` y `data/cv.pdf` (este archivo se adjunta automáticamente a tus borradores). Si no tienes el PDF a mano, puedes pegar el texto del CV y añadir el PDF después con `cv-update`.
+
+---
+
+### Estructura del proyecto
 
 ```
 cv-pilot-agent/
@@ -108,10 +118,6 @@ cv-pilot-agent/
     ├── preferencias.json      # Generado por onboarding
     └── cv.pdf                 # Archivo real del CV (persistido al procesar un PDF)
 ```
-
-3. **Onboarding conversacional** (obligatorio la primera vez): el agente detecta que `data/perfil.json` no existe y arranca el flujo guiado invocando el script de onboarding. Puedes pasarle tu CV en PDF (Camino B, requiere venv con PyMuPDF) o pegar el texto directamente (Camino A, sin dependencias). El agente verifica los datos contigo y persiste el perfil en `data/`.
-4. **Configurar soporte PDF** (opcional, solo Camino B): si vas a subir el CV en PDF y quieres ahorrarte la pregunta del agente, ejecuta manualmente `cv-pilot-agent/scripts/venv_setup.py` o uno de los scripts legacy. Si omites este paso, el agente lo configura automáticamente la primera vez que lo necesite.
-5. **Configurar Apify** (solo si vas a usar búsqueda automática): sigue los pasos de "Token Apify" más arriba. Para análisis manual de vacantes no hace falta.
 
 ---
 
