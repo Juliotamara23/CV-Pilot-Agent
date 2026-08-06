@@ -114,15 +114,15 @@ class TestParseLLMJson:
 # --------------------------------------------------------------------------- #
 
 MOCK_LLM_RESPONSE = json.dumps({
-    "nombre": "Julio Andrés Támara Hernández",
-    "correo": "julio.tamara23@outlook.com",
-    "telefono": "+57 320 7581183",
-    "linkedin": "https://linkedin.com/in/julio-andrés-támara-hernández-23z4iz0r",
-    "github": "https://github.com/Juliotamara23",
-    "cv_url": "https://drive.google.com/file/d/1XawtjXvqr6BP8r6kumbmQKDBufdltOG2/view",
+    "nombre": "Ana Lopez",
+    "correo": "ana@correo.com",
+    "telefono": "+57 300 1112233",
+    "linkedin": "https://linkedin.com/in/ana-lopez",
+    "github": "https://github.com/ana-lopez",
+    "cv_url": "https://drive.google.com/file/d/fake-cv-id/view",
     "resumen": "Ingeniero de Sistemas con enfoque en desarrollo Backend y automatización con IA.",
-    "experiencia": "Pocki (C-Pocket)\nBackend Developer Febrero 2026 – Mayo 2026",
-    "educacion": "Ingeniería en Sistemas — Corporación Universitaria del Caribe (CECAR)",
+    "experiencia": "Empresa Ficticia\nBackend Developer 2023 – 2024",
+    "educacion": "Ingeniería en Sistemas — Universidad Ficticia",
     "skills": "IA & Automatización: n8n, MCP, Integración LLM\nBackend: Python (FastAPI, Pandas, SQLAlchemy)",
 })
 
@@ -132,9 +132,9 @@ class TestParseLLMFields:
 
     def test_parse_returns_all_fields(self):
         result = llm_extract.parse_llm_fields(MOCK_LLM_RESPONSE)
-        assert result["nombre"] == "Julio Andrés Támara Hernández"
-        assert result["correo"] == "julio.tamara23@outlook.com"
-        assert result["telefono"] == "+57 320 7581183"
+        assert result["nombre"] == "Ana Lopez"
+        assert result["correo"] == "ana@correo.com"
+        assert result["telefono"] == "+57 300 1112233"
         assert "linkedin.com" in result["linkedin"]
         assert "github.com" in result["github"]
 
@@ -172,7 +172,7 @@ class TestParseLLMFields:
     def test_parse_code_block_response(self):
         response = f"```json\n{MOCK_LLM_RESPONSE}\n```"
         result = llm_extract.parse_llm_fields(response)
-        assert result["nombre"] == "Julio Andrés Támara Hernández"
+        assert result["nombre"] == "Ana Lopez"
 
     def test_parse_invalid_json_raises(self):
         with pytest.raises(ValueError, match="Failed to parse"):
