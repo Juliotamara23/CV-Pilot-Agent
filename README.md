@@ -42,34 +42,37 @@
 
 ## 🧠 Arquitectura
 
+El agente es un **orquestador**: decide e interpreta, pero toda ejecución la delega en **CLIs deterministas** (skills) que devuelven JSON. El agente no improvisa formatos ni escribe SQL; cada skill encapsula su lógica y expone comandos cortos y verificables.
+
+### Flujo de datos
+
 ```
-skills/onboarding/        → CLI cli.py (extract, parse, generate, full)
-                              VSI previa + persistencia de perfil en data/perfil.json
-skills/cv-update/         → CLI cli.py (extract <pdf>, apply <fields.json> [--source-pdf])
-                              Reescritura completa de perfil.json desde un nuevo CV
-                              (fidelidad ATS, no merge). Persiste data/cv.pdf y cv_path
-skills/apify/             → CLI cli.py con plugins por plataforma
-                              (indeed, linkedin, computrabajo)
-skills/database/          → CLI query.py (ORM: list, insert, status, analysis)
-                              Persistencia y deduplicación en SQLite
-skills/mimetismo/         → CLI cli.py (email, question, cover-letter, mimetismo, cv)
-                              Redacción con estilo del usuario + borradores en
-                              Gmail/Outlook (gws, m365) con el CV real adjunto
-                              (cli.py cv informa dónde está el PDF persistido)
-skills/formatos/          → CLI cli.py (main --job <hash>, all)
-                              Reporte determinista por vacante o análisis completo
-                              de todas las vacantes
-_lib/                     → pdf_parser, vsi, schemas (Pydantic), llm_extract
-                              Librerías compartidas entre skills
-data/                     → perfil.json, preferencias.json (Pydantic-validated),
-                              correos.md (markdown), cv.pdf (CV real persistido).
-                              Local, gitignored.
+onboarding / cv-update ──► data/perfil.json + data/cv.pdf
+                                │
+sourcing (apify | manual) ──► db/cv-pilot.db ──► análisis (razonamiento del agente)
+                                                        │
+                                          formatos/cli.py → reporte determinista
+                                                        │
+                                          mimetismo/cli.py (email, cover-letter, question)
+                                                        │
+                                          cli.py cv (CV persistido) → borrador Gmail/Outlook
+                                                                          con CV adjunto
 ```
+
+### Skills (contratos CLI)
+
+| Skill | CLI | Propósito |
+|-------|-----|-----------|
+| `onboarding` | `cli.py`: extract, parse, generate, full | VSI previa + persistencia de perfil en `data/perfil.json` |
+| `cv-update` | `cli.py`: extract, apply `--source-pdf` | Reescribe `perfil.json` desde un CV nuevo (fidelidad ATS, no merge) y persiste `data/cv.pdf` + `cv_path` |
+| `apify` | `cli.py`: search (indeed, linkedin, computrabajo) | Sourcing multi-plataforma con plugins |
+| `database` | `query.py`: list, insert, status, analysis | ORM y deduplicación en SQLite |
+| `mimetismo` | `cli.py`: email, question, cover-letter, mimetismo, cv | Redacción con estilo del usuario + borrador en Gmail/Outlook con el CV real adjunto |
+| `formatos` | `cli.py`: main `--job`, all | Reporte determinista por vacante o análisis completo |
 
 ### Componentes transversales
 
 - **VSI** (`_lib/vsi.py`): Validación Semántica de Identidad. Rechaza archivos no-CV antes de cualquier procesamiento.
 - **Pydantic schemas** (`_lib/schemas/`): `PerfilSchema` y `PreferenciasSchema` validan los datos persistidos.
 - **LLM extraction** (`_lib/llm_extract.py`, opcional): extracción de campos del CV con un LLM externo cuando se ejecuta sin agente. Cuando se usa dentro del agente, el LLM del chat hace la extracción directamente.
-
-Las skills son **contratos CLI** que el agente invoca. Cada script encapsula la lógica y devuelve resultados estructurados en JSON, así el agente pasa de leer e interpretar instrucciones largas a ejecutar comandos cortos y deterministas.
+- **Datos** (`data/`, gitignored): `perfil.json`, `preferencias.json` (Pydantic-validated), `correos.md`, `cv.pdf` (CV real persistido).
