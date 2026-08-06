@@ -174,7 +174,9 @@ def apply(
         # Store cv_path relative to the agent root when possible so consumers
         # resolve it consistently regardless of the --data-dir value.
         try:
-            new_fields["cv_path"] = str(cv_dest.relative_to(_AGENT_ROOT))
+            new_fields["cv_path"] = str(
+                cv_dest.resolve().relative_to(_AGENT_ROOT.resolve())
+            )
         except ValueError:
             new_fields["cv_path"] = str(cv_dest)
 
