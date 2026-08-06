@@ -151,7 +151,9 @@ def full(
         # Store cv_path relative to the agent root when possible so consumers
         # resolve it consistently regardless of the --out-dir value.
         try:
-            fields["cv_path"] = str(cv_dest.relative_to(_AGENT_ROOT))
+            fields["cv_path"] = str(
+                cv_dest.resolve().relative_to(_AGENT_ROOT.resolve())
+            )
         except ValueError:
             fields["cv_path"] = str(cv_dest)
 
