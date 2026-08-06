@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import sys
+from typing import Any
 from pathlib import Path
 
 import pytest
@@ -27,6 +28,8 @@ if str(_FMT_DIR) not in sys.path:
 
 import importlib.util as _ilu
 _spec = _ilu.spec_from_file_location("format_report_cli", str(_FMT_DIR / "cli.py"))
+if _spec is None or _spec.loader is None:
+    raise ImportError(f"Could not load formatos CLI from {_FMT_DIR}")
 format_report = _ilu.module_from_spec(_spec)
 sys.modules["format_report_cli"] = format_report
 _spec.loader.exec_module(format_report)
@@ -67,7 +70,8 @@ def _write_perfil(tmp_path: Path, perfil: dict | None = None) -> Path:
     return root
 
 
-def _seed_job(*, url="https://x.com/job", public_date="2026-06-20",
+def _seed_job(*, url: str | None = "https://x.com/job",
+              public_date: str | None = "2026-06-20",
               location="Madrid", company="Acme", position="Backend Dev") -> str:
     res = db.insert_job(JobInsert(
         company=company, position=position, location=location,
@@ -81,7 +85,7 @@ def _seed_job_no_analysis(**kwargs) -> str:
 
 
 def _seed_analysis(job_hash: str, **overrides) -> str:
-    fields = dict(
+    fields: dict[str, Any] = dict(
         percentage=82.0,
         comparativa="Python | Análisis: sólido\nFastAPI | Análisis: sólido\nDocker | Análisis: básico",
         observaciones="Stack moderno y bien afín al CV.",
