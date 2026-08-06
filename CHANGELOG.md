@@ -5,6 +5,15 @@ All notable changes to CV-Pilot Agent are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.5] - 2026-08-05
+
+### Changed
+- `README.md`: sección Arquitectura rediseñada — filosofía del orquestador (delega en CLIs deterministas), diagrama de flujo de datos y tabla de skills/CLI.
+- `docs/agent.md`: guía de instalación reescrita con comandos exactos paso a paso (clonar, `venv_setup.py`, `init.py`, Apify y proveedores opcionales, primer uso); requisitos simplificados (SQLite nativo de Python, sin CLI externo).
+
+### Fixed
+- `README.md` y `docs/agent.md`: sincronizados con la realidad 3.0.4 — contrato de cv-update (`extract`/`apply --source-pdf`), comandos `mimetismo` y `cv`, `data/cv.pdf` y `cv_path`, y flujo de email con el CV real adjunto.
+
 ## [3.0.4] - 2026-08-05
 
 ### Added
