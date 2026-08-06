@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json
 import sys
-from typing import Any
 from pathlib import Path
 
 import pytest
@@ -85,7 +84,8 @@ def _seed_job_no_analysis(**kwargs) -> str:
 
 
 def _seed_analysis(job_hash: str, **overrides) -> str:
-    fields: dict[str, Any] = dict(
+    fields = AnalysisInsert(
+        job_hash=job_hash,
         percentage=82.0,
         comparativa="Python | Análisis: sólido\nFastAPI | Análisis: sólido\nDocker | Análisis: básico",
         observaciones="Stack moderno y bien afín al CV.",
@@ -93,8 +93,9 @@ def _seed_analysis(job_hash: str, **overrides) -> str:
         tldr="Vacante afín, postular directo.",
         contact_method="email",
     )
-    fields.update(overrides)
-    res = db.insert_analysis(AnalysisInsert(job_hash=job_hash, **fields))
+    for key, value in overrides.items():
+        setattr(fields, key, value)
+    res = db.insert_analysis(fields)
     return res["analysis_id"]
 
 
