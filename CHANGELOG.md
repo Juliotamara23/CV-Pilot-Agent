@@ -5,6 +5,35 @@ All notable changes to CV-Pilot Agent are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-08-05
+
+### Added
+- **mimetismo**: los borradores de correo (Gmail y Outlook) adjuntan el archivo
+  real del CV en PDF. Nuevo comando `cli.py cv` que informa al agente dónde está
+  el CV persistido y si existe; `email`/`cover-letter` adjuntan automáticamente
+  cuando existe (`attached: true` en el output).
+- **onboarding / cv-update**: `data/cv.pdf` se persiste al procesar un CV en PDF;
+  nuevo campo `cv_path` en `perfil.json` (canónico, relativo al agent root).
+- **SKILL.md (mimetismo)**: paso obligatorio `cli.py cv` antes de redactar; sin CV
+  persistido, el agente sugiere subirlo; con adjunto real, el marcador `[cv]` y la
+  firma omiten el link de Drive (redundante), con fallback a `cv_url`.
+- **gate pre-push**: Check D ejecuta pyright sobre los archivos Python cambiados;
+  `pyrightconfig.json` resuelve imports del LSP (venv + extraPaths).
+
+### Changed
+- **Firma de correos**: con CV adjunto se omite el link de Drive; sin archivo se
+  mantiene el link `cv_url`.
+
+### Fixed
+- **mimetismo Outlook (e2e)**: token m365 obtenido desde Python (el m365 de Windows
+  vía WSL tiene auth separada y colgaba en device code), rutas temp convertidas con
+  `wslpath` para Windows PowerShell, separador faltante tras `Write-Output` que
+  anulaba `$attBody` (400 al adjuntar), y try/catch que expone el body de error de Graph.
+- **VSI**: el indicador `cotización` solo dispara con número de documento
+  (`No.`/`N°`/`#`) — ya no rechaza CVs reales que mencionan un "Sistema de Cotizaciones".
+- **Tests**: sanitizados datos personales reales de las fixtures (identidad
+  ficticia "Ana Lopez") y errores de typing pre-existentes en archivos tocados.
+
 ## [3.0.3] - 2026-07-28
 
 ### Changed
