@@ -37,7 +37,7 @@ import typer  # noqa: E402
 
 from _lib import db  # noqa: E402
 from _lib.errors import CV_PilotError  # noqa: E402
-from _lib.models import VALID_STATUSES, AnalysisInsert, JobInsert, validate_status  # noqa: E402
+from _lib.models import VALID_STATUSES, AnalysisInsert, JobInsert, validate_status, AnalysisUpdate, JobUpdate  # noqa: E402
 
 app = typer.Typer(
     name="query",
@@ -201,6 +201,39 @@ def job_delete(
     _run(lambda: _emit(db.delete_jobs(job_hash=hash, status=status, dry_run=dry_run)))
 
 
+@job_app.command("update")
+def job_update(
+    hash: str = typer.Option(..., help="job_hash (SHA256) of the job to update."),
+    external_id: Optional[str] = typer.Option(None, help="External/house job id."),
+    public_date: Optional[str] = typer.Option(None, help="ISO-8601 publication date."),
+    url: Optional[str] = typer.Option(None, help="Source URL."),
+    salary: Optional[str] = typer.Option(None, help="Salary string (preserve format)."),
+    description: Optional[str] = typer.Option(None, help="Raw job description."),
+    source: Optional[str] = typer.Option(None, help="Origin (manual/apify-*/...)."),
+) -> None:
+    """Update non-identity fields of a job.
+
+    Identity fields (company, position, location) are NEVER updated —
+    they form the SHA256 primary key.
+
+    At least one field must be provided.
+    Does NOT touch analyses and does NOT touch status.
+    """
+    update = JobUpdate(
+        external_id=external_id,
+        public_date=public_date,
+        url=url,
+        salary=salary,
+        description=description,
+        source=source,
+    )
+    if not update.has_fields():
+        _emit_error("At least one field to update is required", "VALIDATION_ERROR")
+        raise typer.Exit(code=1)
+
+    _run(lambda: _emit(db.update_job(hash, update)))
+
+
 # --------------------------------------------------------------------------- #
 # analysis
 # --------------------------------------------------------------------------- #
@@ -235,6 +268,81 @@ def analysis_get(
 ) -> None:
     """Return the analysis for a job hash."""
     _run(lambda: _emit(db.get_analysis(job_hash)))
+
+
+@analysis_app.command("update")
+def analysis_update(
+    job_hash: Optional[str] = typer.Option(
+        None, "--job-hash", help="Update the most recent analysis for this job."
+    ),
+    analysis_id: Optional[str] = typer.Option(
+        None, "--analysis-id", help="Update the specific analysis by its ID."
+    ),
+    percentage: Optional[float] = typer.Option(None, help="Match percentage (0-100)."),
+    comparativa: Optional[str] = typer.Option(None, help="Comparativa field."),
+    observaciones: Optional[str] = typer.Option(None, help="Observaciones field."),
+    verdict: Optional[str] = typer.Option(None, help="Verdict field."),
+    tldr: Optional[str] = typer.Option(None, help="Short summary (tldr) field."),
+    contact_method: Optional[str] = typer.Option(None, help="Contact method (email|portal)."),
+) -> None:
+    """Update an analysis row.
+
+    Selector (exactly one required):
+      * ``--job-hash`` — updates the MOST RECENT analysis for that job.
+      * ``--analysis-id`` — updates the specific analysis row.
+
+    At least one field (--percentage, --comparativa, --observaciones,
+    --verdict, --tldr, --contact-method) must be provided.
+
+    Does NOT change job status.
+    """
+    if job_hash is None and analysis_id is None:
+        _emit_error("analysis update requires --job-hash or --analysis-id", "VALIDATION_ERROR")
+        raise typer.Exit(code=1)
+    if job_hash is not None and analysis_id is not None:
+        _emit_error("Use --job-hash OR --analysis-id, not both", "VALIDATION_ERROR")
+        raise typer.Exit(code=1)
+
+    update = AnalysisUpdate(
+        percentage=percentage,
+        comparativa=comparativa,
+        observaciones=observaciones,
+        verdict=verdict,
+        tldr=tldr,
+        contact_method=contact_method,
+    )
+    if not update.has_fields():
+        _emit_error("At least one field to update is required", "VALIDATION_ERROR")
+        raise typer.Exit(code=1)
+
+    _run(lambda: _emit(db.update_analysis(job_hash=job_hash, analysis_id=analysis_id, analysis_update=update)))
+
+
+@analysis_app.command("delete")
+def analysis_delete(
+    job_hash: Optional[str] = typer.Option(
+        None, "--job-hash", help="Delete the most recent analysis for this job."
+    ),
+    analysis_id: Optional[str] = typer.Option(
+        None, "--analysis-id", help="Delete the specific analysis by its ID."
+    ),
+) -> None:
+    """Delete an analysis row.
+
+    Selector (exactly one required):
+      * ``--job-hash`` — deletes the MOST RECENT analysis for that job.
+      * ``--analysis-id`` — deletes the specific analysis row.
+
+    Does NOT touch the job row or its status.
+    """
+    if job_hash is None and analysis_id is None:
+        _emit_error("analysis delete requires --job-hash or --analysis-id", "VALIDATION_ERROR")
+        raise typer.Exit(code=1)
+    if job_hash is not None and analysis_id is not None:
+        _emit_error("Use --job-hash OR --analysis-id, not both", "VALIDATION_ERROR")
+        raise typer.Exit(code=1)
+
+    _run(lambda: _emit(db.delete_analysis(job_hash=job_hash, analysis_id=analysis_id)))
 
 
 # --------------------------------------------------------------------------- #
