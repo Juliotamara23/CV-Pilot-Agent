@@ -363,7 +363,7 @@ def get_analysis(job_hash: str) -> dict[str, Any]:
     conn = get_connection()
     try:
         row = conn.execute(
-            "SELECT * FROM analyses WHERE job_hash = ? ORDER BY created_at DESC LIMIT 1", (job_hash,)
+            "SELECT * FROM analyses WHERE job_hash = ? ORDER BY created_at DESC, rowid DESC LIMIT 1", (job_hash,)
         ).fetchone()
         if row is None:
             raise JobNotFoundError(
@@ -471,7 +471,7 @@ def update_analysis(
                     raise JobNotFoundError(f"Job not found: {job_hash}", code="JOB_NOT_FOUND")
 
                 row = conn.execute(
-                    "SELECT analysis_id FROM analyses WHERE job_hash = ? ORDER BY created_at DESC LIMIT 1",
+                    "SELECT analysis_id FROM analyses WHERE job_hash = ? ORDER BY created_at DESC, rowid DESC LIMIT 1",
                     (job_hash,),
                 ).fetchone()
                 if row is None:
@@ -565,7 +565,7 @@ def delete_analysis(
 
             if job_hash is not None:
                 row = conn.execute(
-                    "SELECT analysis_id FROM analyses WHERE job_hash = ? ORDER BY created_at DESC LIMIT 1",
+                    "SELECT analysis_id FROM analyses WHERE job_hash = ? ORDER BY created_at DESC, rowid DESC LIMIT 1",
                     (job_hash,),
                 ).fetchone()
                 if row is None:
@@ -697,12 +697,12 @@ def migrate_issue15(dry_run: bool = False) -> dict[str, Any]:
             deleted = 0
             for group in dupe_groups:
                 job_hash = group["job_hash"]
-                # Get all but the most recent (by created_at)
+                # Get all but the most recent (by created_at, rowid tiebreak)
                 older_rows = conn.execute(
                     """
                     SELECT analysis_id FROM analyses
                     WHERE job_hash = ?
-                    ORDER BY created_at ASC
+                    ORDER BY created_at DESC, rowid DESC
                     LIMIT -1 OFFSET 1
                     """,
                     (job_hash,),
