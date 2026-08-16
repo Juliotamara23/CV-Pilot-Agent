@@ -43,12 +43,15 @@ class TestCliHelp:
         assert "list" in proc.stdout
         assert "get" in proc.stdout
         assert "delete" in proc.stdout
+        assert "update" in proc.stdout
 
     def test_analysis_help(self, query_script, tmp_db):
         proc = _run(query_script, os.environ.copy(), "analysis", "--help")
         assert proc.returncode == 0
         assert "insert" in proc.stdout
         assert "get" in proc.stdout
+        assert "update" in proc.stdout
+        assert "delete" in proc.stdout
 
     def test_status_help(self, query_script, tmp_db):
         proc = _run(query_script, os.environ.copy(), "status", "--help")
