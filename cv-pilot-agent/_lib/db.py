@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from .errors import DatabaseError, JobNotFoundError, ValidationError
-from .models import VALID_STATUSES, AnalysisInsert, JobInsert, validate_status
+from .models import VALID_STATUSES, AnalysisInsert, JobInsert, validate_status, AnalysisUpdate, JobUpdate
 
 # Module-level default DB path: <this file>/../db/cv-pilot.db
 DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent / "db" / "cv-pilot.db"
@@ -410,5 +410,313 @@ def update_status(job_hash: str, status: str) -> dict[str, Any]:
         return {"ok": True, "old_status": old_status, "new_status": status}
     except sqlite3.Error as exc:
         raise DatabaseError(f"update_status failed: {exc}") from exc
+    finally:
+        conn.close()
+
+
+def update_analysis(
+    *,
+    job_hash: Optional[str] = None,
+    analysis_id: Optional[str] = None,
+    analysis_update: AnalysisUpdate,
+) -> dict[str, Any]:
+    """Update an analysis row.
+
+    Selector (exactly one required):
+      * ``job_hash`` — updates the MOST RECENT analysis for that job
+        (same row ``analysis get`` returns).
+      * ``analysis_id`` — updates the specific analysis row.
+
+    ``analysis_update`` carries the fields to change (any subset).
+    At least one field must be provided.
+    Does NOT change job status.
+
+    Returns ``{ok: true, analysis_id, selector: "job_hash"|"analysis_id"}``.
+
+    Raises:
+      * ``ValidationError`` (code ``VALIDATION_ERROR``) if no selector
+        or no fields given.
+      * ``JobNotFoundError`` (code ``JOB_NOT_FOUND``) if job_hash given
+        but job doesn't exist.
+      * ``JobNotFoundError`` (code ``ANALYSIS_NOT_FOUND``) if no analysis
+        matches the selector.
+    """
+    if job_hash is None and analysis_id is None:
+        raise ValidationError(
+            "update_analysis requires --job-hash or --analysis-id",
+            code="VALIDATION_ERROR",
+        )
+    if job_hash is not None and analysis_id is not None:
+        raise ValidationError(
+            "Use --job-hash OR --analysis-id, not both",
+            code="VALIDATION_ERROR",
+        )
+    if not analysis_update.has_fields():
+        raise ValidationError(
+            "At least one field to update is required",
+            code="VALIDATION_ERROR",
+        )
+
+    conn = get_connection()
+    try:
+        with conn:
+            target_analysis_id: Optional[str] = None
+
+            if job_hash is not None:
+                # Verify job exists first
+                job_row = conn.execute(
+                    "SELECT 1 FROM jobs WHERE job_hash = ?", (job_hash,)
+                ).fetchone()
+                if job_row is None:
+                    raise JobNotFoundError(f"Job not found: {job_hash}", code="JOB_NOT_FOUND")
+
+                row = conn.execute(
+                    "SELECT analysis_id FROM analyses WHERE job_hash = ? ORDER BY created_at DESC LIMIT 1",
+                    (job_hash,),
+                ).fetchone()
+                if row is None:
+                    raise JobNotFoundError(
+                        f"Analysis not found for job: {job_hash}", code="ANALYSIS_NOT_FOUND"
+                    )
+                target_analysis_id = row["analysis_id"]
+                selector = "job_hash"
+            else:
+                row = conn.execute(
+                    "SELECT analysis_id FROM analyses WHERE analysis_id = ?", (analysis_id,)
+                ).fetchone()
+                if row is None:
+                    raise JobNotFoundError(
+                        f"Analysis not found: {analysis_id}", code="ANALYSIS_NOT_FOUND"
+                    )
+                target_analysis_id = row["analysis_id"]
+                selector = "analysis_id"
+
+            # Build dynamic UPDATE
+            fields: list[str] = []
+            params: list[Any] = []
+            if analysis_update.percentage is not None:
+                fields.append("percentage = ?")
+                params.append(analysis_update.percentage)
+            if analysis_update.comparativa is not None:
+                fields.append("comparativa = ?")
+                params.append(analysis_update.comparativa)
+            if analysis_update.observaciones is not None:
+                fields.append("observaciones = ?")
+                params.append(analysis_update.observaciones)
+            if analysis_update.verdict is not None:
+                fields.append("verdict = ?")
+                params.append(analysis_update.verdict)
+            if analysis_update.tldr is not None:
+                fields.append("tldr = ?")
+                params.append(analysis_update.tldr)
+            if analysis_update.contact_method is not None:
+                fields.append("contact_method = ?")
+                params.append(analysis_update.contact_method)
+
+            params.append(target_analysis_id)
+            conn.execute(
+                f"UPDATE analyses SET {', '.join(fields)} WHERE analysis_id = ?",
+                tuple(params),
+            )
+
+        return {"ok": True, "analysis_id": target_analysis_id, "selector": selector}
+    except sqlite3.Error as exc:
+        raise DatabaseError(f"update_analysis failed: {exc}") from exc
+    finally:
+        conn.close()
+
+
+def delete_analysis(
+    *,
+    job_hash: Optional[str] = None,
+    analysis_id: Optional[str] = None,
+) -> dict[str, Any]:
+    """Delete an analysis row.
+
+    Selector (exactly one required):
+      * ``job_hash`` — deletes the MOST RECENT analysis for that job.
+      * ``analysis_id`` — deletes the specific analysis row.
+
+    Does NOT touch the job row or its status.
+
+    Returns ``{ok: true, deleted: 1}``.
+
+    Raises:
+      * ``ValidationError`` (code ``VALIDATION_ERROR``) if no selector
+        or both selectors given.
+      * ``JobNotFoundError`` (code ``ANALYSIS_NOT_FOUND``) if no analysis
+        matches the selector.
+    """
+    if job_hash is None and analysis_id is None:
+        raise ValidationError(
+            "delete_analysis requires --job-hash or --analysis-id",
+            code="VALIDATION_ERROR",
+        )
+    if job_hash is not None and analysis_id is not None:
+        raise ValidationError(
+            "Use --job-hash OR --analysis-id, not both",
+            code="VALIDATION_ERROR",
+        )
+
+    conn = get_connection()
+    try:
+        with conn:
+            target_analysis_id: Optional[str] = None
+
+            if job_hash is not None:
+                row = conn.execute(
+                    "SELECT analysis_id FROM analyses WHERE job_hash = ? ORDER BY created_at DESC LIMIT 1",
+                    (job_hash,),
+                ).fetchone()
+                if row is None:
+                    raise JobNotFoundError(
+                        f"Analysis not found for job: {job_hash}", code="ANALYSIS_NOT_FOUND"
+                    )
+                target_analysis_id = row["analysis_id"]
+            else:
+                row = conn.execute(
+                    "SELECT analysis_id FROM analyses WHERE analysis_id = ?", (analysis_id,)
+                ).fetchone()
+                if row is None:
+                    raise JobNotFoundError(
+                        f"Analysis not found: {analysis_id}", code="ANALYSIS_NOT_FOUND"
+                    )
+                target_analysis_id = row["analysis_id"]
+
+            conn.execute(
+                "DELETE FROM analyses WHERE analysis_id = ?", (target_analysis_id,)
+            )
+
+        return {"ok": True, "deleted": 1}
+    except sqlite3.Error as exc:
+        raise DatabaseError(f"delete_analysis failed: {exc}") from exc
+    finally:
+        conn.close()
+
+
+def update_job(job_hash: str, job_update: JobUpdate) -> dict[str, Any]:
+    """Update non-identity fields of a job.
+
+    Identity fields (company, position, location) are NEVER updated —
+    they form the SHA256 primary key. This function only touches:
+    external_id, public_date, url, salary, description, source.
+
+    Does NOT touch analyses and does NOT touch status.
+    At least one field must be provided.
+
+    Returns ``{ok: true, job_hash}``.
+
+    Raises:
+      * ``ValidationError`` (code ``VALIDATION_ERROR``) if no fields given.
+      * ``JobNotFoundError`` (code ``JOB_NOT_FOUND``) if job doesn't exist.
+    """
+    if not job_update.has_fields():
+        raise ValidationError(
+            "At least one field to update is required",
+            code="VALIDATION_ERROR",
+        )
+
+    conn = get_connection()
+    try:
+        with conn:
+            row = conn.execute(
+                "SELECT 1 FROM jobs WHERE job_hash = ?", (job_hash,)
+            ).fetchone()
+            if row is None:
+                raise JobNotFoundError(f"Job not found: {job_hash}", code="JOB_NOT_FOUND")
+
+            fields: list[str] = []
+            params: list[Any] = []
+            if job_update.external_id is not None:
+                fields.append("external_id = ?")
+                params.append(job_update.external_id)
+            if job_update.public_date is not None:
+                fields.append("public_date = ?")
+                params.append(job_update.public_date)
+            if job_update.url is not None:
+                fields.append("url = ?")
+                params.append(job_update.url)
+            if job_update.salary is not None:
+                fields.append("salary = ?")
+                params.append(job_update.salary)
+            if job_update.description is not None:
+                fields.append("description = ?")
+                params.append(job_update.description)
+            if job_update.source is not None:
+                fields.append("source = ?")
+                params.append(job_update.source)
+
+            params.append(job_hash)
+            conn.execute(
+                f"UPDATE jobs SET {', '.join(fields)} WHERE job_hash = ?",
+                tuple(params),
+            )
+
+        return {"ok": True, "job_hash": job_hash}
+    except sqlite3.Error as exc:
+        raise DatabaseError(f"update_job failed: {exc}") from exc
+    finally:
+        conn.close()
+
+
+def migrate_issue15(dry_run: bool = False) -> dict[str, Any]:
+    """One-off migration for issue #15:
+    1. Backfill NULL analysis_id to uuid4.
+    2. Dedupe analyses keeping ONLY the most recent row per job_hash.
+
+    Safe to run twice (idempotent). Runs both steps in a single transaction.
+    """
+    conn = get_connection()
+    try:
+        with conn:
+            # Step 1: Backfill NULL analysis_id
+            null_rows = conn.execute(
+                "SELECT rowid FROM analyses WHERE analysis_id IS NULL"
+            ).fetchall()
+            backfilled = 0
+            for row in null_rows:
+                new_id = str(uuid.uuid4())
+                if not dry_run:
+                    conn.execute(
+                        "UPDATE analyses SET analysis_id = ? WHERE rowid = ?",
+                        (new_id, row["rowid"]),
+                    )
+                backfilled += 1
+
+            # Step 2: Dedupe — keep only most recent per job_hash
+            # Find all job_hashes that have more than 1 analysis
+            dupe_groups = conn.execute(
+                """
+                SELECT job_hash, COUNT(*) as cnt
+                FROM analyses
+                GROUP BY job_hash
+                HAVING COUNT(*) > 1
+                """
+            ).fetchall()
+
+            deleted = 0
+            for group in dupe_groups:
+                job_hash = group["job_hash"]
+                # Get all but the most recent (by created_at)
+                older_rows = conn.execute(
+                    """
+                    SELECT analysis_id FROM analyses
+                    WHERE job_hash = ?
+                    ORDER BY created_at ASC
+                    LIMIT -1 OFFSET 1
+                    """,
+                    (job_hash,),
+                ).fetchall()
+                for row in older_rows:
+                    if not dry_run:
+                        conn.execute(
+                            "DELETE FROM analyses WHERE analysis_id = ?",
+                            (row["analysis_id"],),
+                        )
+                    deleted += 1
+
+        return {"ok": True, "backfilled": backfilled, "deduped_deleted": deleted, "dry_run": dry_run}
+    except sqlite3.Error as exc:
+        raise DatabaseError(f"migrate_issue15 failed: {exc}") from exc
     finally:
         conn.close()
