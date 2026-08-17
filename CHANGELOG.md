@@ -5,6 +5,30 @@ All notable changes to CV-Pilot Agent are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.1] - 2026-08-17
+
+### Added
+- Database CLI support for updating and deleting existing analyses and updating
+  non-identity job fields without creating duplicate records.
+- A deterministic migration command that backfills missing analysis identifiers
+  and removes obsolete duplicate analyses while retaining the most recent row.
+- Pre-push protection against tracker-specific issue identifiers in source,
+  configuration, and runtime filenames.
+
+### Changed
+- Runtime data and the production SQLite database are externalized from the
+  development checkout.
+- Database update validation now enforces percentage bounds and text length
+  limits.
+- Database helpers centralize recent-analysis selection, selector validation,
+  dynamic UPDATE construction, and partial-update field detection.
+
+### Fixed
+- Test fixtures no longer depend on personal profile, CV, email, or database
+  files from a developer workstation.
+- Migration execution accepts an explicit database path instead of mutating
+  process-global environment state.
+
 ## [3.0.5] - 2026-08-05
 
 ### Changed
