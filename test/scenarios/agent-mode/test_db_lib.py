@@ -398,6 +398,34 @@ class TestUpdateAnalysis:
             db.update_analysis(analysis_id="missing-id", analysis_update=AnalysisUpdate(verdict="v"))
         assert exc.value.code == "ANALYSIS_NOT_FOUND"
 
+    def test_percentage_out_of_bounds_raises_validation_error(self, tmp_db):
+        h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
+        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=50.0, comparativa="c", observaciones="o", verdict="v", tldr="t"))
+        with pytest.raises(ValidationError) as exc:
+            db.update_analysis(job_hash=h, analysis_update=AnalysisUpdate(percentage=101.0))
+        assert exc.value.code == "VALIDATION_ERROR"
+        with pytest.raises(ValidationError) as exc:
+            db.update_analysis(job_hash=h, analysis_update=AnalysisUpdate(percentage=-1.0))
+        assert exc.value.code == "VALIDATION_ERROR"
+
+    def test_percentage_bounds_accept_boundaries(self, tmp_db):
+        h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
+        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=50.0, comparativa="c", observaciones="o", verdict="v", tldr="t"))
+        result = db.update_analysis(job_hash=h, analysis_update=AnalysisUpdate(percentage=0.0))
+        assert result["ok"] is True
+        result = db.update_analysis(job_hash=h, analysis_update=AnalysisUpdate(percentage=100.0))
+        assert result["ok"] is True
+
+    def test_oversized_text_raises_validation_error(self, tmp_db):
+        h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
+        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=50.0, comparativa="c", observaciones="o", verdict="v", tldr="t"))
+        with pytest.raises(ValidationError) as exc:
+            db.update_analysis(job_hash=h, analysis_update=AnalysisUpdate(verdict="x" * 20001))
+        assert exc.value.code == "VALIDATION_ERROR"
+        with pytest.raises(ValidationError) as exc:
+            db.update_analysis(job_hash=h, analysis_update=AnalysisUpdate(contact_method="x" * 51))
+        assert exc.value.code == "VALIDATION_ERROR"
+
 
 class TestDeleteAnalysis:
     def test_delete_by_analysis_id(self, tmp_db):
@@ -492,6 +520,18 @@ class TestUpdateJob:
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
         with pytest.raises(ValidationError) as exc:
             db.update_job(h, JobUpdate())
+        assert exc.value.code == "VALIDATION_ERROR"
+
+    def test_oversized_field_raises_validation_error(self, tmp_db):
+        h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
+        with pytest.raises(ValidationError) as exc:
+            db.update_job(h, JobUpdate(description="x" * 20001))
+        assert exc.value.code == "VALIDATION_ERROR"
+        with pytest.raises(ValidationError) as exc:
+            db.update_job(h, JobUpdate(url="x" * 2001))
+        assert exc.value.code == "VALIDATION_ERROR"
+        with pytest.raises(ValidationError) as exc:
+            db.update_job(h, JobUpdate(source="x" * 201))
         assert exc.value.code == "VALIDATION_ERROR"
 
     def test_job_not_found(self, tmp_db):

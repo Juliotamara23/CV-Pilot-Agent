@@ -457,6 +457,28 @@ def update_analysis(
             code="VALIDATION_ERROR",
         )
 
+    # Validate field values before writing (CRITICAL: no unbounded user input).
+    if analysis_update.percentage is not None and not (
+        0.0 <= analysis_update.percentage <= 100.0
+    ):
+        raise ValidationError(
+            "percentage must be between 0 and 100",
+            code="VALIDATION_ERROR",
+        )
+    for _field, _max_len in (
+        ("verdict", 20000),
+        ("tldr", 20000),
+        ("comparativa", 20000),
+        ("observaciones", 20000),
+        ("contact_method", 50),
+    ):
+        _value = getattr(analysis_update, _field)
+        if _value is not None and len(_value) > _max_len:
+            raise ValidationError(
+                f"{_field} exceeds max length {_max_len}",
+                code="VALIDATION_ERROR",
+            )
+
     conn = get_connection()
     try:
         with conn:
@@ -615,6 +637,22 @@ def update_job(job_hash: str, job_update: JobUpdate) -> dict[str, Any]:
             "At least one field to update is required",
             code="VALIDATION_ERROR",
         )
+
+    # Validate field values before writing (CRITICAL: no unbounded user input).
+    for _field, _max_len in (
+        ("external_id", 200),
+        ("public_date", 50),
+        ("url", 2000),
+        ("salary", 200),
+        ("description", 20000),
+        ("source", 200),
+    ):
+        _value = getattr(job_update, _field)
+        if _value is not None and len(_value) > _max_len:
+            raise ValidationError(
+                f"{_field} exceeds max length {_max_len}",
+                code="VALIDATION_ERROR",
+            )
 
     conn = get_connection()
     try:
