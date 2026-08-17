@@ -114,9 +114,11 @@ def _format_schema_diff(prod_schema: dict, canon_schema: dict) -> str:
             p = prod_cols[i] if i < len(prod_cols) else None
             c = canon_cols[i] if i < len(canon_cols) else None
             if p is None:
+                assert c is not None
                 lines.append(f"  {table}: EXTRA column in canonical at [{i}]: {c['name']} {c['type']}")
                 continue
             if c is None:
+                assert p is not None
                 lines.append(f"  {table}: MISSING column in canonical at [{i}]: {p['name']} {p['type']}")
                 continue
             # Compare field by field
