@@ -8,6 +8,7 @@ These tests guard against accidentally bypassing the shared module
 from __future__ import annotations
 
 import sqlite3
+import os
 from pathlib import Path
 
 import pytest
@@ -138,8 +139,12 @@ def test_init_script_produces_matching_production_schema():
     in order, same types, same nullability, same defaults, same PKs.
     """
     repo_root = Path(__file__).resolve().parent.parent.parent.parent
-    prod_db_path = repo_root / "cv-pilot-agent" / "db" / "cv-pilot.db"
-    assert prod_db_path.is_file(), f"Production DB not found: {prod_db_path}"
+    configured_db = os.environ.get("CV_PILOT_DB")
+    prod_db_path = Path(configured_db) if configured_db else (
+        repo_root / "cv-pilot-agent" / "db" / "cv-pilot.db"
+    )
+    if not prod_db_path.is_file():
+        pytest.skip("Production DB is externalized; set CV_PILOT_DB to run this comparison")
 
     # 1. Extract production schema (read-only)
     prod_conn = sqlite3.connect(f"file:{prod_db_path}?mode=ro", uri=True)

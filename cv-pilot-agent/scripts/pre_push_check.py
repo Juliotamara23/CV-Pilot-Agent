@@ -6,6 +6,7 @@ Validates categories of breakage that have shipped in past releases:
   Check B: Bidirectional registration between AGENTS.md and skills/.
   Check C: Flujo coverage of the skills that AGENTS.md declares.
   Check D: pyright type errors on Python files changed vs origin/main.
+  Check E: Issue-management references in code/config/file names.
 
 Exit codes:
   0  all checks passed (or only WARN-level issues)
@@ -220,6 +221,17 @@ def _is_interesting_token(token: str) -> bool:
     return True
 
 
+def _is_externalized_runtime_token(token: str, repo_root: Path) -> bool:
+    """Return True for intentionally externalized CV-Pilot runtime paths."""
+    if not token.startswith("data/"):
+        return False
+    ignored = repo_root / ".gitignore"
+    try:
+        return "cv-pilot-agent/data/" in ignored.read_text(encoding="utf-8")
+    except OSError:
+        return False
+
+
 def check_broken_references(repo_root: Path) -> CheckResult:
     result = CheckResult(name="Check A: broken references", status="PASS")
     target_paths = [
@@ -250,6 +262,11 @@ def check_broken_references(repo_root: Path) -> CheckResult:
             if not _is_interesting_token(token):
                 continue
             if _path_exists_on_disk(repo_root, md_file, token):
+                continue
+            if _is_externalized_runtime_token(token, repo_root):
+                result.details.append(
+                    f"  WARN: {md_file.relative_to(repo_root)}: external runtime ref {token!r}"
+                )
                 continue
             # Skip template fragments like `scripts/cli.py` from
             # `skills/<skill>/scripts/cli.py`. The `<placeholder>` makes the
@@ -520,7 +537,7 @@ def check_pyright(repo_root: Path) -> CheckResult:
     # pyright exit codes: 0 = clean, 1 = type errors, 2 = config error, 3 = fatal.
     if proc.returncode == 0:
         result.details.append(
-            f"  {len(changed)} changed Python file(s) type-check clean"
+            f"  {len(changed)} changed file(s) type-check clean"
         )
         return result
     if proc.returncode >= 2:
@@ -538,6 +555,148 @@ def check_pyright(repo_root: Path) -> CheckResult:
     return result
 
 
+# ---------------------------------------------------------------------------
+# Check E: Issue references in code/config/file names
+# ---------------------------------------------------------------------------
+
+# Pattern to detect issue references like issue15, issue-15, issue_15, issue #15, issue #<number>
+# Case-insensitive. Matches "issue" followed by optional separator and a number.
+ISSUE_REF_PATTERN = re.compile(
+    r"(?<![A-Za-z])issue[-_ ]*#?\s*\d+\b",
+    re.IGNORECASE,
+)
+
+# File extensions considered source/config/runtime files that should not contain issue refs.
+# Docs, CHANGELOG, .github PR templates, and test assertion prose are allowed.
+ALLOWED_EXTS_FOR_ISSUE_REFS = {
+    ".md",          # documentation (but we still check filenames)
+    ".rst",
+    ".txt",
+    ".changelog",
+}
+# Directories/files where issue refs are allowed in content (historical/prose context)
+ALLOWED_PATHS_FOR_ISSUE_REFS = {
+    "docs/",
+    "CHANGELOG",
+    ".github/",
+    "test/",
+}
+
+# File extensions that are checked for issue refs in content (source/config/runtime)
+CHECKED_EXTS = {
+    ".py", ".sh", ".bash", ".zsh", ".fish",
+    ".json", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf",
+    ".sql", ".env", ".env.example",
+    ".md",  # markdown files are checked but allowed paths are excluded
+}
+
+
+def _is_allowed_path_for_issue_refs(file_path: Path, repo_root: Path) -> bool:
+    """Return True if the file is in an allowed location for issue references."""
+    try:
+        rel = file_path.relative_to(repo_root)
+    except ValueError:
+        return False
+    rel_str = str(rel)
+    # Allow docs/, CHANGELOG*, .github/, test/ directories
+    for allowed in ALLOWED_PATHS_FOR_ISSUE_REFS:
+        if rel_str.startswith(allowed) or rel_str == allowed.rstrip("/"):
+            return True
+    return False
+
+
+def _get_changed_files(repo_root: Path) -> list[Path]:
+    """All files changed vs origin/main (committed only), not just Python."""
+    try:
+        base = subprocess.run(
+            ["git", "rev-parse", "--verify", "origin/main"],
+            cwd=repo_root, capture_output=True, text=True,
+        )
+        if base.returncode != 0:
+            return []
+        proc = subprocess.run(
+            ["git", "diff", "--name-only", "--diff-filter=ACM", "origin/main", "HEAD"],
+            cwd=repo_root, capture_output=True, text=True,
+        )
+        if proc.returncode != 0:
+            return []
+        changed = []
+        for line in proc.stdout.splitlines():
+            p = repo_root / line.strip()
+            if p.is_file():
+                changed.append(p)
+        return changed
+    except OSError:
+        return []
+
+
+def check_issue_references(repo_root: Path) -> CheckResult:
+    """FAIL when issue-management references appear in source/config/file names.
+
+    Patterns blocked (case-insensitive):
+      issue15, issue-15, issue_15, issue #15, issue #<number>, issue[-_ ]<number>
+
+    Scope:
+      - FAIL for source/config/runtime files (Python, shell, JSON, YAML, TOML,
+        SQL, INI, and filenames themselves).
+      - Allowed (WARN only): docs/, CHANGELOG*, .github/ PR templates, test/ assertion prose.
+      - URLs containing /issues/ are not flagged.
+      - Ordinary words like "issues" without a number are not flagged.
+
+    Returns WARN (not FAIL) if origin/main is unavailable.
+    """
+    result = CheckResult(name="Check E: issue references", status="PASS")
+
+    changed = _get_changed_files(repo_root)
+    if not changed:
+        result.status = "WARN"
+        result.details.append(
+            "  no changed files vs origin/main (or origin/main missing); skipping"
+        )
+        return result
+
+    for file_path in changed:
+        # Check filename itself
+        filename = file_path.name
+        if ISSUE_REF_PATTERN.search(filename):
+            result.status = "FAIL"
+            result.details.append(
+                f"  {file_path.relative_to(repo_root)}: filename contains issue reference"
+            )
+
+        # This checker necessarily contains the patterns it enforces. Do not
+        # report its own documentation/regex as a violation.
+        if file_path.resolve() == (repo_root / "cv-pilot-agent" / "scripts" / "pre_push_check.py").resolve():
+            continue
+
+        # Check file content for checked extensions
+        if file_path.suffix.lower() in CHECKED_EXTS:
+            # Skip content check for allowed paths (but still check filename)
+            if _is_allowed_path_for_issue_refs(file_path, repo_root):
+                continue
+            try:
+                text = file_path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            for i, line in enumerate(text.splitlines(), 1):
+                if ISSUE_REF_PATTERN.search(line):
+                    # Skip URLs like github.com/.../issues/123
+                    if "http" in line.lower() and "/issues/" in line.lower():
+                        continue
+                    result.status = "FAIL"
+                    result.details.append(
+                        f"  {file_path.relative_to(repo_root)}:{i}: issue reference in content"
+                    )
+
+    if result.status == "PASS" and not result.details:
+        result.details.append(
+            f"  scanned {len(changed)} changed file(s), no issue references found"
+        )
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Entry point
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
@@ -570,6 +729,7 @@ def main(argv: list[str] | None = None) -> int:
         check_bidirectional_skills,
         check_flujo_coverage,
         check_pyright,
+        check_issue_references,
     ]:
         try:
             results.append(check_fn(repo_root))

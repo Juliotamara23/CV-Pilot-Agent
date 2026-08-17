@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -36,6 +37,39 @@ for _p in (_AGENT_ROOT, _APIFY_SCRIPTS):
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
+
+
+@pytest.fixture(autouse=True)
+def synthetic_runtime_data():
+    """Provide disposable profile files for subprocess CLIs during E2E tests."""
+    data_dir = _AGENT_ROOT / "data"
+    if data_dir.exists():
+        pytest.skip(
+            "E2E tests require the repository runtime data directory to be externalized"
+        )
+
+    data_dir.mkdir()
+    (data_dir / "perfil.json").write_text(
+        json.dumps(
+            {
+                "nombre": "Synthetic Test User",
+                "linkedin": "https://linkedin.com/in/synthetic-test-user",
+                "github": "https://github.com/synthetic-test-user",
+                "telefono": "+57 300 0000000",
+                "correo": "synthetic@example.com",
+                "cv_url": "",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (data_dir / "preferencias.json").write_text("{}\n", encoding="utf-8")
+    (data_dir / "correos.md").write_text(
+        "# Synthetic email templates\n", encoding="utf-8"
+    )
+    try:
+        yield
+    finally:
+        shutil.rmtree(data_dir, ignore_errors=True)
 
 def _run_query(query_script: str, env: dict, *args: str) -> subprocess.CompletedProcess:
     """Run query.py with the given args and return the process result."""
