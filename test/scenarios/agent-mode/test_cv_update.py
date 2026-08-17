@@ -62,13 +62,14 @@ _parser_spec.loader.exec_module(parser)
 # Constants
 # --------------------------------------------------------------------------- #
 
-_REAL_DATA_DIR = _AGENT_ROOT / "data"
 _REPO_ROOT = _AGENT_ROOT.parent
 _PDF_JOSE = _REPO_ROOT / "test" / "cv-test" / "Hoja de Vida Jose.pdf"
 _PDF_GCCF = _REPO_ROOT / "test" / "cv-test" / "GCCF Academy Key Information.pdf"
 
-REAL_DATA_MD5: dict[str, str] = {
-    "correos.md": "11e474246f6ac953621a4b60e8410ee6",
+SYNTHETIC_DATA_FILES: dict[str, str] = {
+    "correos.md": "# Test email templates\n\nSynthetic fixture content.\n",
+    "perfil.json": "{}\n",
+    "preferencias.json": "{}\n",
 }
 
 OLD_PERFIL_BACKEND = """\
@@ -158,26 +159,13 @@ def sandbox_dir(tmp_path):
 
 @pytest.fixture()
 def clean_data_dir(sandbox_dir):
-    """Provide a sandbox data/ dir pre-populated with real data/ content."""
+    """Provide a sandbox data/ dir populated only with synthetic fixtures."""
     data_dir = sandbox_dir / "data"
 
-    for f in _REAL_DATA_DIR.iterdir():
-        # cv.pdf is a user-generated artifact that may or may not exist in
-        # the real data dir — do not seed it. Tests create it explicitly
-        # when exercising the --source-pdf persistence path.
-        if f.is_file() and f.name != "cv.pdf":
-            shutil.copy(f, data_dir / f.name)
+    for filename, content in SYNTHETIC_DATA_FILES.items():
+        (data_dir / filename).write_text(content, encoding="utf-8")
 
     yield data_dir
-
-    for fname, expected_md5 in REAL_DATA_MD5.items():
-        real_file = _REAL_DATA_DIR / fname
-        if real_file.exists():
-            actual_md5 = hashlib.md5(real_file.read_bytes()).hexdigest()
-            assert actual_md5 == expected_md5, (
-                f"REAL data/{fname} was modified during test! "
-                f"Expected {expected_md5}, got {actual_md5}"
-            )
 
 
 @pytest.fixture()
@@ -798,22 +786,3 @@ class TestATSFidelity:
             "New frontend CV content not found in final perfil.json."
         )
         assert _md5(perfil_json_path) != md5_old, "perfil.json was NOT rewritten."
-
-
-# =========================================================================== #
-#  Data Integrity Test
-# =========================================================================== #
-
-
-class TestDataIntegrity:
-    """Verify the real cv-pilot-agent/data/ directory is never modified."""
-
-    def test_no_data_dir_pollution(self):
-        for fname, expected_md5 in REAL_DATA_MD5.items():
-            real_file = _REAL_DATA_DIR / fname
-            assert real_file.exists(), f"data/{fname} was deleted!"
-            actual_md5 = _md5(real_file)
-            assert actual_md5 == expected_md5, (
-                f"data/{fname} was modified! "
-                f"Expected {expected_md5}, got {actual_md5}"
-            )

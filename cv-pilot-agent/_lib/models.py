@@ -83,7 +83,18 @@ class Analysis(BaseModel):
     created_at: Optional[str] = None
 
 
-class AnalysisUpdate(BaseModel):
+class UpdateFields(BaseModel):
+    """Base for partial-update input models: has_fields() is derived from
+    declared fields so a new field can never be forgotten."""
+
+    def has_fields(self) -> bool:
+        return any(
+            getattr(self, field) is not None
+            for field in type(self).model_fields
+        )
+
+
+class AnalysisUpdate(UpdateFields):
     """Input shape for updating an analysis row. All fields optional."""
 
     percentage: Optional[float] = None
@@ -93,22 +104,8 @@ class AnalysisUpdate(BaseModel):
     tldr: Optional[str] = None
     contact_method: Optional[str] = None
 
-    def has_fields(self) -> bool:
-        """Return True if at least one field is set."""
-        return any(
-            v is not None
-            for v in [
-                self.percentage,
-                self.comparativa,
-                self.observaciones,
-                self.verdict,
-                self.tldr,
-                self.contact_method,
-            ]
-        )
 
-
-class JobUpdate(BaseModel):
+class JobUpdate(UpdateFields):
     """Input shape for updating non-identity job fields. All fields optional."""
 
     external_id: Optional[str] = None
@@ -117,17 +114,3 @@ class JobUpdate(BaseModel):
     salary: Optional[str] = None
     description: Optional[str] = None
     source: Optional[str] = None
-
-    def has_fields(self) -> bool:
-        """Return True if at least one field is set."""
-        return any(
-            v is not None
-            for v in [
-                self.external_id,
-                self.public_date,
-                self.url,
-                self.salary,
-                self.description,
-                self.source,
-            ]
-        )

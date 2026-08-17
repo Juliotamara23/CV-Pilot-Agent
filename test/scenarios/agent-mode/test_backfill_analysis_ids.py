@@ -1,4 +1,4 @@
-"""Tests for the issue #15 migration (backfill NULL ids + dedupe analyses).
+"""Tests for the backfill analysis ids migration (backfill NULL ids + dedupe analyses).
 
 Reproduces the production dirty state in a throwaway DB:
   * duplicate analyses per job_hash (no UNIQUE constraint),
@@ -22,7 +22,7 @@ def _insert_null_id_analysis(conn, job_hash, percentage, verdict):
     )
 
 
-class TestMigrateIssue15:
+class TestBackfillAnalysisIds:
     def _seed_dirty_state(self, tmp_db):
         """One job with two duplicate analyses: old NULL-id row + newer row."""
         conn = sqlite3.connect(str(tmp_db))
@@ -40,7 +40,7 @@ class TestMigrateIssue15:
 
     def test_dry_run_reports_without_mutating(self, tmp_db):
         h, _ = self._seed_dirty_state(tmp_db)
-        result = db.migrate_issue15(dry_run=True)
+        result = db.backfill_analysis_ids_and_dedupe(dry_run=True, db_path=str(tmp_db))
         assert result["ok"] is True
         assert result["dry_run"] is True
         assert result["backfilled"] == 1
@@ -55,7 +55,7 @@ class TestMigrateIssue15:
 
     def test_real_run_backfills_and_dedupes_keeping_most_recent(self, tmp_db):
         h, _ = self._seed_dirty_state(tmp_db)
-        result = db.migrate_issue15(dry_run=False)
+        result = db.backfill_analysis_ids_and_dedupe(dry_run=False, db_path=str(tmp_db))
         assert result["ok"] is True
         assert result["dry_run"] is False
         assert result["backfilled"] == 1
@@ -75,8 +75,8 @@ class TestMigrateIssue15:
 
     def test_idempotent_second_run_noop(self, tmp_db):
         h, _ = self._seed_dirty_state(tmp_db)
-        db.migrate_issue15(dry_run=False)
-        second = db.migrate_issue15(dry_run=False)
+        db.backfill_analysis_ids_and_dedupe(dry_run=False, db_path=str(tmp_db))
+        second = db.backfill_analysis_ids_and_dedupe(dry_run=False, db_path=str(tmp_db))
         assert second["backfilled"] == 0
         assert second["deduped_deleted"] == 0
         # Still exactly one analysis.
@@ -89,7 +89,7 @@ class TestMigrateIssue15:
             job_hash=h, percentage=50.0, comparativa="c", observaciones="o",
             verdict="Apto", tldr="t",
         ))
-        result = db.migrate_issue15(dry_run=False)
+        result = db.backfill_analysis_ids_and_dedupe(dry_run=False, db_path=str(tmp_db))
         assert result["backfilled"] == 0
         assert result["deduped_deleted"] == 0
         assert db.get_analysis(h)["analysis"]["verdict"] == "Apto"
@@ -105,6 +105,6 @@ class TestMigrateIssue15:
             verdict="No apto", tldr="t",
         ))
         conn.close()
-        db.migrate_issue15(dry_run=False)
+        db.backfill_analysis_ids_and_dedupe(dry_run=False, db_path=str(tmp_db))
         got = db.get_analysis(h)["analysis"]
         assert got["verdict"] == "No apto"  # the re-evaluation wins

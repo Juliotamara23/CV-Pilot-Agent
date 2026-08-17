@@ -1,18 +1,19 @@
-"""Migration script for issue #15: backfill NULL analysis ids + dedupe analyses.
+"""Migration script: backfill NULL analysis ids and dedupe duplicate analyses.
 
 Run from the repo root with the project venv::
 
-    cv-pilot-agent/.venv/bin/python cv-pilot-agent/scripts/migrate_issue15.py --dry-run
-    cv-pilot-agent/.venv/bin/python cv-pilot-agent/scripts/migrate_issue15.py
+    cv-pilot-agent/.venv/bin/python cv-pilot-agent/scripts/backfill_analysis_ids.py --dry-run
+    cv-pilot-agent/.venv/bin/python cv-pilot-agent/scripts/backfill_analysis_ids.py
 
 Steps (in one transaction, idempotent):
   1. Backfill ``analysis_id`` NULL rows with a fresh uuid4.
   2. Dedupe ``analyses`` keeping ONLY the most recent row per ``job_hash``
      (the row ``analysis get`` returns today).
 
-The real logic lives in ``_lib/db.py::migrate_issue15`` so tests can call it
-directly; this script is a thin CLI wrapper. Always inspect ``--dry-run``
-output before running the real migration, and keep a backup of the DB first.
+The real logic lives in ``_lib/db.py::backfill_analysis_ids_and_dedupe`` so
+tests can call it directly; this script is a thin CLI wrapper. Always inspect
+``--dry-run`` output before running the real migration, and keep a backup of
+the DB first.
 """
 
 from __future__ import annotations
@@ -30,8 +31,7 @@ from _lib import db  # noqa: E402
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Backfill NULL analysis ids and dedupe duplicate analyses "
-        "(issue #15)."
+        description="Backfill NULL analysis ids and dedupe duplicate analyses."
     )
     parser.add_argument(
         "--db",
@@ -45,12 +45,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    if args.db:
-        import os
-
-        os.environ["CV_PILOT_DB"] = args.db
-
-    result = db.migrate_issue15(dry_run=args.dry_run)
+    result = db.backfill_analysis_ids_and_dedupe(dry_run=args.dry_run, db_path=args.db)
     print(
         f"{'DRY-RUN ' if args.dry_run else ''}backfilled: {result['backfilled']}, "
         f"deduped_deleted: {result['deduped_deleted']}"

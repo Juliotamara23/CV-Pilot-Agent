@@ -296,13 +296,6 @@ def analysis_update(
 
     Does NOT change job status.
     """
-    if job_hash is None and analysis_id is None:
-        _emit_error("analysis update requires --job-hash or --analysis-id", "VALIDATION_ERROR")
-        raise typer.Exit(code=1)
-    if job_hash is not None and analysis_id is not None:
-        _emit_error("Use --job-hash OR --analysis-id, not both", "VALIDATION_ERROR")
-        raise typer.Exit(code=1)
-
     update = AnalysisUpdate(
         percentage=percentage,
         comparativa=comparativa,
@@ -335,13 +328,6 @@ def analysis_delete(
 
     Does NOT touch the job row or its status.
     """
-    if job_hash is None and analysis_id is None:
-        _emit_error("analysis delete requires --job-hash or --analysis-id", "VALIDATION_ERROR")
-        raise typer.Exit(code=1)
-    if job_hash is not None and analysis_id is not None:
-        _emit_error("Use --job-hash OR --analysis-id, not both", "VALIDATION_ERROR")
-        raise typer.Exit(code=1)
-
     _run(lambda: _emit(db.delete_analysis(job_hash=job_hash, analysis_id=analysis_id)))
 
 
