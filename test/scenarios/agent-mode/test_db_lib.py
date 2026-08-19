@@ -71,7 +71,7 @@ class TestInsertJob:
         # Insert an analysis so we can assert it gets deleted on refresh.
         db.insert_analysis(AnalysisInsert(
             job_hash=job_hash, percentage=10.0, comparativa="c",
-            observaciones="o", verdict="v", tldr="t",
+            observaciones="o", verdict="No apto", tldr="t",
         ))
         assert db.get_analysis(job_hash)["ok"] is True
 
@@ -187,7 +187,7 @@ class TestDeleteJobs:
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
         db.insert_analysis(AnalysisInsert(
             job_hash=h, percentage=50.0, comparativa="c",
-            observaciones="o", verdict="v", tldr="t",
+            observaciones="o", verdict="No apto", tldr="t",
         ))
         result = db.delete_jobs(job_hash=h)
         assert result["deleted"] == 1
@@ -208,7 +208,7 @@ class TestInsertAnalysis:
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
         result = db.insert_analysis(AnalysisInsert(
             job_hash=h, percentage=85.5, comparativa="c",
-            observaciones="o", verdict="v", tldr="t",
+            observaciones="o", verdict="Apto", tldr="t",
         ))
         assert result["ok"] is True
         assert "analysis_id" in result
@@ -219,7 +219,7 @@ class TestInsertAnalysis:
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
         db.insert_analysis(AnalysisInsert(
             job_hash=h, percentage=85.5, comparativa="c",
-            observaciones="o", verdict="v", tldr="t",
+            observaciones="o", verdict="Apto", tldr="t",
             contact_method="email",
         ))
         got = db.get_analysis(h)["analysis"]
@@ -229,7 +229,7 @@ class TestInsertAnalysis:
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
         db.insert_analysis(AnalysisInsert(
             job_hash=h, percentage=85.5, comparativa="c",
-            observaciones="o", verdict="v", tldr="t",
+            observaciones="o", verdict="Apto", tldr="t",
         ))
         got = db.get_analysis(h)["analysis"]
         assert got["contact_method"] is None
@@ -238,7 +238,72 @@ class TestInsertAnalysis:
         with pytest.raises(JobNotFoundError):
             db.insert_analysis(AnalysisInsert(
                 job_hash="missing", percentage=50.0, comparativa="c",
-                observaciones="o", verdict="v", tldr="t",
+                observaciones="o", verdict="No apto", tldr="t",
+            ))
+
+
+class TestVerdictValidation:
+    """Verdict must be one of the allowed business values (No apto, Apto con reservas, Apto).
+
+    Validation happens at the domain boundary (insert_analysis / update_analysis).
+    Invalid verdicts raise ValidationError with code VALIDATION_ERROR.
+    """
+
+    def test_valid_verdicts_accepted(self, tmp_db):
+        h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
+        for verdict in ("No apto", "Apto con reservas", "Apto"):
+            # Clean slate for each verdict
+            if verdict != "No apto":  # first iteration uses the existing job
+                h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
+            result = db.insert_analysis(AnalysisInsert(
+                job_hash=h, percentage=50.0, comparativa="c",
+                observaciones="o", verdict=verdict, tldr="t",
+            ))
+            assert result["ok"] is True
+            got = db.get_analysis(h)["analysis"]
+            assert got["verdict"] == verdict
+
+    def test_invalid_verdict_rejected_on_insert(self, tmp_db):
+        h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
+        with pytest.raises(ValidationError) as exc:
+            db.insert_analysis(AnalysisInsert(
+                job_hash=h, percentage=50.0, comparativa="c",
+                observaciones="o", verdict="Pending", tldr="t",
+            ))
+        assert exc.value.code == "VALIDATION_ERROR"
+        assert "verdict" in str(exc.value).lower()
+
+    def test_invalid_verdict_rejected_on_update(self, tmp_db):
+        h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
+        db.insert_analysis(AnalysisInsert(
+            job_hash=h, percentage=50.0, comparativa="c",
+            observaciones="o", verdict="Apto", tldr="t",
+        ))
+        with pytest.raises(ValidationError) as exc:
+            db.update_analysis(job_hash=h, analysis_update=AnalysisUpdate(verdict="Undecided"))
+        assert exc.value.code == "VALIDATION_ERROR"
+        assert "verdict" in str(exc.value).lower()
+
+    def test_verdict_case_sensitive(self, tmp_db):
+        """Verdict values are exact Spanish strings — case matters."""
+        h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
+        with pytest.raises(ValidationError):
+            db.insert_analysis(AnalysisInsert(
+                job_hash=h, percentage=50.0, comparativa="c",
+                observaciones="o", verdict="no apto", tldr="t",  # lowercase
+            ))
+        with pytest.raises(ValidationError):
+            db.insert_analysis(AnalysisInsert(
+                job_hash=h, percentage=50.0, comparativa="c",
+                observaciones="o", verdict="APTO", tldr="t",  # uppercase
+            ))
+
+    def test_empty_verdict_rejected(self, tmp_db):
+        h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
+        with pytest.raises(ValidationError):
+            db.insert_analysis(AnalysisInsert(
+                job_hash=h, percentage=50.0, comparativa="c",
+                observaciones="o", verdict="", tldr="t",
             ))
 
 
@@ -247,7 +312,7 @@ class TestGetAnalysis:
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
         db.insert_analysis(AnalysisInsert(
             job_hash=h, percentage=85.5, comparativa="c",
-            observaciones="o", verdict="v", tldr="t",
+            observaciones="o", verdict="No apto", tldr="t",
         ))
         result = db.get_analysis(h)
         assert result["ok"] is True
@@ -260,7 +325,7 @@ class TestGetAnalysis:
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
         db.insert_analysis(AnalysisInsert(
             job_hash=h, percentage=70.0, comparativa="c",
-            observaciones="o", verdict="v", tldr="t",
+            observaciones="o", verdict="No apto", tldr="t",
             contact_method="portal",
         ))
         analysis = db.get_analysis(h)["analysis"]
@@ -289,7 +354,7 @@ class TestContactMethodSchema:
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
         db.insert_analysis(AnalysisInsert(
             job_hash=h, percentage=80.0, comparativa="c",
-            observaciones="o", verdict="v", tldr="t",
+            observaciones="o", verdict="No apto", tldr="t",
             contact_method="email",
         ))
         got = db.get_analysis(h)["analysis"]
@@ -317,28 +382,28 @@ class TestUpdateStatus:
 class TestUpdateAnalysis:
     def test_update_by_job_hash_updates_most_recent(self, tmp_db):
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
-        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=10.0, comparativa="c1", observaciones="o1", verdict="v1", tldr="t1"))
-        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=20.0, comparativa="c2", observaciones="o2", verdict="v2", tldr="t2"))
+        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=10.0, comparativa="c1", observaciones="o1", verdict="No apto", tldr="t1"))
+        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=20.0, comparativa="c2", observaciones="o2", verdict="Apto con reservas", tldr="t2"))
         # get_analysis returns most recent (20%)
         assert db.get_analysis(h)["analysis"]["percentage"] == "20.0"
-        result = db.update_analysis(job_hash=h, analysis_update=AnalysisUpdate(verdict="updated", percentage=99.0))
+        result = db.update_analysis(job_hash=h, analysis_update=AnalysisUpdate(verdict="Apto", percentage=99.0))
         assert result["ok"] is True
         assert result["selector"] == "job_hash"
         # Most recent should now have updated values
         got = db.get_analysis(h)["analysis"]
-        assert got["verdict"] == "updated"
+        assert got["verdict"] == "Apto"
         assert got["percentage"] == "99.0"
         # Other fields unchanged
         assert got["comparativa"] == "c2"
 
     def test_update_by_analysis_id_targets_specific_row(self, tmp_db):
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
-        r1 = db.insert_analysis(AnalysisInsert(job_hash=h, percentage=10.0, comparativa="c1", observaciones="o1", verdict="v1", tldr="t1"))
-        r2 = db.insert_analysis(AnalysisInsert(job_hash=h, percentage=20.0, comparativa="c2", observaciones="o2", verdict="v2", tldr="t2"))
+        r1 = db.insert_analysis(AnalysisInsert(job_hash=h, percentage=10.0, comparativa="c1", observaciones="o1", verdict="No apto", tldr="t1"))
+        r2 = db.insert_analysis(AnalysisInsert(job_hash=h, percentage=20.0, comparativa="c2", observaciones="o2", verdict="Apto con reservas", tldr="t2"))
         id1 = r1["analysis_id"]
         id2 = r2["analysis_id"]
         # Update the older one by ID
-        result = db.update_analysis(analysis_id=id1, analysis_update=AnalysisUpdate(verdict="updated-old"))
+        result = db.update_analysis(analysis_id=id1, analysis_update=AnalysisUpdate(verdict="Apto"))
         assert result["ok"] is True
         assert result["selector"] == "analysis_id"
         assert result["analysis_id"] == id1
@@ -347,17 +412,17 @@ class TestUpdateAnalysis:
         conn.row_factory = sqlite3.Row
         row = conn.execute("SELECT verdict FROM analyses WHERE analysis_id = ?", (id1,)).fetchone()
         conn.close()
-        assert row["verdict"] == "updated-old"
+        assert row["verdict"] == "Apto"
         # Most recent unchanged
-        assert db.get_analysis(h)["analysis"]["verdict"] == "v2"
+        assert db.get_analysis(h)["analysis"]["verdict"] == "Apto con reservas"
 
     def test_partial_update_leaves_other_fields_intact(self, tmp_db):
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
-        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=50.0, comparativa="orig-comp", observaciones="orig-obs", verdict="orig-ver", tldr="orig-tldr", contact_method="email"))
-        result = db.update_analysis(job_hash=h, analysis_update=AnalysisUpdate(verdict="new-ver"))
+        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=50.0, comparativa="orig-comp", observaciones="orig-obs", verdict="No apto", tldr="orig-tldr", contact_method="email"))
+        result = db.update_analysis(job_hash=h, analysis_update=AnalysisUpdate(verdict="Apto"))
         assert result["ok"] is True
         got = db.get_analysis(h)["analysis"]
-        assert got["verdict"] == "new-ver"
+        assert got["verdict"] == "Apto"
         assert got["comparativa"] == "orig-comp"
         assert got["observaciones"] == "orig-obs"
         assert got["tldr"] == "orig-tldr"
@@ -365,42 +430,42 @@ class TestUpdateAnalysis:
 
     def test_no_fields_raises_validation_error(self, tmp_db):
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
-        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=50.0, comparativa="c", observaciones="o", verdict="v", tldr="t"))
+        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=50.0, comparativa="c", observaciones="o", verdict="No apto", tldr="t"))
         with pytest.raises(ValidationError) as exc:
             db.update_analysis(job_hash=h, analysis_update=AnalysisUpdate())
         assert exc.value.code == "VALIDATION_ERROR"
 
     def test_no_selector_raises_validation_error(self, tmp_db):
         with pytest.raises(ValidationError) as exc:
-            db.update_analysis(analysis_update=AnalysisUpdate(verdict="v"))
+            db.update_analysis(analysis_update=AnalysisUpdate(verdict="No apto"))
         assert exc.value.code == "VALIDATION_ERROR"
 
     def test_both_selectors_raises_validation_error(self, tmp_db):
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
-        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=50.0, comparativa="c", observaciones="o", verdict="v", tldr="t"))
+        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=50.0, comparativa="c", observaciones="o", verdict="No apto", tldr="t"))
         with pytest.raises(ValidationError) as exc:
-            db.update_analysis(job_hash=h, analysis_id="some-id", analysis_update=AnalysisUpdate(verdict="v"))
+            db.update_analysis(job_hash=h, analysis_id="some-id", analysis_update=AnalysisUpdate(verdict="No apto"))
         assert exc.value.code == "VALIDATION_ERROR"
 
     def test_job_not_found_by_job_hash(self, tmp_db):
         with pytest.raises(JobNotFoundError) as exc:
-            db.update_analysis(job_hash="missing", analysis_update=AnalysisUpdate(verdict="v"))
+            db.update_analysis(job_hash="missing", analysis_update=AnalysisUpdate(verdict="No apto"))
         assert exc.value.code == "JOB_NOT_FOUND"
 
     def test_analysis_not_found_by_job_hash(self, tmp_db):
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
         with pytest.raises(JobNotFoundError) as exc:
-            db.update_analysis(job_hash=h, analysis_update=AnalysisUpdate(verdict="v"))
+            db.update_analysis(job_hash=h, analysis_update=AnalysisUpdate(verdict="No apto"))
         assert exc.value.code == "ANALYSIS_NOT_FOUND"
 
     def test_analysis_not_found_by_id(self, tmp_db):
         with pytest.raises(JobNotFoundError) as exc:
-            db.update_analysis(analysis_id="missing-id", analysis_update=AnalysisUpdate(verdict="v"))
+            db.update_analysis(analysis_id="missing-id", analysis_update=AnalysisUpdate(verdict="No apto"))
         assert exc.value.code == "ANALYSIS_NOT_FOUND"
 
     def test_percentage_out_of_bounds_raises_validation_error(self, tmp_db):
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
-        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=50.0, comparativa="c", observaciones="o", verdict="v", tldr="t"))
+        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=50.0, comparativa="c", observaciones="o", verdict="No apto", tldr="t"))
         with pytest.raises(ValidationError) as exc:
             db.update_analysis(job_hash=h, analysis_update=AnalysisUpdate(percentage=101.0))
         assert exc.value.code == "VALIDATION_ERROR"
@@ -410,7 +475,7 @@ class TestUpdateAnalysis:
 
     def test_percentage_bounds_accept_boundaries(self, tmp_db):
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
-        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=50.0, comparativa="c", observaciones="o", verdict="v", tldr="t"))
+        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=50.0, comparativa="c", observaciones="o", verdict="No apto", tldr="t"))
         result = db.update_analysis(job_hash=h, analysis_update=AnalysisUpdate(percentage=0.0))
         assert result["ok"] is True
         result = db.update_analysis(job_hash=h, analysis_update=AnalysisUpdate(percentage=100.0))
@@ -418,7 +483,7 @@ class TestUpdateAnalysis:
 
     def test_oversized_text_raises_validation_error(self, tmp_db):
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
-        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=50.0, comparativa="c", observaciones="o", verdict="v", tldr="t"))
+        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=50.0, comparativa="c", observaciones="o", verdict="No apto", tldr="t"))
         with pytest.raises(ValidationError) as exc:
             db.update_analysis(job_hash=h, analysis_update=AnalysisUpdate(verdict="x" * 20001))
         assert exc.value.code == "VALIDATION_ERROR"
@@ -430,7 +495,7 @@ class TestUpdateAnalysis:
 class TestDeleteAnalysis:
     def test_delete_by_analysis_id(self, tmp_db):
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
-        r = db.insert_analysis(AnalysisInsert(job_hash=h, percentage=50.0, comparativa="c", observaciones="o", verdict="v", tldr="t"))
+        r = db.insert_analysis(AnalysisInsert(job_hash=h, percentage=50.0, comparativa="c", observaciones="o", verdict="No apto", tldr="t"))
         aid = r["analysis_id"]
         result = db.delete_analysis(analysis_id=aid)
         assert result["ok"] is True
@@ -442,8 +507,8 @@ class TestDeleteAnalysis:
 
     def test_delete_by_job_hash_deletes_most_recent(self, tmp_db):
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
-        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=10.0, comparativa="c1", observaciones="o1", verdict="v1", tldr="t1"))
-        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=20.0, comparativa="c2", observaciones="o2", verdict="v2", tldr="t2"))
+        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=10.0, comparativa="c1", observaciones="o1", verdict="No apto", tldr="t1"))
+        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=20.0, comparativa="c2", observaciones="o2", verdict="Apto con reservas", tldr="t2"))
         # Most recent is 20%
         assert db.get_analysis(h)["analysis"]["percentage"] == "20.0"
         result = db.delete_analysis(job_hash=h)
@@ -473,14 +538,14 @@ class TestDeleteAnalysis:
 
     def test_delete_both_selectors_raises_validation_error(self, tmp_db):
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
-        r = db.insert_analysis(AnalysisInsert(job_hash=h, percentage=50.0, comparativa="c", observaciones="o", verdict="v", tldr="t"))
+        r = db.insert_analysis(AnalysisInsert(job_hash=h, percentage=50.0, comparativa="c", observaciones="o", verdict="No apto", tldr="t"))
         with pytest.raises(ValidationError) as exc:
             db.delete_analysis(job_hash=h, analysis_id=r["analysis_id"])
         assert exc.value.code == "VALIDATION_ERROR"
 
     def test_delete_does_not_remove_job(self, tmp_db):
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
-        r = db.insert_analysis(AnalysisInsert(job_hash=h, percentage=50.0, comparativa="c", observaciones="o", verdict="v", tldr="t"))
+        r = db.insert_analysis(AnalysisInsert(job_hash=h, percentage=50.0, comparativa="c", observaciones="o", verdict="No apto", tldr="t"))
         db.delete_analysis(analysis_id=r["analysis_id"])
         job = db.get_job(h)["job"]
         assert job["job_hash"] == h
@@ -541,7 +606,7 @@ class TestUpdateJob:
 
     def test_update_job_does_not_touch_analyses(self, tmp_db):
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
-        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=50.0, comparativa="c", observaciones="o", verdict="v", tldr="t"))
+        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=50.0, comparativa="c", observaciones="o", verdict="No apto", tldr="t"))
         db.update_job(h, JobUpdate(url="https://new"))
         # Analysis should still exist
         got = db.get_analysis(h)["analysis"]
@@ -549,7 +614,7 @@ class TestUpdateJob:
 
     def test_update_job_does_not_touch_status(self, tmp_db):
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
-        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=50.0, comparativa="c", observaciones="o", verdict="v", tldr="t"))
+        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=50.0, comparativa="c", observaciones="o", verdict="No apto", tldr="t"))
         # Status is 'analyzed'
         assert db.get_job(h)["job"]["status"] == "analyzed"
         db.update_job(h, JobUpdate(url="https://new"))
