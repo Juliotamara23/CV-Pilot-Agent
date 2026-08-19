@@ -317,7 +317,7 @@ def test_e2e_error_incomplete_manual_source(tmp_db, query_script):
     listed = json.loads(proc.stdout)
     assert listed["count"] == 0, "DB should be empty"
 
-    # Step 2: Try to insert analysis for non-existent job
+    # Step 2: Try to insert analysis for non-existent job (with valid verdict)
     proc = _run_query(
         query_script, env,
         "analysis", "insert",
@@ -325,7 +325,7 @@ def test_e2e_error_incomplete_manual_source(tmp_db, query_script):
         "--percentage", "80",
         "--comparativa", "test",
         "--observaciones", "test",
-        "--verdict", "test",
+        "--verdict", "No apto",
         "--tldr", "test",
     )
     assert proc.returncode == 1, "Expected non-zero exit for analysis without job"

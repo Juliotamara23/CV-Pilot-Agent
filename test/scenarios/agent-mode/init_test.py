@@ -1,47 +1,32 @@
 import sqlite3
 import os
+import sys
 from pathlib import Path
 
 # Test DB lives under test/ to keep it out of the main flow
 DB_PATH = Path(__file__).parent.parent.parent.parent / "test" / "cv-pilot-test.db"
 
+# Make cv-pilot-agent importable to use the canonical schema
+_AGENT_ROOT = Path(__file__).resolve().parent.parent.parent.parent / "cv-pilot-agent"
+if str(_AGENT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_AGENT_ROOT))
+
+from _lib._schema import get_schema_sql  # noqa: E402
+
+SCHEMA_SQL = get_schema_sql()
+
+
 def init_test_db():
-    """Initialize a clean test database using the production schema."""
+    """Initialize a clean test database using the production schema (single source of truth)."""
     if DB_PATH.exists():
         os.remove(DB_PATH)
 
     conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-
-    cursor.execute('''CREATE TABLE jobs (
-        job_hash TEXT PRIMARY KEY,
-        external_id TEXT,
-        public_date TEXT,
-        url TEXT,
-        company TEXT,
-        position TEXT,
-        location TEXT,
-        salary TEXT,
-        description TEXT,
-        status TEXT DEFAULT 'new'
-    )''')
-
-    # Schema must stay in sync with production
-    cursor.execute('''CREATE TABLE analyses (
-        analysis_id TEXT PRIMARY KEY,
-        job_hash TEXT,
-        percentage TEXT,
-        comparativa TEXT,
-        observaciones TEXT,
-        verdict TEXT,
-        tldr TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(job_hash) REFERENCES jobs(job_hash)
-    )''')
-    
+    conn.executescript(SCHEMA_SQL)
     conn.commit()
     conn.close()
     print(f"TEST_DB_READY: {DB_PATH}")
+
 
 if __name__ == "__main__":
     init_test_db()

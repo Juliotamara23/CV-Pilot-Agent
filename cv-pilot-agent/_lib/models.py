@@ -2,7 +2,8 @@
 
 Field names are verbatim SQL column names (no translation) per the SDD design
 refinement #4. ``Status`` is a closed ``Literal`` matching the CHECK constraint
-in the jobs table.
+in the jobs table. ``Verdict`` is a closed ``Literal`` matching the allowed
+business values for analysis verdicts.
 """
 
 from typing import Literal, Optional
@@ -12,6 +13,10 @@ from pydantic import BaseModel
 Status = Literal["new", "analyzed", "discarded", "applied", "rejected"]
 
 VALID_STATUSES: tuple[str, ...] = ("new", "analyzed", "discarded", "applied", "rejected")
+
+Verdict = Literal["No apto", "Apto con reservas", "Apto"]
+
+VALID_VERDICTS: tuple[str, ...] = ("No apto", "Apto con reservas", "Apto")
 
 
 def validate_status(value: str) -> str:
@@ -23,6 +28,19 @@ def validate_status(value: str) -> str:
     if value not in VALID_STATUSES:
         raise ValueError(
             f"Invalid status '{value}'. Must be one of: {', '.join(VALID_STATUSES)}"
+        )
+    return value
+
+
+def validate_verdict(value: str) -> str:
+    """Validate that *value* is a legal analysis verdict; raise ``ValueError`` otherwise.
+
+    Centralises the verdict-check so callers (db.py, query.py) do not duplicate
+    the ``if value not in VALID_VERDICTS`` guard.
+    """
+    if value not in VALID_VERDICTS:
+        raise ValueError(
+            f"Invalid verdict '{value}'. Must be one of: {', '.join(VALID_VERDICTS)}"
         )
     return value
 

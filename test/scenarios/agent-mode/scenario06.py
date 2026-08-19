@@ -87,6 +87,12 @@ _DB_TOKENS = frozenset({
     "sqlite", "redis", "mariadb", "sql server",
 })
 
+# Short aliases that need stricter word boundaries to avoid false positives
+# e.g. "next" in "next-generation", "ts" in "typescript", "node" in "node-red"
+_SHORT_ALIASES_NEEDING_STRICT_BOUNDARIES = frozenset({
+    "next", "ts", "js", "node", "git", "gcp", "aws", "ci", "cd", "ml", "ai",
+})
+
 
 def _generate_aliases(tech_name: str, sub_items: list[str] | None = None) -> list[str]:
     """Generate case-insensitive aliases for a technology name.
@@ -169,50 +175,105 @@ _CATEGORY_MAP: dict[str, str] = {
 def _parse_habilidades(text: str) -> dict[str, list[tuple[str, list[str]]]]:
     """Parse the HABILIDADES TÉCNICAS section into stack categories.
 
-    Each CV line like "Backend: Python (FastAPI), PostgreSQL" is split into
-    a category key and a list of ``(canonical_name, [aliases])`` tuples.
+    Supports two CV formats:
+    1. Plain header: "Backend: Python (FastAPI), PostgreSQL"
+       (with optional continuation lines)
+    2. Markdown bold with dash: "- **Backend**: Python (FastAPI), PostgreSQL"
+       (self-contained per line, no continuation lines needed)
+
+    Each entry is split into a category key and a list of
+    ``(canonical_name, [aliases])`` tuples.
     Databases are automatically separated from the backend category.
     """
     stack: dict[str, list[tuple[str, list[str]]]] = {}
 
-    # Normalise: collapse continuation lines into single lines per category
     lines = text.split("\n")
-    current_cat_header: str | None = None
+
+    # Regex patterns for detecting category headers
+    _PLAIN_CAT_RE = re.compile(r'^(IA & Automatización|Backend|Frontend|DevOps & Cloud)\s*:', re.IGNORECASE)
+    _MARKDOWN_CAT_RE = re.compile(r'^-\s*\*\*(IA & Automatización|Backend|Frontend|DevOps & Cloud)\*\*\s*:', re.IGNORECASE)
+
+    # Regex patterns for EXTRACTING category name and techs from a header line
+    _PLAIN_EXTRACT_RE = re.compile(r'^(IA & Automatización|Backend|Frontend|DevOps & Cloud)\s*:\s*(.*)$', re.IGNORECASE)
+    _MARKDOWN_EXTRACT_RE = re.compile(r'^-\s*\*\*(IA & Automatización|Backend|Frontend|DevOps & Cloud)\*\*\s*:\s*(.*)$', re.IGNORECASE)
+
+    # For unknown categories in plain format (fallback)
+    _PLAIN_UNKNOWN_EXTRACT_RE = re.compile(r'^(.+?):\s*(.*)$')
+
+    current_cat_key: str | None = None
+    current_cat_name: str | None = None  # Original category name for mapping
     current_techs_parts: list[str] = []
+    current_format: str | None = None  # "plain" or "markdown"
 
     def _flush_category() -> None:
-        nonlocal current_cat_header, current_techs_parts
-        if current_cat_header is None:
+        nonlocal current_cat_key, current_cat_name, current_techs_parts, current_format
+        if current_cat_key is None:
             return
-        cat_match = re.match(r'^(.+?):\s*(.*)', current_cat_header)
-        if not cat_match:
-            current_cat_header = None
-            current_techs_parts = []
-            return
-        cat_name = cat_match.group(1).strip()
-        first_techs = cat_match.group(2).strip()
-        all_techs_text = first_techs
-        if current_techs_parts:
-            all_techs_text += " " + " ".join(current_techs_parts)
 
-        cat_key = _CATEGORY_MAP.get(cat_name.lower(), cat_name.lower().replace(" ", "_"))
+        # Combine first line techs with continuation parts
+        all_techs_text = " ".join(current_techs_parts).strip()
+        if not all_techs_text:
+            current_cat_key = None
+            current_cat_name = None
+            current_techs_parts = []
+            current_format = None
+            return
+
         entries = _parse_category_techs(all_techs_text)
         if entries:
-            stack[cat_key] = entries
-        current_cat_header = None
+            stack[current_cat_key] = entries
+
+        current_cat_key = None
+        current_cat_name = None
         current_techs_parts = []
+        current_format = None
 
     for line in lines:
         stripped = line.strip()
         if not stripped:
             continue
 
-        # Detect new category header
-        if re.match(r'^(IA & Automatización|Backend|Frontend|DevOps & Cloud)\s*:', stripped, re.IGNORECASE):
+        # Check for markdown bold format first (more specific)
+        md_match = _MARKDOWN_EXTRACT_RE.match(stripped)
+        if md_match:
             _flush_category()
-            current_cat_header = stripped
-        elif current_cat_header is not None:
+            cat_name = md_match.group(1).strip()
+            techs = md_match.group(2).strip()
+            current_cat_name = cat_name
+            current_cat_key = _CATEGORY_MAP.get(cat_name.lower(), cat_name.lower().replace(" ", "_"))
+            current_techs_parts = [techs] if techs else []
+            current_format = "markdown"
+            continue
+
+        # Check for plain format
+        plain_match = _PLAIN_EXTRACT_RE.match(stripped)
+        if plain_match:
+            _flush_category()
+            cat_name = plain_match.group(1).strip()
+            techs = plain_match.group(2).strip()
+            current_cat_name = cat_name
+            current_cat_key = _CATEGORY_MAP.get(cat_name.lower(), cat_name.lower().replace(" ", "_"))
+            current_techs_parts = [techs] if techs else []
+            current_format = "plain"
+            continue
+
+        # Check for unknown plain category (fallback for extensibility)
+        unknown_match = _PLAIN_UNKNOWN_EXTRACT_RE.match(stripped)
+        if unknown_match and current_format is None:
+            # Only treat as new category if we're not in a continuation
+            _flush_category()
+            cat_name = unknown_match.group(1).strip()
+            techs = unknown_match.group(2).strip()
+            current_cat_name = cat_name
+            current_cat_key = cat_name.lower().replace(" ", "_")
+            current_techs_parts = [techs] if techs else []
+            current_format = "plain"
+            continue
+
+        # Continuation line (only for plain format)
+        if current_cat_key is not None and current_format == "plain":
             current_techs_parts.append(stripped)
+        # For markdown format, each line is self-contained - no continuations
 
     _flush_category()
 
@@ -291,7 +352,7 @@ def load_user_data() -> dict:
 
     # Extract professional title from the profile line
     title_match = re.search(
-        r'(Ingeniero de Sistemas|Desarrollador\w*\s+\w+|Analista\w*\s+\w+)',
+        r'(Ingeniero de (?:Sistemas|Software)|Desarrollador\w*\s+\w+|Analista\w*\s+\w+)',
         cv_text,
     )
     title = title_match.group(1) if title_match else "Ingeniero de Sistemas"
@@ -373,8 +434,15 @@ def analyze_vacancy(description: str, position: str, user_data: dict) -> dict:
     matched_names: set[str] = set()
     for alias_lower, canonical in all_aliases:
         # Use word-boundary-aware matching to avoid false positives
-        # e.g. "js" shouldn't match inside "json"
-        pattern = r'(?<![a-z/])' + re.escape(alias_lower) + r'(?![a-z])'
+        # e.g. "js" shouldn't match inside "json", "next" in "next-generation"
+        # Short aliases (<=3 chars or known problematic) need stricter boundaries:
+        # must be preceded/followed by non-word-char OR start/end of string
+        if alias_lower in _SHORT_ALIASES_NEEDING_STRICT_BOUNDARIES:
+            # Stricter: boundary must be non-alphanumeric/underscore or string edge
+            pattern = r'(?<![a-z0-9_/.-])' + re.escape(alias_lower) + r'(?![a-z0-9_/.-])'
+        else:
+            # Standard: allow dots/slashes in tech names (Next.js, Node.js, TypeScript)
+            pattern = r'(?<![a-z/])' + re.escape(alias_lower) + r'(?![a-z])'
         if re.search(pattern, desc_lower):
             matched_names.add(canonical)
 
@@ -404,10 +472,7 @@ def analyze_vacancy(description: str, position: str, user_data: dict) -> dict:
     percentage = round((matched_count / total_detected) * 100) if total_detected > 0 else 0
 
     # --- Phase 4: Verdict (from AGENTS.md rules) ---
-    has_primary = primary_matched > 0
-    if not has_primary or total_detected == 0:
-        verdict = "No apto"
-    elif percentage < 60:
+    if percentage < 60:
         verdict = "No apto"
     elif percentage <= 75:
         verdict = "Apto con reservas"
@@ -448,12 +513,21 @@ def analyze_vacancy(description: str, position: str, user_data: dict) -> dict:
         if cat_missing:
             obs_lines.append("  %s [--]: %s" % (label, ", ".join(cat_missing)))
 
-    if not has_primary or total_detected == 0:
-        core_note = (
-            "El candidato NO tiene stack principal (lenguajes/backend/frontend/BD) "
-            "alineado con la vacante."
-        )
-    elif percentage >= 75:
+    # Primary stack alignment check — report gaps but don't auto-reject
+    primary_categories = user_data.get("primary_categories", set())
+    primary_matched_count = sum(
+        1 for cat in primary_categories
+        for name, _ in stack.get(cat, [])
+        if name in matched_names & detected_in_desc
+    )
+    primary_total_in_vacancy = sum(
+        1 for cat in primary_categories
+        for name, _ in stack.get(cat, [])
+        if name in detected_in_desc
+    )
+    primary_gap = primary_total_in_vacancy - primary_matched_count
+
+    if percentage >= 75:
         core_note = (
             "El candidato cumple con %d de %d tecnologías requeridas por la vacante."
             % (matched_count, total_detected)
@@ -468,6 +542,12 @@ def analyze_vacancy(description: str, position: str, user_data: dict) -> dict:
         core_note = (
             "El candidato cubre parte del stack pero el encaje es limitado "
             "(%d de %d tecnologías detectadas)." % (matched_count, total_detected)
+        )
+
+    if primary_gap > 0:
+        core_note += (
+            "\n  [!] Stack principal desalineado: faltan %d tecnologías clave "
+            "requeridas por la vacante." % primary_gap
         )
 
     observaciones = "%s\n%s" % (core_note, "\n".join(obs_lines))
@@ -660,35 +740,21 @@ def generate_mock_vacancies(position: str, location: str, count: int) -> list[di
 
 # ── Database helpers ─────────────────────────────────────────────────
 
+# Import canonical schema loader from production
+import sys
+_LIB_ROOT = Path(__file__).resolve().parent.parent.parent.parent / "cv-pilot-agent"
+if str(_LIB_ROOT) not in sys.path:
+    sys.path.insert(0, str(_LIB_ROOT))
+from _lib._schema import get_schema_sql as _get_schema_sql
+
+
 def setup_environment():
-    """Creates the test DB schema directly — no init scripts invoked."""
+    """Creates the test DB schema using the canonical production schema."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    cursor.execute('''CREATE TABLE IF NOT EXISTS jobs (
-        job_hash TEXT PRIMARY KEY,
-        external_id TEXT,
-        public_date TEXT,
-        url TEXT,
-        company TEXT,
-        position TEXT,
-        location TEXT,
-        salary TEXT,
-        description TEXT,
-        status TEXT DEFAULT 'new'
-    )''')
-
-    cursor.execute('''CREATE TABLE IF NOT EXISTS analyses (
-        analysis_id TEXT PRIMARY KEY,
-        job_hash TEXT,
-        percentage TEXT,
-        comparativa TEXT,
-        observaciones TEXT,
-        verdict TEXT,
-        tldr TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(job_hash) REFERENCES jobs(job_hash)
-    )''')
+    # Apply canonical DDL from _lib/schema.sql (single source of truth)
+    conn.executescript(_get_schema_sql())
 
     conn.commit()
     conn.close()

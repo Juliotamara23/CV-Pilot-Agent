@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from .errors import DatabaseError, JobNotFoundError, ValidationError
-from .models import VALID_STATUSES, AnalysisInsert, JobInsert, validate_status, AnalysisUpdate, JobUpdate
+from .models import VALID_STATUSES, VALID_VERDICTS, AnalysisInsert, JobInsert, validate_status, validate_verdict, AnalysisUpdate, JobUpdate
 
 # Canonical ordering for "most recent analysis per job" — single source of truth
 # for the recency + rowid tiebreak rule. Used in get_analysis, update_analysis,
@@ -364,7 +364,15 @@ def insert_analysis(analysis: AnalysisInsert) -> dict[str, Any]:
 
     Raises ``JobNotFoundError`` (code ``JOB_NOT_FOUND``) when the FK target is
     missing — mirrors the spec's "Analysis insert — job not found" scenario.
+    Raises ``ValidationError`` (code ``VALIDATION_ERROR``) if verdict is not
+    one of the allowed business values.
     """
+    # Validate verdict at domain boundary — never persist invalid/undecided verdicts
+    try:
+        validate_verdict(analysis.verdict)
+    except ValueError as exc:
+        raise ValidationError(str(exc), code="VALIDATION_ERROR") from exc
+
     conn = get_connection()
     try:
         with conn:
@@ -507,6 +515,11 @@ def update_analysis(
             "percentage must be between 0 and 100",
             code="VALIDATION_ERROR",
         )
+    if analysis_update.verdict is not None:
+        try:
+            validate_verdict(analysis_update.verdict)
+        except ValueError as exc:
+            raise ValidationError(str(exc), code="VALIDATION_ERROR") from exc
     for _field, _max_len in (
         ("verdict", 20000),
         ("tldr", 20000),
