@@ -75,4 +75,4 @@ sourcing (apify | manual) ──► db/cv-pilot.db ──► análisis (razonami
 - **VSI** (`_lib/vsi.py`): Validación Semántica de Identidad. Rechaza archivos no-CV antes de cualquier procesamiento.
 - **Pydantic schemas** (`_lib/schemas/`): `PerfilSchema` y `PreferenciasSchema` validan los datos persistidos.
 - **LLM extraction** (`_lib/llm_extract.py`, opcional): extracción de campos del CV con un LLM externo cuando se ejecuta sin agente. Cuando se usa dentro del agente, el LLM del chat hace la extracción directamente.
-- **Datos** (`data/`, gitignored): `perfil.json`, `preferencias.json` (Pydantic-validated), `correos.md`, `cv.pdf` (CV real persistido).
+- **Datos** (`data/`, gitignored): `perfil.json`, `preferencias.json` (Pydantic-validated), `correos.md`, y el **archivo PDF original del CV persistido con su nombre original** (campo `cv_path` en `perfil.json`).

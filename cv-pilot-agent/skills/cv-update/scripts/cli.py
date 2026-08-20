@@ -23,14 +23,8 @@ Reuses:
 from __future__ import annotations
 
 import json
-import shutil
 import sys
 from pathlib import Path
-
-# Force UTF-8 on std streams so unicode never depends on host codepage.
-for _stream in (sys.stdout, sys.stderr):
-    if hasattr(_stream, "reconfigure"):
-        _stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
 
 # Make ``cv-pilot-agent/`` and this script's directory importable.
 _AGENT_ROOT = Path(__file__).resolve().parents[3]
@@ -38,6 +32,8 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(_SCRIPTS_DIR))
 sys.path.insert(0, str(_AGENT_ROOT))
 sys.path.insert(0, str(_AGENT_ROOT / "_lib"))
+
+from _lib.shared.cli_utils import setup_utf8, persist_cv_pdf  # noqa: E402
 
 import typer  # noqa: E402
 from _lib.pdf_parser import extract as extract_pdf  # noqa: E402
@@ -48,6 +44,9 @@ from _lib.llm_extract import (  # noqa: E402
 )
 from _lib.vsi import validate_cv  # noqa: E402
 from _cv_update_internal.reconstructor import reconstruct_profile  # noqa: E402
+
+# Force UTF-8 on std streams so unicode never depends on host codepage.
+setup_utf8()
 
 # Canonical rejection message from rules/integridad.md:32.
 VSI_REJECTION_MESSAGE = (
@@ -166,19 +165,11 @@ def apply(
 
     source = source_pdf or new_fields.get("fuente", str(fields_file))
 
-    # Persist the real CV PDF to data_dir/cv.pdf and record cv_path
-    if source_pdf and Path(source_pdf).exists():
-        data_dir.mkdir(parents=True, exist_ok=True)
-        cv_dest = data_dir / "cv.pdf"
-        shutil.copy2(source_pdf, cv_dest)
-        # Store cv_path relative to the agent root when possible so consumers
-        # resolve it consistently regardless of the --data-dir value.
-        try:
-            new_fields["cv_path"] = str(
-                cv_dest.resolve().relative_to(_AGENT_ROOT.resolve())
-            )
-        except ValueError:
-            new_fields["cv_path"] = str(cv_dest)
+    # Persist the real CV PDF preserving the original filename and record cv_path
+    if source_pdf:
+        _, cv_path = persist_cv_pdf(source_pdf, data_dir, _AGENT_ROOT)
+        if cv_path:
+            new_fields["cv_path"] = cv_path
 
     # Step 2: Reconstruct perfil.json from scratch
     result = reconstruct_profile(new_fields, source_pdf=source)
