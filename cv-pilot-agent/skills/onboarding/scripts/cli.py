@@ -17,21 +17,17 @@ All commands emit JSON to stdout and exit 0 on ``ok: true``, 1 otherwise
 from __future__ import annotations
 
 import json
-import shutil
 import sys
 from pathlib import Path
 from typing import Optional
-
-# Force UTF-8 on std streams so unicode never depends on host codepage.
-for _stream in (sys.stdout, sys.stderr):
-    if hasattr(_stream, "reconfigure"):
-        _stream.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
 
 # Make ``cv-pilot-agent/`` importable so ``from pdf_parser import extract``
 # works regardless of CWD when the script is run by path or as a module.
 _AGENT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(_AGENT_ROOT))
 sys.path.insert(0, str(_AGENT_ROOT / "_lib"))
+
+from _lib.shared.cli_utils import setup_utf8, persist_cv_pdf  # noqa: E402
 
 import typer  # noqa: E402
 from pdf_parser import extract as extract_pdf  # noqa: E402
@@ -41,6 +37,9 @@ from _onboarding_internal.parser import REQUIRED, parse_text  # noqa: E402
 from _onboarding_internal.renderer import email_block, render_template  # noqa: E402
 from _onboarding_internal.generator import generate_files  # noqa: E402
 from vsi import validate_cv  # noqa: E402
+
+# Force UTF-8 on std streams so unicode never depends on host codepage.
+setup_utf8()
 
 # Canonical rejection message from rules/integridad.md:32.
 VSI_REJECTION_MESSAGE = (
@@ -143,19 +142,11 @@ def full(
             _emit({"ok": False, "step": "generate", "error": f"Cannot read fields file: {exc}"})
             raise typer.Exit(code=1)
 
-    # Persist the real CV PDF to data/cv.pdf and record cv_path
+    # Persist the real CV PDF preserving the original filename and record cv_path
     if pdf_path.exists():
-        out_dir.mkdir(parents=True, exist_ok=True)
-        cv_dest = out_dir / "cv.pdf"
-        shutil.copy2(pdf_path, cv_dest)
-        # Store cv_path relative to the agent root when possible so consumers
-        # resolve it consistently regardless of the --out-dir value.
-        try:
-            fields["cv_path"] = str(
-                cv_dest.resolve().relative_to(_AGENT_ROOT.resolve())
-            )
-        except ValueError:
-            fields["cv_path"] = str(cv_dest)
+        _, cv_path = persist_cv_pdf(pdf_path, out_dir, _AGENT_ROOT)
+        if cv_path:
+            fields["cv_path"] = cv_path
 
     outputs = generate_files(fields, out_dir, no_backup)
     _emit({

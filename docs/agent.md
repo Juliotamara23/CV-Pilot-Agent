@@ -59,7 +59,7 @@ apify login --token TU_TOKEN
 
 Abre el proyecto en tu entorno de agentes (OpenCode, Claude Code, etc.) y pide al agente analizar una vacante o iniciar el onboarding.
 
-> **Onboarding (obligatorio la primera vez):** el agente detecta que `data/perfil.json` no existe y arranca el flujo guiado. Sube tu CV en **PDF** — el agente valida, extrae y persiste `data/perfil.json` y `data/cv.pdf` (este archivo se adjunta automáticamente a tus borradores). Si no tienes el PDF a mano, puedes pegar el texto del CV y añadir el PDF después con `cv-update`.
+> **Onboarding (obligatorio la primera vez):** el agente detecta que `data/perfil.json` no existe y arranca el flujo guiado. Sube tu CV en **PDF** — el agente valida, extrae y persiste `data/perfil.json` y el **PDF con su nombre original en `data/`** (este archivo se adjunta automáticamente a tus borradores). El campo `cv_path` en `perfil.json` apunta al archivo persistido. Si no tienes el PDF a mano, puedes pegar el texto del CV y añadir el PDF después con `cv-update`.
 
 ---
 
@@ -116,7 +116,7 @@ cv-pilot-agent/
     ├── perfil.json            # Generado por onboarding / cv-update
     ├── correos.md             # Generado por onboarding
     ├── preferencias.json      # Generado por onboarding
-    └── cv.pdf                 # Archivo real del CV (persistido al procesar un PDF)
+    └── <original-cv-name>.pdf # Archivo real del CV (persistido con su nombre original)
 ```
 
 ---
@@ -174,7 +174,7 @@ Cada análisis incluye:
 ## ¿Cómo interactuar?
 
 - **Postulación con email:** el agente usa el provider configurado en `data/preferencias.json` (Gmail u Outlook) y genera un borrador formal **en tu gestor de correo**. Antes de redactar consulta `cli.py cv` para saber si tu CV real está persistido; si existe, el borrador se crea con el CV adjunto (`attached: true`) y la firma omite el link de Drive (redundante). Puedes sobrescribir el provider pasando `--provider gmail|outlook` al comando de `mimetismo`. El setup de Gmail/Outlook es **opcional**: solo lo necesitas si quieres que el agente guarde borradores en tu correo. Si no lo configuras, puedes seguir usando la carta de presentación manual (siguiente bullet).
-- **CV real adjunto:** tu CV en PDF se persiste en `data/cv.pdf` cuando haces onboarding con PDF o `cv-update` (campo `cv_path` en `perfil.json`). Si aún no lo has subido, el agente te lo sugiere al redactar; mientras tanto los correos usan el link de `cv_url` como respaldo.
+- **CV real adjunto:** tu CV en PDF se persiste en `data/` **con su nombre original** cuando haces onboarding con PDF o `cv-update` (campo `cv_path` en `perfil.json`). Si aún no lo has subido, el agente te lo sugiere al redactar; mientras tanto los correos usan el link de `cv_url` como respaldo.
 - **Postulación en portal:** el agente entrega una carta de presentación para copiar y pegar.
 - **Modo Discusión:** después de cualquier análisis puedes pedir orientación estratégica.
 

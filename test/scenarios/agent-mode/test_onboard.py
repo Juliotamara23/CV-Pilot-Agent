@@ -319,7 +319,8 @@ def _make_pdf(path: Path) -> None:
 
 def test_cli_full_end_to_end(tmp_path):
     pytest.importorskip("fitz")
-    pdf = tmp_path / "cv.pdf"
+    # Use a non-generic filename to verify exact filename preservation
+    pdf = tmp_path / "my_cv.pdf"
     _make_pdf(pdf)
     fields_path = _write_fields(tmp_path)
     out_dir = tmp_path / "full_out"
@@ -333,11 +334,12 @@ def test_cli_full_end_to_end(tmp_path):
     assert data["step"] == "full"
     assert data["parse"]["fields"]["correo"] == "ana@correo.com"
     assert (out_dir / "perfil.json").is_file()
-    # Verify cv.pdf was copied and cv_path recorded
-    assert (out_dir / "cv.pdf").is_file(), "cv.pdf was not copied to out_dir"
+    # Verify the exact original filename was copied (not a generic fallback)
+    assert (out_dir / "my_cv.pdf").is_file(), "my_cv.pdf was not copied to out_dir with original filename"
     perfil = json.loads((out_dir / "perfil.json").read_text(encoding="utf-8"))
     assert perfil.get("cv_path") is not None, "cv_path not recorded in perfil.json"
-    assert "cv.pdf" in perfil["cv_path"], f"cv_path should reference cv.pdf, got: {perfil['cv_path']}"
+    # Assert the exact original filename is recorded in cv_path (not just a substring match)
+    assert perfil["cv_path"].endswith("my_cv.pdf"), f"cv_path should end with my_cv.pdf, got: {perfil['cv_path']}"
 
 
 def test_cli_full_missing_pdf(tmp_path):

@@ -178,3 +178,7 @@ Cambios posteriores a la scriptification inicial:
 - **P3 — Comando `formatos all`**: genera un solo documento con todos los análisis. Paso 5b en `AGENTS.md` documenta la regla anti-improvisación ("análisis completo" → `formatos all`).
 - **Migración a `_lib/`**: `pdf_parser.py` movido de `scripts/` a `_lib/` (librería compartida). Stub retenido en `scripts/` por compatibilidad.
 - **Limpieza pre-push**: comentarios y docstrings en inglés, referencias a `data/*.md` actualizadas a `*.json`, `__pycache__` huérfanos eliminados.
+
+## Actualizaciones post-v3.0 (19 ago 2026)
+
+- **Issue #21 — Preservación del nombre original del PDF**: tanto `onboarding` como `cv-update` ahora persisten el archivo PDF con su nombre original (si termina en `.pdf`) en lugar de forzar `cv.pdf`. Nuevo helper compartido `_lib/shared/cli_utils.py::persist_cv_pdf()` valida el basename, previene path traversal y usa `cv.pdf` como fallback. Campo `cv_path` en `perfil.json` registra la ruta relativa resultante. Tests y documentación actualizados.

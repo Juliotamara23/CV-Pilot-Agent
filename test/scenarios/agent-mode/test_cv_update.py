@@ -456,12 +456,12 @@ class TestApplyCommand:
         )
 
     def test_apply_with_source_pdf_copies_pdf_and_records_cv_path(self, clean_data_dir, sandbox_dir):
-        """apply with --source-pdf must copy the PDF to data_dir/cv.pdf and record cv_path."""
+        """apply with --source-pdf must copy the PDF to data_dir/<original_name>.pdf and record cv_path."""
         fields = {"nombre": "Test", "correo": "test@test.com"}
         fields_file = sandbox_dir / "fields.json"
         fields_file.write_text(json.dumps(fields), encoding="utf-8")
 
-        # Use the valid PDF from sandbox
+        # Use the valid PDF from sandbox (named input_valid.pdf)
         source_pdf = str(sandbox_dir / "input_valid.pdf")
         result = subprocess.run(
             [_venv_python(), str(_CV_UPDATE_SCRIPTS / "cli.py"),
@@ -472,14 +472,14 @@ class TestApplyCommand:
         )
         assert result.returncode == 0, f"apply failed: {result.stderr}"
 
-        # Verify cv.pdf was created
-        cv_pdf_path = clean_data_dir / "cv.pdf"
-        assert cv_pdf_path.is_file(), "cv.pdf was not created in data_dir"
+        # Verify the PDF was copied with its original name
+        copied_pdf_path = clean_data_dir / "input_valid.pdf"
+        assert copied_pdf_path.is_file(), f"input_valid.pdf was not created in data_dir, got: {list(clean_data_dir.iterdir())}"
 
-        # Verify cv_path recorded in perfil.json
+        # Verify cv_path recorded in perfil.json references the preserved filename
         perfil_data = json.loads((clean_data_dir / "perfil.json").read_text(encoding="utf-8"))
         assert perfil_data.get("cv_path") is not None, "cv_path not recorded in perfil.json"
-        assert "cv.pdf" in perfil_data["cv_path"], f"cv_path should reference cv.pdf, got: {perfil_data['cv_path']}"
+        assert "input_valid.pdf" in perfil_data["cv_path"], f"cv_path should reference input_valid.pdf, got: {perfil_data['cv_path']}"
 
     def test_apply_without_source_pdf_does_not_create_cv_pdf(self, clean_data_dir, sandbox_dir):
         """apply without --source-pdf must NOT create cv.pdf or record cv_path."""

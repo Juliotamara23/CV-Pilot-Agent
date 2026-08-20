@@ -5,6 +5,21 @@ All notable changes to CV-Pilot Agent are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.7] - 2026-08-19
+
+### Added
+- **onboarding / cv-update**: preserve the original uploaded PDF filename instead of hardcoding `cv.pdf`. New shared helper `persist_cv_pdf()` in `_lib/shared/cli_utils.py` validates the basename ends with `.pdf`, prevents path traversal, and falls back to `cv.pdf` when needed.
+- `cv_path` in `perfil.json` now records the relative path to the preserved filename.
+
+### Changed
+- `skills/onboarding/scripts/cli.py`: `full` command uses `persist_cv_pdf()`.
+- `skills/cv-update/scripts/cli.py`: `apply` command uses `persist_cv_pdf()`.
+- Updated tests in `test_cv_update.py` to assert preserved filename (`input_valid.pdf`) instead of `cv.pdf`.
+- Documentation updated: `README.md`, `docs/agent.md`, `docs/roadmap-v3.md` now describe preserved original filename.
+
+### Fixed
+- Path traversal prevention: only `Path(source).name` is used when copying the PDF.
+
 ## [3.0.6] - 2026-08-17
 
 ### Added
