@@ -345,5 +345,24 @@ def status_set(
     _run(lambda: _emit(db.update_status(hash, status)))
 
 
+@app.command("query")
+def query_cmd(
+    sql: str = typer.Argument(..., help="Read-only SQL (SELECT or WITH)."),
+    limit: int = typer.Option(100, min=0, help="Maximum rows to return."),
+) -> None:
+    """Execute a read-only SQL query.
+
+    Only SELECT (or WITH ... SELECT) statements are allowed.
+    Connection is opened in SQLite read-only mode (mode=ro).
+    Multi-statement SQL is rejected by the SQLite driver.
+
+    Output envelope: {"ok": true, "columns": [...], "rows": [[...]], "count": N}
+    """
+    def _action() -> None:
+        result = db.run_readonly_query(sql, limit=limit)
+        _emit({"ok": True, **result})
+    _run(_action)
+
+
 if __name__ == "__main__":
     app()

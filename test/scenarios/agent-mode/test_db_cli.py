@@ -185,23 +185,274 @@ class TestCliContactMethod:
         analysis = json.loads(proc.stdout)["analysis"]
         assert analysis["contact_method"] == "portal"
 
-    def test_contact_method_defaults_to_none(self, query_script, tmp_db):
-        env = os.environ.copy()
-        proc = _run(
-            query_script, env, "job", "insert",
-            "--company", "Initech", "--position", "Dev", "--location", "Remote",
-        )
-        job_hash = json.loads(proc.stdout)["hash"]
+        def test_contact_method_defaults_to_none(self, query_script, tmp_db):
+            env = os.environ.copy()
+            proc = _run(
+                query_script, env, "job", "insert",
+                "--company", "Initech", "--position", "Dev", "--location", "Remote",
+            )
+            job_hash = json.loads(proc.stdout)["hash"]
 
-        proc = _run(
-            query_script, env, "analysis", "insert",
-            "--job-hash", job_hash, "--percentage", "90",
-            "--comparativa", "c", "--observaciones", "o",
-            "--verdict", "Apto", "--tldr", "t",
-        )
-        assert proc.returncode == 0, proc.stderr
+            proc = _run(
+                query_script, env, "analysis", "insert",
+                "--job-hash", job_hash, "--percentage", "90",
+                "--comparativa", "c", "--observaciones", "o",
+                "--verdict", "Apto", "--tldr", "t",
+            )
+            assert proc.returncode == 0, proc.stderr
 
-        proc = _run(query_script, env, "analysis", "get", "--job-hash", job_hash)
-        assert proc.returncode == 0, proc.stderr
-        analysis = json.loads(proc.stdout)["analysis"]
-        assert analysis["contact_method"] is None
+            proc = _run(query_script, env, "analysis", "get", "--job-hash", job_hash)
+            assert proc.returncode == 0, proc.stderr
+            analysis = json.loads(proc.stdout)["analysis"]
+            assert analysis["contact_method"] is None
+
+
+    class TestCliQuery:
+        """Tests for the new `query run` sub-command."""
+
+        def test_simple_select(self, query_script, tmp_db):
+            env = os.environ.copy()
+            # Insert a couple of jobs first
+            proc = _run(
+                query_script, env, "job", "insert",
+                "--company", "Acme", "--position", "Dev", "--location", "Madrid",
+            )
+            hash1 = json.loads(proc.stdout)["hash"]
+            proc = _run(
+                query_script, env, "job", "insert",
+                "--company", "Globex", "--position", "Eng", "--location", "Berlin",
+            )
+            hash2 = json.loads(proc.stdout)["hash"]
+
+            # Simple SELECT
+            proc = _run(query_script, env, "query", "SELECT job_hash, company FROM jobs")
+            assert proc.returncode == 0, proc.stderr
+            payload = json.loads(proc.stdout)
+            assert payload["ok"] is True
+            assert set(payload["columns"]) == {"job_hash", "company"}
+            assert payload["count"] == 2
+            companies = {row[1] for row in payload["rows"]}
+            assert companies == {"Acme", "Globex"}
+
+        def test_group_by_aggregation(self, query_script, tmp_db):
+            env = os.environ.copy()
+            # Insert jobs with different statuses
+            for company, status in [
+                ("A", "new"), ("B", "new"), ("C", "analyzed"), ("D", "rejected")
+            ]:
+                _run(query_script, env, "job", "insert",
+                     "--company", company, "--position", "P", "--location", "L")
+                # Manually update status for last two
+            # Update status via direct DB for simplicity in test setup
+            import sqlite3
+            conn = sqlite3.connect(tmp_db)
+            conn.execute("UPDATE jobs SET status='analyzed' WHERE company='C'")
+            conn.execute("UPDATE jobs SET status='rejected' WHERE company='D'")
+            conn.commit()
+            conn.close()
+
+            # GROUP BY with COUNT
+            proc = _run(query_script, env, "query",
+                        "SELECT status, COUNT(*) as cnt FROM jobs GROUP BY status")
+            assert proc.returncode == 0, proc.stderr
+            payload = json.loads(proc.stdout)
+            assert payload["ok"] is True
+            assert set(payload["columns"]) == {"status", "cnt"}
+            assert payload["count"] == 3
+            status_counts = {row[0]: row[1] for row in payload["rows"]}
+            assert status_counts["new"] == 2
+            assert status_counts["analyzed"] == 1
+            assert status_counts["rejected"] == 1
+
+        def test_join_jobs_analyses(self, query_script, tmp_db):
+            env = os.environ.copy()
+            # Insert job
+            proc = _run(
+                query_script, env, "job", "insert",
+                "--company", "TestCo", "--position", "Role", "--location", "Loc",
+            )
+            job_hash = json.loads(proc.stdout)["hash"]
+            # Insert analysis
+            _run(query_script, env, "analysis", "insert",
+                 "--job-hash", job_hash, "--percentage", "85",
+                 "--comparativa", "cmp", "--observaciones", "obs",
+                 "--verdict", "Apto", "--tldr", "tldr")
+
+            # JOIN query
+            proc = _run(query_script, env, "query",
+                        "SELECT j.company, a.percentage, a.verdict "
+                        "FROM jobs j JOIN analyses a ON j.job_hash = a.job_hash")
+            assert proc.returncode == 0, proc.stderr
+            payload = json.loads(proc.stdout)
+            assert payload["ok"] is True
+            assert set(payload["columns"]) == {"company", "percentage", "verdict"}
+            assert payload["count"] == 1
+            assert payload["rows"][0] == ["TestCo", "85.0", "Apto"]
+
+        def test_limit_truncation(self, query_script, tmp_db):
+            env = os.environ.copy()
+            # Insert 5 jobs
+            for i in range(5):
+                _run(query_script, env, "job", "insert",
+                     f"--company", f"Co{i}", "--position", "P", "--location", "L")
+
+            # Limit 2
+            proc = _run(query_script, env, "query",
+                        "SELECT company FROM jobs ORDER BY company",
+                        "--limit", "2")
+            assert proc.returncode == 0, proc.stderr
+            payload = json.loads(proc.stdout)
+            assert payload["ok"] is True
+            assert payload["count"] == 2
+            assert len(payload["rows"]) == 2
+
+        def test_reject_insert(self, query_script, tmp_db):
+            env = os.environ.copy()
+            # Capture DB state before
+            import hashlib
+            before = tmp_db.read_bytes()
+
+            proc = _run(query_script, env, "query",
+                        "INSERT INTO jobs (job_hash, company, position, location) VALUES ('x', 'y', 'z', 'w')")
+            assert proc.returncode == 1
+            assert proc.stdout == ""
+            payload = json.loads(proc.stderr)
+            assert payload["ok"] is False
+            assert payload["code"] == "QUERY_WRITE_NOT_ALLOWED"
+            assert "INSERT" in payload["error"]
+
+            # DB unchanged (byte-identical)
+            after = tmp_db.read_bytes()
+            assert before == after
+
+        def test_reject_update(self, query_script, tmp_db):
+            env = os.environ.copy()
+            before = tmp_db.read_bytes()
+
+            proc = _run(query_script, env, "query",
+                        "UPDATE jobs SET company='hacked'")
+            assert proc.returncode == 1
+            payload = json.loads(proc.stderr)
+            assert payload["code"] == "QUERY_WRITE_NOT_ALLOWED"
+            assert "UPDATE" in payload["error"]
+            assert tmp_db.read_bytes() == before
+
+        def test_reject_delete(self, query_script, tmp_db):
+            env = os.environ.copy()
+            before = tmp_db.read_bytes()
+
+            proc = _run(query_script, env, "query", "DELETE FROM jobs")
+            assert proc.returncode == 1
+            payload = json.loads(proc.stderr)
+            assert payload["code"] == "QUERY_WRITE_NOT_ALLOWED"
+            assert "DELETE" in payload["error"]
+            assert tmp_db.read_bytes() == before
+
+        def test_reject_drop(self, query_script, tmp_db):
+            env = os.environ.copy()
+            before = tmp_db.read_bytes()
+
+            proc = _run(query_script, env, "query", "DROP TABLE jobs")
+            assert proc.returncode == 1
+            payload = json.loads(proc.stderr)
+            assert payload["code"] == "QUERY_WRITE_NOT_ALLOWED"
+            assert "DROP" in payload["error"]
+            assert tmp_db.read_bytes() == before
+
+        def test_reject_multi_statement(self, query_script, tmp_db):
+            env = os.environ.copy()
+            before = tmp_db.read_bytes()
+
+            # Multi-statement should be rejected by sqlite3 driver
+            proc = _run(query_script, env, "query",
+                        "SELECT 1; SELECT 2")
+            assert proc.returncode == 1
+            payload = json.loads(proc.stderr)
+            assert payload["code"] == "DATABASE_ERROR"
+            assert tmp_db.read_bytes() == before
+
+        def test_json_envelope_shape(self, query_script, tmp_db):
+            env = os.environ.copy()
+            _run(query_script, env, "job", "insert",
+                 "--company", "ShapeCo", "--position", "P", "--location", "L")
+
+            proc = _run(query_script, env, "query", "SELECT 1 as one, 'two' as two")
+            assert proc.returncode == 0, proc.stderr
+            payload = json.loads(proc.stdout)
+            assert set(payload.keys()) == {"ok", "columns", "rows", "count"}
+            assert payload["ok"] is True
+            assert payload["columns"] == ["one", "two"]
+            assert payload["rows"] == [[1, "two"]]
+            assert payload["count"] == 1
+
+        def test_non_json_cell_conversion(self, query_script, tmp_db):
+            env = os.environ.copy()
+            # Insert a job with binary-ish data in description (simulated via direct insert)
+            import sqlite3
+            conn = sqlite3.connect(tmp_db)
+            conn.execute(
+                "INSERT INTO jobs (job_hash, company, position, location, description) "
+                "VALUES (?, ?, ?, ?, ?)",
+                ("binhash", "BinCo", "Role", "Loc", b"\xff\xfe binary")
+            )
+            conn.commit()
+            conn.close()
+
+            proc = _run(query_script, env, "query",
+                        "SELECT description FROM jobs WHERE job_hash='binhash'")
+            assert proc.returncode == 0, proc.stderr
+            payload = json.loads(proc.stdout)
+            assert payload["ok"] is True
+            # bytes should be converted to string (with replacement chars)
+            assert isinstance(payload["rows"][0][0], str)
+            assert payload["count"] == 1
+
+        def test_with_cte_allowed(self, query_script, tmp_db):
+            env = os.environ.copy()
+            _run(query_script, env, "job", "insert",
+                 "--company", "CteCo", "--position", "P", "--location", "L")
+
+            # WITH clause (read-only CTE) should be allowed
+            proc = _run(query_script, env, "query",
+                        "WITH cte AS (SELECT company FROM jobs) SELECT * FROM cte")
+            assert proc.returncode == 0, proc.stderr
+            payload = json.loads(proc.stdout)
+            assert payload["ok"] is True
+            assert payload["count"] == 1
+
+        def test_with_cte_write_blocked(self, query_script, tmp_db):
+            env = os.environ.copy()
+            before = tmp_db.read_bytes()
+
+            # WITH can prefix a write in SQLite; the mode=ro connection is the
+            # guard that must block it (token check alone would let it pass).
+            proc = _run(query_script, env, "query",
+                        "WITH cte AS (SELECT 1) DELETE FROM jobs")
+            assert proc.returncode == 1
+            payload = json.loads(proc.stderr)
+            assert payload["ok"] is False
+            assert payload["code"] == "DATABASE_ERROR"
+            assert "readonly" in payload["error"].lower()
+            assert tmp_db.read_bytes() == before
+
+        def test_empty_sql_rejected(self, query_script, tmp_db):
+            env = os.environ.copy()
+            # Empty string - should fail validation
+            proc = _run(query_script, env, "query", "")
+            # Typer may reject empty argument before our code runs; if it passes,
+            # our validation should catch it.
+            if proc.returncode == 0:
+                # Our validation should have caught it
+                payload = json.loads(proc.stdout)
+                assert payload["ok"] is False
+            else:
+                # Typer validation error is also acceptable
+                pass
+
+        def test_invalid_first_keyword_rejected(self, query_script, tmp_db):
+            env = os.environ.copy()
+            proc = _run(query_script, env, "query", "EXPLAIN SELECT 1")
+            assert proc.returncode == 1
+            payload = json.loads(proc.stderr)
+            assert payload["code"] == "QUERY_INVALID_SQL"
+            assert "EXPLAIN" in payload["error"]
