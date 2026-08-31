@@ -6,12 +6,12 @@ scope: GLOBAL
 
 # query.py CLI
 
-No generar SQL. Usar este CLI.
+El agente NUNCA escribe SQL directo a la DB. Para analytics/agregaciones (GROUP BY, JOINs, conteos) puede generar SQL de LECTURA (SELECT/WITH) y ejecutarlo SOLO vía `query.py query` (modo read-only validado). Escrituras (job/analysis/status) únicamente por comandos nativos de este CLI. SQL crudo fuera de este CLI: prohibido.
 
 ## Comandos
 
 | App | Comando | Flags |
-|---|---|---|
+| --- | --- | --- |
 | `job` | `insert` | `--company --position --location [--url --source --public-date ...]` |
 | | `insert-batch` | `--file jobs.json` |
 | | `list` | `[--status S] [--limit N]` |
@@ -24,7 +24,18 @@ No generar SQL. Usar este CLI.
 | | `delete` | `--job-hash H \| --analysis-id ID` |
 | `status` | `set` | `--hash H --status S` |
 
-Output: JSON `{"ok":bool,...}` a stdout. Errores a stderr con `{"ok":false,"error":"...","code":"..."}`.
+    | `query` | `(callback)` | `<sql> [--limit N]` |
+
+## query — Arbitrary read-only SQL
+
+    Uso: `query.py query "<sql>" [--limit N]`
+
+    * Solo `SELECT` (o `WITH ... SELECT`) — primera palabra clave validada case-insensitive.
+    * Conexión SQLite en modo `mode=ro` (URI) — escrituras fallan nativamente en el motor.
+    * Una sola sentencia por `execute()` — driver Python `sqlite3` rechaza multi-statement.
+    * `--limit` (default 100) aplica cap en Python tras fetch.
+    * Celdas no-JSON (bytes/memoryview) → UTF-8 con replacement.
+    * Códigos de error: `QUERY_INVALID_SQL`, `QUERY_WRITE_NOT_ALLOWED`, `DATABASE_ERROR`.
 
 ## Estados
 

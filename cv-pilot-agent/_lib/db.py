@@ -716,6 +716,103 @@ def _resolve_db_path_explicit(db_path: Optional[str] = None) -> str:
     return _resolve_db_path()
 
 
+def run_readonly_query(sql: str, limit: int | None = None) -> dict[str, Any]:
+    """Execute a read-only SQL query and return results as a JSON-serializable dict.
+
+    Read-only enforcement (defense in depth):
+    1. Connection opened with SQLite URI ``mode=ro`` so writes fail natively.
+    2. First-keyword validation rejects non-SELECT statements before execution.
+    3. Python sqlite3 executes only a single statement per ``execute()`` call
+       (raises ``ProgrammingError`` otherwise).
+
+    Args:
+        sql: A single SELECT statement (or WITH ... SELECT). Case-insensitive.
+        limit: Optional row cap applied via SQL LIMIT clause.
+
+    Returns:
+        ``{"columns": [...], "rows": [[...]], "count": N}``.
+
+    Raises:
+        ValidationError(code="QUERY_INVALID_SQL"): sql does not start with SELECT/WITH.
+        ValidationError(code="QUERY_WRITE_NOT_ALLOWED"): first keyword is a write verb.
+        DatabaseError(code="DATABASE_ERROR"): SQLite I/O or execution failure.
+    """
+    # First-keyword validation: only SELECT or WITH (read-only CTE) allowed.
+    # Note: WITH can prefix a write statement in SQLite (e.g. ``WITH cte AS (...)
+    # DELETE ...``); the connection-level ``mode=ro`` backstop is what actually
+    # blocks those, not this token check.
+    stripped = sql.lstrip()
+    if not stripped:
+        raise ValidationError("Empty SQL string", code="QUERY_INVALID_SQL")
+
+    first_token = stripped.split()[0].upper()
+    if first_token not in ("SELECT", "WITH"):
+        # Explicit write verbs rejected with clear message before execution.
+        write_verbs = {
+            "INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE",
+            "REPLACE", "ATTACH", "DETACH", "VACUUM", "REINDEX", "PRAGMA",
+        }
+        if first_token in write_verbs:
+            raise ValidationError(
+                f"Write operations not allowed: {first_token}",
+                code="QUERY_WRITE_NOT_ALLOWED",
+            )
+        # Any other non-SELECT/WITH first token is invalid SQL for this API.
+        raise ValidationError(
+            f"Only SELECT (or WITH) statements are allowed, got: {first_token}",
+            code="QUERY_INVALID_SQL",
+        )
+
+    # Open connection in read-only mode via SQLite URI. mode=ro makes any write
+    # attempt fail natively at the engine level ("attempt to write a readonly
+    # database"), which is the primary read-only guard.
+    path = _resolve_db_path()
+    try:
+        conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    except sqlite3.Error as exc:
+        raise DatabaseError(f"Cannot open database (read-only) at {path}: {exc}") from exc
+
+    conn.row_factory = sqlite3.Row
+
+    try:
+        # Execute the user SQL as-is. Python sqlite3 rejects multi-statement
+        # strings, and the ro connection blocks any write the token check misses.
+        # Limit is applied as a Python slice after fetch instead of appending a
+        # SQL LIMIT clause: appending is fragile (breaks user SQL that already
+        # has LIMIT) and this DB is small (thousands of rows max).
+        cursor = conn.execute(sql)
+        rows = cursor.fetchall()
+        columns = [desc[0] for desc in cursor.description] if cursor.description else []
+
+        # Convert rows to JSON-serializable lists, handling bytes/memoryview.
+        def _convert_cell(value: Any) -> Any:
+            if isinstance(value, (bytes, bytearray, memoryview)):
+                # Decode bytes as UTF-8 with replacement for invalid sequences.
+                try:
+                    return bytes(value).decode("utf-8")
+                except UnicodeDecodeError:
+                    return bytes(value).decode("utf-8", errors="replace")
+            return value
+
+        converted_rows = [[_convert_cell(row[col]) for col in columns] for row in rows]
+
+        # Apply limit in Python (safe, no SQL manipulation).
+        if limit is not None and limit >= 0:
+            converted_rows = converted_rows[:limit]
+
+        return {"columns": columns, "rows": converted_rows, "count": len(converted_rows)}
+    except sqlite3.OperationalError as exc:
+        # Catch read-only violations (attempted write on ro connection) and other SQL errors.
+        raise DatabaseError(f"Query execution failed: {exc}") from exc
+    except sqlite3.ProgrammingError as exc:
+        # Multi-statement attempt (sqlite3 enforces single statement per execute).
+        raise DatabaseError(f"Query execution failed: {exc}") from exc
+    except sqlite3.Error as exc:
+        raise DatabaseError(f"Query execution failed: {exc}") from exc
+    finally:
+        conn.close()
+
+
 def backfill_analysis_ids_and_dedupe(
     dry_run: bool = False, db_path: Optional[str] = None
 ) -> dict[str, Any]:

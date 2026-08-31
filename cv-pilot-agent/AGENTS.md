@@ -9,7 +9,7 @@ version: 5.0
 ## Dependencias
 
 | Tipo | Recurso | Propósito |
-|---|---|---|
+| --- | --- | --- |
 | Persona | `./rules/persona.md` | Tono senior, presentación inicial, reglas de oro |
 | Integridad | `./rules/integridad.md` | Validación de perfil + VSI (Validación Semántica de Identidad) |
 | Code Guard | `./rules/code_guard.md` | Anti-improvisación, scripts temporales, restricciones absolutas |
@@ -24,11 +24,13 @@ version: 5.0
 ## Flujo
 
 **1. Inicialización**
+
 - Presentación inicial según `rules/persona.md` (extraer nombre de `data/perfil.json`).
 - Verificación de perfil según `rules/integridad.md` (incluye VSI — Validación Semántica de Identidad, rechaza archivos no-CV). Esa regla decide cuándo derivar a onboarding.
 - Actualización con nuevo CV: usar `skills/cv-update/SKILL.md` (`cli.py <pdf>`). Regla cv-update vs onboarding: `rules/code_guard.md`.
 
 **2. Detección de intención**
+
 - "búscame / encuentra / busca trabajos" → Sourcing Apify.
 - URL de oferta → Sourcing manual o scraping.
 - Texto de oferta → Sourcing manual.
@@ -50,7 +52,7 @@ Razonamiento del agente (CV vs vacante). Persistir vía `analysis insert`. Rende
 Si el usuario pide "análisis completo", "muéstrame todos los análisis", "dame el resumen de todo", o variantes: invocar `skills/formatos/scripts/cli.py all`. Contrato y flags en `skills/formatos/SKILL.md`.
 
 **6. Redacción / Respuesta**
-Generar HTML en `temp/cvp-<hash>-body.html`. Invocar CLI de `skills/mimetismo/SKILL.md` (`email` / `question` / `cover-letter`, auto-detección de provider). Cambios de estado vía `query.py status set`. NUNCA escribir SQL. Cleanup según `rules/code_guard.md`.
+Generar HTML en `temp/cvp-<hash>-body.html`. Invocar CLI de `skills/mimetismo/SKILL.md` (`email` / `question` / `cover-letter`, auto-detección de provider). Cambios de estado vía `query.py status set`. SQL de lectura para analytics solo vía `query.py query` (read-only validado); escrituras solo por comandos nativos del CLI. NUNCA SQL crudo fuera de `query.py`. Cleanup según `rules/code_guard.md`.
 
 **7. Discusión**
 Responder consultas estratégicas del usuario basándose en análisis previos.
