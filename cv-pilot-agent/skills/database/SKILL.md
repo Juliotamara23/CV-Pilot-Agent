@@ -6,7 +6,7 @@ scope: GLOBAL
 
 # query.py CLI
 
-No generar SQL. Usar este CLI.
+El agente NUNCA escribe SQL directo a la DB. Para analytics/agregaciones (GROUP BY, JOINs, conteos) puede generar SQL de LECTURA (SELECT/WITH) y ejecutarlo SOLO vía `query.py query` (modo read-only validado). Escrituras (job/analysis/status) únicamente por comandos nativos de este CLI. SQL crudo fuera de este CLI: prohibido.
 
 ## Comandos
 

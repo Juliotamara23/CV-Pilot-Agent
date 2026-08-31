@@ -50,7 +50,7 @@ Razonamiento del agente (CV vs vacante). Persistir vía `analysis insert`. Rende
 Si el usuario pide "análisis completo", "muéstrame todos los análisis", "dame el resumen de todo", o variantes: invocar `skills/formatos/scripts/cli.py all`. Contrato y flags en `skills/formatos/SKILL.md`.
 
 **6. Redacción / Respuesta**
-Generar HTML en `temp/cvp-<hash>-body.html`. Invocar CLI de `skills/mimetismo/SKILL.md` (`email` / `question` / `cover-letter`, auto-detección de provider). Cambios de estado vía `query.py status set`. NUNCA escribir SQL. Cleanup según `rules/code_guard.md`.
+Generar HTML en `temp/cvp-<hash>-body.html`. Invocar CLI de `skills/mimetismo/SKILL.md` (`email` / `question` / `cover-letter`, auto-detección de provider). Cambios de estado vía `query.py status set`. SQL de lectura para analytics solo vía `query.py query` (read-only validado); escrituras solo por comandos nativos del CLI. NUNCA SQL crudo fuera de `query.py`. Cleanup según `rules/code_guard.md`.
 
 **7. Discusión**
 Responder consultas estratégicas del usuario basándose en análisis previos.
