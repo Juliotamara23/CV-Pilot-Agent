@@ -289,6 +289,57 @@ def mimetismo_cmd() -> None:
     _run_with_cleanup(action)
 
 
+    @app.command("context")
+    def context_cmd(
+        job: str = typer.Option(..., help="job_hash of the position being drafted for."),
+    ) -> None:
+        """Return a deterministic, source-separated generation context (read-only).
+
+        Assembles the three sources a draft must be grounded on: the complete
+        email examples (style/voice), the verified profile facts with source
+        attribution (what may be claimed), and the footer-managed contact links
+        (which must NOT appear in the body). The model should not reread the
+        raw perfil.json; the context is the single drafting input.
+        """
+        def action() -> None:
+            from _mimetismo_internal.context import (  # noqa: PLC0415
+                build_profile_facts,
+                extract_certificaciones,
+                extract_remote_work,
+                load_examples,
+                load_raw_profile,
+            )
+            from _mimetismo_internal.links import footer_link_labels  # noqa: PLC0415
+
+            job_row = _load_job(job)
+            analysis = _load_analysis(job)
+            try:
+                profile = load_profile(_AGENT_ROOT)
+            except FileNotFoundError:
+                profile = {}
+            raw = load_raw_profile(_AGENT_ROOT)
+            cv_path = _resolve_cv_path(profile) if profile else None
+            attach_cv = cv_path is not None
+            examples, has_examples, examples_source = load_examples(_AGENT_ROOT)
+            _emit({
+                "ok": True,
+                "mode": "context",
+                "job_hash": job,
+                "job": job_row,
+                "analysis": analysis,
+                "examples": examples,
+                "has_examples": has_examples,
+                "examples_source": examples_source,
+                "profile": {"name": profile.get("name"), "email": profile.get("email")},
+                "profile_facts": build_profile_facts(raw),
+                "certificaciones": extract_certificaciones(raw),
+                "remote_work": extract_remote_work(raw),
+                "footer": footer_link_labels(profile, attach_cv=attach_cv),
+            })
+
+        _run_with_cleanup(action)
+
+
 @app.command("cv")
 def cv_cmd() -> None:
     """Return persisted CV PDF info (read-only)."""

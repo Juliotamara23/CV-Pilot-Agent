@@ -55,6 +55,19 @@ def format_links(body: str, profile: dict, attach_cv: bool = False) -> str:
     return body
 
 
+def footer_link_labels(profile: dict, attach_cv: bool = False) -> list[str]:
+    """Return the link labels the signature footer will render for *profile*.
+
+    Contact links belong exclusively to the CLI-managed footer. Callers use this
+    list so the drafting model never duplicates them inside the email body.
+    """
+    link_keys = ("github", "linkedin") if attach_cv else ("github", "linkedin", "cv_url")
+    labels = [_LABEL_TEXT[key] for key in link_keys if profile.get(key)]
+    if profile.get("whatsapp"):
+        labels.append("WhatsApp")
+    return labels
+
+
 def signature_footer(profile: dict, attach_cv: bool = False) -> str:
     """Build the HTML signature block with name and available profile links.
 

@@ -15,6 +15,27 @@ Ejecutar `python skills/mimetismo/scripts/cli.py mimetismo` ANTES de redactar cu
 - **`has_examples: true`** → los `examples` recibidos SON la voz del usuario. Uso obligatorio, no opcional.
 - **`has_examples: false`** → sugerir al usuario configurar sus ejemplos de correos; mientras tanto, redactar con estilo profesional estándar.
 
+---
+
+## Paso obligatorio: `cli.py context --job <h>`
+
+Ejecutar `python skills/mimetismo/scripts/cli.py context --job <h>` ANTES de redactar. Es la ÚNICA fuente determinista para el borrador y separa por fuente lo que el modelo puede usar:
+
+- **`examples`** (completos, `data/correos.md`): ÚNICA fuente de ESTILO (voz, ritmo, estructura de párrafos, conectores, cierres). No es fuente de contenido técnico.
+- **`profile_facts`** (verificados de `perfil.json`, cada uno con su campo `field` que atribuye el origen): la ÚNICA fuente de afirmaciones de perfil. Solo puede afirmarse lo que esté listado.
+- **`job`** + **`analysis`**: la vacante y su análisis. Los requisitos se traducen en evidencia del perfil (`profile_facts`), NUNCA se copian como párrafo-resumen genérico (ej. "La oferta encaja: buscan X").
+- **`footer`**: los enlaces de contacto que la CLI añadirá en la firma. NUNCA repetirlos en el cuerpo (ni GitHub, ni LinkedIn, ni WhatsApp, ni CV, ni email, ni teléfono).
+
+El modelo NO debe releer `data/perfil.json`: `context` ya entrega el subconjunto verificado y atribuido por fuente. `profile_facts` excluye la expectativa salarial (privada) y los enlaces de contacto (propiedad del footer).
+
+## Salvaguardas deterministas (afirmaciones sin soporte quedan prohibidas)
+
+| Afirmación | Redactar SÓLO si |
+|---|---|
+| Certificaciones | El nombre exacto está en `certificaciones`. Si `certificaciones` es `[]`, no mencionar ninguna. |
+| Trabajo remoto | `remote_work` es `true`. Si es `false`, no afirmar remoto. |
+| Años de experiencia | Exactamente lo que declara `resumen`, sin inflar. |
+
 ## Límite: tono sí, contenido NO
 
 `correos.md` define SOLO el tono (saludo, formalidad, estructura de párrafos, frases de cierre, firma). NUNCA es fuente de skills, experiencia ni logros: el contenido técnico SIEMPRE sale del perfil actual (`perfil.json`) y del análisis de la vacante. Los ejemplos pueden estar desactualizados.
@@ -42,6 +63,7 @@ La redacción la hace el agente; el envío, el script.
 | `question --job <h> --body-file <p>` | No | Error si cuerpo vacío |
 | `cover-letter --job <h> --body-file <p> [--provider ...] [--to ...] [--subject ...] [--dry-run]` | Solo con provider+to | Funciona siempre |
 | `mimetismo` | No | Devuelve los ejemplos de `data/correos.md` (fuente de estilo). `has_examples: false` si no existen |
+| `context --job <h>` | No | Contexto de generación determinista y separado por fuente: `examples` (estilo), `profile_facts` (hechos verificados atribuidos), `certificaciones`/`remote_work` (salvaguardas) y `footer` (enlaces no duplicables) |
 | `cv` | No | Devuelve info del CV real persistido (exists/path/filename). `exists: true` = el correo llevará adjunto |
 
 ## Contrato

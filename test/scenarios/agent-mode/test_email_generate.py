@@ -1022,3 +1022,157 @@ class TestIntegrationCoverLetterAttachment:
         # Actually, in text mode (no provider), attach_cv should be False per spec
         assert "attached" in payload
         assert db.get_job(h)["job"]["status"] == "analyzed"
+
+
+# --------------------------------------------------------------------------- #
+# 3.10 Generation context (source-separated) — read-only, no DB mutation
+# --------------------------------------------------------------------------- #
+class TestGenerationContext:
+    """Regression coverage for issue #25: deterministic, source-grounded
+    generation context that prevents generic requirement-summary paragraphs,
+    unsupported certification/remote claims, and duplicated footer contacts."""
+    def _run_context(self, h):
+        result = runner.invoke(generate.app, ["context", "--job", h])
+        assert result.exit_code == 0, result.stderr
+        return json.loads(result.stdout)
+
+    def _rich_perfil(self, education=None, resume=None, extras=None, **overrides):
+        perfil = {
+            "nombre": "Ana Lopez",
+            "correo": "ana@example.com",
+            "linkedin": "https://linkedin.com/in/example",
+            "github": "https://github.com/example",
+            "telefono": "+57 320 5551234",
+            "cv_url": "https://drive.google.com/cv",
+            "resumen": resume or "Ingeniera de Software con 5+ anios.",
+            "experiencia": "Backend Engineer | FinTech | 2020-presente",
+            "educacion": education or "M.Sc. | Universidad | 2017",
+            "skills": "Python, Go, PostgreSQL, Kafka",
+            "extras": extras or {
+                "ubicacion": "Bogota, Colombia",
+                "disponibilidad": "Inmediata",
+                "idiomas": "Espanol (nativo), Ingles (B2)",
+                "visa_us": "No requiere patrocinio",
+                "expectativa_salarial_usd": "90000-120000",
+            },
+        }
+        perfil.update(overrides)
+        return perfil
+
+    def test_exposes_complete_email_examples(self, tmp_db, tmp_path, monkeypatch):
+        """Complete current examples are the style source for drafting (voice,
+        rhythm, closings) — not just isolated phrases."""
+        h = _seed_job()
+        content = "Hola Maria,\n\nMe postulo a la vacante de Backend Dev.\n\nUn saludo,\nAna"
+        root = _write_data(tmp_path, perfil=self._rich_perfil(), correos=content)
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        payload = self._run_context(h)
+        assert payload["mode"] == "context"
+        assert payload["has_examples"] is True
+        assert payload["examples_source"] == "data/correos.md"
+        assert payload["examples"] == content
+
+    def test_examples_empty_when_correos_missing(self, tmp_db, tmp_path, monkeypatch):
+        h = _seed_job()
+        root = _write_data(tmp_path, perfil=self._rich_perfil())
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        payload = self._run_context(h)
+        assert payload["has_examples"] is False
+        assert payload["examples"] == ""
+
+    def test_facts_are_source_attributed_subset_not_full_json(self, tmp_db, tmp_path, monkeypatch):
+        """profile_facts is a curated, source-attributed subset: footer-owned contact
+        links and private compensation are excluded, and the raw JSON is not the
+        drafting input (the model must not reread perfil.json)."""
+        h = _seed_job()
+        root = _write_data(tmp_path, perfil=self._rich_perfil())
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        payload = self._run_context(h)
+        facts = payload["profile_facts"]
+        assert isinstance(facts, list) and facts
+        assert all(isinstance(f, dict) and "field" in f and "fact" in f for f in facts)
+        joined = json.dumps(facts)
+        # footer-owned contacts must not be emitted as draftable body facts
+        assert "linkedin.com/in/example" not in joined
+        assert "github.com/example" not in joined
+        assert "+57 320 5551234" not in joined
+        # private compensation must not leak into the facts
+        assert "90000-120000" not in joined
+        # profile exposes only identity (footer + greeting), never contact URLs
+        assert set(payload["profile"]) == {"name", "email"}
+        # the raw full JSON is not echoed as a dedicated field
+        assert "experiencia" not in payload
+        # job + analysis are exposed for grounding
+        assert payload["job"]["position"] == "Backend Dev"
+        assert payload["analysis"]["verdict"] == "Apto"
+
+    def test_certifications_only_when_declared(self, tmp_db, tmp_path, monkeypatch):
+        """Certifications may only be claimed when the profile declares them."""
+        h = _seed_job()
+        perfil = self._rich_perfil(education=(
+            "M.Sc. | Universidad | 2017\n"
+            "Certificaciones: AWS Solutions Architect Associate (2021), CKAD (2022)"
+        ))
+        root = _write_data(tmp_path, perfil=perfil)
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        payload = self._run_context(h)
+        assert payload["certificaciones"] == [
+            "AWS Solutions Architect Associate (2021)", "CKAD (2022)"
+        ]
+
+        h2 = _seed_job()
+        root2 = _write_data(tmp_path / "no-cert", perfil=self._rich_perfil(education="B.Sc. | Uni | 2015"))
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root2)
+        assert self._run_context(h2)["certificaciones"] == []
+
+    def test_remote_work_only_when_supported(self, tmp_db, tmp_path, monkeypatch):
+        """Remote-work capability is only surfaced when the profile states it."""
+        h = _seed_job()
+        root = _write_data(tmp_path, perfil=self._rich_perfil())
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        assert self._run_context(h)["remote_work"] is False
+
+        h2 = _seed_job()
+        perfil2 = self._rich_perfil(resume="Ingeniera de Software remoto con 5+ anios.")
+        root2 = _write_data(tmp_path / "remote", perfil=perfil2)
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root2)
+        assert self._run_context(h2)["remote_work"] is True
+
+        h3 = _seed_job()
+        perfil3 = self._rich_perfil(extras={
+            "ubicacion": "Bogota, Colombia (remoto global)",
+            "disponibilidad": "Inmediata",
+            "idiomas": "Espanol",
+            "visa_us": "No requiere patrocinio",
+            "expectativa_salarial_usd": "90000-120000",
+        })
+        root3 = _write_data(tmp_path / "remote-ubicacion", perfil=perfil3)
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root3)
+        assert self._run_context(h3)["remote_work"] is True
+
+    def test_footer_contract_links_not_duplicated(self, tmp_db, tmp_path, monkeypatch):
+        """The context exposes exactly the footer links the CLI will render, so the
+        drafting step never repeats them in the body."""
+        h = _seed_job()
+        root = _write_data(tmp_path, perfil=self._rich_perfil())
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        payload = self._run_context(h)
+        assert payload["footer"] == ["GitHub", "LinkedIn", "CV", "WhatsApp"]
+
+    def test_job_requirements_are_own_source_not_merged_into_facts(self, tmp_db, tmp_path, monkeypatch):
+        """Requirements live in job/analysis sources; the profile facts must not
+        bake a generic requirement-summary into the evidence the model drafts from."""
+        res = db.insert_job(JobInsert(
+            company="Acme", position="Backend Dev", location="Madrid",
+            description="Python, Git, 100% remoto, USD, 0-1 anio",
+        ))
+        h = res["hash"]
+        db.insert_analysis(AnalysisInsert(
+            job_hash=h, percentage=80.0, comparativa="c", observaciones="o",
+            verdict="Apto", tldr="t", contact_method="email",
+        ))
+        root = _write_data(tmp_path, perfil=self._rich_perfil())
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        payload = self._run_context(h)
+        assert payload["job"]["description"] == "Python, Git, 100% remoto, USD, 0-1 anio"
+        assert "100% remoto" not in json.dumps(payload["profile_facts"])
