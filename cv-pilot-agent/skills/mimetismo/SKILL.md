@@ -31,7 +31,7 @@ El modelo NO debe releer `data/perfil.json`: `context` ya entrega el subconjunto
 ## Salvaguardas deterministas (afirmaciones sin soporte quedan prohibidas)
 
 | Afirmación | Redactar SÓLO si |
-|---|---|
+| --- | --- |
 | Certificaciones | El nombre exacto está en `certificaciones`. Si `certificaciones` es `[]`, no mencionar ninguna. |
 | Trabajo remoto | `remote_work` es `true`. Si es `false`, no afirmar remoto. |
 | Años de experiencia | Exactamente lo que declara `resumen`, sin inflar. |
@@ -58,7 +58,7 @@ La redacción la hace el agente; el envío, el script.
 ## Comandos
 
 | Comando | ¿Crea borrador? | Notas |
-|---|---|---|
+| --- | --- | --- |
 | `email --job <h> --body-file <p> --to <e> [--provider gmail\|outlook] [--subject ...] [--dry-run]` | Sí | Bloquea si `contact_method=="portal"` |
 | `question --job <h> --body-file <p>` | No | Error si cuerpo vacío |
 | `cover-letter --job <h> --body-file <p> [--provider ...] [--to ...] [--subject ...] [--dry-run]` | Solo con provider+to | Funciona siempre |
@@ -84,7 +84,7 @@ La redacción la hace el agente; el envío, el script.
 Línea de asunto personalizada. Si no se pasa, el script genera una por defecto según el modo:
 
 | Modo | Asunto por defecto |
-|---|---|
+| --- | --- |
 | `email` | `Postulación: <position> — <company>` |
 | `cover-letter` | `Carta de presentación: <position> — <company>` |
 
@@ -102,7 +102,7 @@ python skills/mimetismo/scripts/cli.py email \
 Previsualiza el HTML final (con links y firma) sin crear el borrador en el proveedor. No cambia el estado del job en la DB.
 
 | Valor | Comportamiento |
-|---|---|
+| --- | --- |
 | Sin flag (default) | Crea borrador en el proveedor y actualiza estado a `applied` |
 | `--dry-run` | Retorna `{"ok": true, "dry_run": true, "html": "...", ...}` sin crear borrador |
 
@@ -115,6 +115,7 @@ python skills/mimetismo/scripts/cli.py email \
 ```
 
 **Envelope de salida con `--dry-run`:**
+
 ```json
 {
   "ok": true,

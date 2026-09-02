@@ -37,7 +37,7 @@ for _stream in (sys.stdout, sys.stderr):
 _AGENT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(_AGENT_ROOT))
 
-import typer  # noqa: E402
+import typer  # noqa: E402  # pyright: ignore[reportMissingImports]
 
 from _lib import db  # noqa: E402
 from _lib.errors import CV_PilotError  # noqa: E402
