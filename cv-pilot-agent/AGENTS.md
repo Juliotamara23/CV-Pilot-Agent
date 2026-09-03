@@ -50,6 +50,7 @@ Razonamiento del agente (CV vs vacante). Persistir vía `analysis insert`. Rende
 
 **5b. Análisis completo**
 Si el usuario pide "análisis completo", "muéstrame todos los análisis", "dame el resumen de todo", o variantes: invocar `skills/formatos/scripts/cli.py all`. Contrato y flags en `skills/formatos/SKILL.md`.
+El Formato de salida en el chat de la conversación simpre debera imprimir el (build_markdown(sections)) con los decoradores **Siempre que se pidan en formato de lista**.
 
 **6. Redacción / Respuesta**
 Generar HTML en `temp/cvp-<hash>-body.html`. Invocar CLI de `skills/mimetismo/SKILL.md` (`email` / `question` / `cover-letter`, auto-detección de provider). Cambios de estado vía `query.py status set`. SQL de lectura para analytics solo vía `query.py query` (read-only validado); escrituras solo por comandos nativos del CLI. NUNCA SQL crudo fuera de `query.py`. Cleanup según `rules/code_guard.md`.
@@ -68,7 +69,3 @@ Valores permitidos: **No apto**, **Apto con reservas**, **Apto**.
 - Una evaluación normal **SIEMPRE** produce un veredicto terminal de los valores permitidos. Nunca persistir "pending"/"undecided" como análisis completado.
 - Si el usuario discrepa: es discusión conversacional/explicativa **solo**; no sobrescribe la evaluación almacenada ni reinicia evaluación normal. Solo una solicitud explícita de reevaluación/actualización puede cambiarla.
 - Los campos de análisis persistidos en BD son **texto plano** (sin Markdown/HTML/emojis/decoradores). El formateo/emotes pertenece solo al presentador (formatos).
-
-## Comportamiento
-
-> El comportamiento completo (silencio operativo, cero citas, anti-improvisación, confirmación obligatoria, scripts temporales) está en `rules/{persona,integridad,code_guard}.md`. Los contratos CLI de cada capacidad están en `skills/*/SKILL.md`. **Este archivo enruta; no repite el contenido de las reglas.** Si hay conflicto, prevalece el archivo específico sobre este índice.
