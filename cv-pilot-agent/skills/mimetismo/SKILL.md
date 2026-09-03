@@ -38,6 +38,14 @@ Ejecutar `python skills/mimetismo/scripts/cli.py context --job <h> --mode cover-
 
 La carta reutiliza `data/correos.md` SOLO para la voz (tono, saludo, ritmo, cierre); el contenido técnico sale de `profile_facts` y del análisis de la vacante. La carta sigue la estructura profesional del `contract` — cada sección se redacta según lo que debe contener, sin banear redacciones específicas. Se mantienen las salvaguardas de fuente: certificaciones, remote-work, años de experiencia y no-duplicación del footer.
 
+### Anti-patrón de redacción
+
+No expongas el análisis interno de matching como si fuera parte de la carta. Evita párrafos como:
+
+> La vacante pide experiencia en X, Y y Z. Mi perfil encaja en A y B. El gap está en C.
+
+Ese razonamiento debe transformarse en una explicación natural de la experiencia del usuario y su relación con el puesto, usando la voz observada en `examples`.
+
 El modelo NO debe releer `data/perfil.json`: `context` ya entrega el subconjunto verificado y atribuido por fuente. `profile_facts` excluye la expectativa salarial (privada) y los enlaces de contacto (propiedad del footer).
 
 ## Salvaguardas deterministas (afirmaciones sin soporte quedan prohibidas)
