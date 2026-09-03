@@ -36,7 +36,7 @@ Ejecutar `python skills/mimetismo/scripts/cli.py context --job <h> --mode cover-
 4. **Motivación** — interés genuino por la empresa y el rol.
 5. **CV y cierre** — menciona el CV una vez y cierra con cortesía; el footer es del CLI.
 
-La carta reutiliza `data/correos.md` SOLO para la voz (tono, saludo, ritmo, cierre); el contenido técnico sale de `profile_facts` y del análisis de la vacante. Está PROHIBIDO escribir párrafos-resumen genéricos de requisitos (p.ej. "cumplo con todo lo que buscan") sin evidencia del perfil, y se mantienen las salvaguardas: certificaciones, remote-work, años de experiencia y no-duplicación del footer.
+La carta reutiliza `data/correos.md` SOLO para la voz (tono, saludo, ritmo, cierre); el contenido técnico sale de `profile_facts` y del análisis de la vacante. La carta sigue la estructura profesional del `contract` — cada sección se redacta según lo que debe contener, sin banear redacciones específicas. Se mantienen las salvaguardas de fuente: certificaciones, remote-work, años de experiencia y no-duplicación del footer.
 
 El modelo NO debe releer `data/perfil.json`: `context` ya entrega el subconjunto verificado y atribuido por fuente. `profile_facts` excluye la expectativa salarial (privada) y los enlaces de contacto (propiedad del footer).
 
@@ -73,7 +73,7 @@ La redacción la hace el agente; el envío, el script.
 | --- | --- | --- |
 | `email --job <h> --body-file <p> --to <e> [--provider gmail\|outlook] [--subject ...] [--dry-run]` | Sí | Bloquea si `contact_method=="portal"` |
 | `question --job <h> --body-file <p>` | No | Error si cuerpo vacío |
-| `cover-letter --job <h> --body-file <p> [--provider ...] [--to ...] [--subject ...] [--dry-run]` | Solo con provider+to | Funciona siempre |
+| `cover-letter --job <h> --body-file <p>` | No | Devuelve el artefacto copia-pega de la carta (sin footer de email ni provider) |
 | `mimetismo` | No | Devuelve los ejemplos de `data/correos.md` (fuente de estilo). `has_examples: false` si no existen |
 | `context --job <h> [--mode email\|cover-letter]` | No | Contexto de generación determinista y separado por fuente: `examples` (estilo), `profile_facts` (hechos verificados atribuidos), `certificaciones`/`remote_work` (salvaguardas) y `footer` (enlaces no duplicables). `--mode cover-letter` añade el `contract` con la estructura profesional de la carta de presentación |
 | `cv` | No | Devuelve info del CV real persistido (exists/path/filename). `exists: true` = el correo llevará adjunto |
@@ -89,16 +89,19 @@ La redacción la hace el agente; el envío, el script.
 7. Proveedores: Gmail `gws`, Outlook `m365` (ver docs/gws-setup.md, docs/outlook-setup.md).
 8. Si `cli.py cv` reporta `exists: true`, el borrador se crea con el CV adjunto (`attached: true` en el output).
 
+> Los pasos 3-4 y 7-8 (provider, borrador y adjunto) aplican SOLO al modo `email`. El comando `cover-letter` es una acción distinta: devuelve el artefacto copia-pega, no añade el footer de email ni invoca ningún provider.
+
 ## Flags opcionales
 
 ### `--subject`
 
-Línea de asunto personalizada. Si no se pasa, el script genera una por defecto según el modo:
+Línea de asunto personalizada (solo para el modo `email`, que crea borrador). Si no se pasa, el script genera una por defecto:
 
 | Modo | Asunto por defecto |
 | --- | --- |
 | `email` | `Postulación: <position> — <company>` |
-| `cover-letter` | `Carta de presentación: <position> — <company>` |
+
+La carta de presentación no usa `--subject`: el comando `cover-letter` devuelve un artefacto copia-pega sin crear borrador ni enviar.
 
 Uso: pasar `--subject` cuando el usuario pide un asunto específico o cuando la empresa indica un formato particular (ej. "Asunto: Candidatura - Full Stack Developer").
 
@@ -118,7 +121,7 @@ Previsualiza el HTML final (con links y firma) sin crear el borrador en el prove
 | Sin flag (default) | Crea borrador en el proveedor y actualiza estado a `applied` |
 | `--dry-run` | Retorna `{"ok": true, "dry_run": true, "html": "...", ...}` sin crear borrador |
 
-Uso: pasar `--dry-run` cuando se quiere mostrar el email/cartas al usuario antes de enviar, o para debugging del HTML.
+Uso: pasar `--dry-run` cuando se quiere mostrar el email al usuario antes de enviar, o para debugging del HTML. (El `--dry-run` es del modo `email`; `cover-letter` no crea borrador).
 
 ```bash
 # Previsualizar sin crear borrador

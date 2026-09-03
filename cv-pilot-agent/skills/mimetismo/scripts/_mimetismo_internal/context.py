@@ -139,8 +139,10 @@ def extract_remote_work(raw: dict) -> bool:
 # own professional structure. This contract fixes the ordered sections the model
 # must draft and pins each source to its allowed role, mirroring the safeguarded
 # context (examples=voice only, profile_facts=single factual source, footer=
-# non-duplicable). It also forbids the generic requirement-summary paragraph
-# ("cumplo con todo lo que buscan") that the raw vacancy would otherwise invite.
+# non-duplicable). Each section is defined structurally (what it must contain)
+# rather than by a list of banned wordings, so the contract is user-agnostic.
+# Only source-grounding safeguards (certifications, remote work, years of
+# experience, footer ownership) are enforced as strict rules.
 
 # (key, title, role) — ordered sections of the cover letter.
 _COVER_LETTER_STRUCTURE: tuple[tuple[str, str, str], ...] = (
@@ -176,10 +178,14 @@ _COVER_LETTER_STRUCTURE: tuple[tuple[str, str, str], ...] = (
     ),
 )
 
-# Drafting patterns that are banned regardless of source.
+# Rules that are enforced regardless of source. These are source-grounding
+# safeguards only (claims must be backed by the pinned sources, and footer
+# contacts are never repeated in the body). No user- or phrase-specific wording
+# is banned: the structure itself (see _COVER_LETTER_STRUCTURE) defines what
+# each section must contain, so the contract is user-agnostic.
 _COVER_LETTER_PROHIBITED: tuple[str, ...] = (
-    "Párrafo-resumen genérico de requisitos sin evidencia del perfil (p.ej. repetir la lista de la "
-    "oferta con frases tipo 'cumplo con todo lo que buscan').",
+    "Cada requisito de la oferta se traduce en evidencia de 'profile_facts'; "
+    "no se recitan como párrafo-resumen genérico sin respaldo del perfil.",
     "Afirmar certificaciones que no estén en 'certificaciones'.",
     "Afirmar trabajo remoto cuando 'remote_work' es false.",
     "Inflar años de experiencia respecto a lo declarado en 'resumen'.",
@@ -218,8 +224,8 @@ def build_cover_letter_contract() -> dict:
 
     The model consumes this contract (with the same context envelope) to draft a
     cover letter whose professional structure is distinct from the postulation
-    email, grounded only in the safeguarded sources, and free of generic
-    requirement-summary phrasing.
+    email and grounded only in the safeguarded sources. The rules are
+    structural, not a list of banned wordings, so the contract is user-agnostic.
     """
     return {
         "draft": "cover-letter",

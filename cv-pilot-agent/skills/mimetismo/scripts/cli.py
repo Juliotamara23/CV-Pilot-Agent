@@ -47,7 +47,6 @@ from _mimetismo_internal.drafts import _wrap_draft, get_provider  # noqa: E402
 from _mimetismo_internal.links import format_links, signature_footer  # noqa: E402
 from _mimetismo_internal.providers import (  # noqa: E402
     detect_provider,
-    detect_provider_optional,
 )
 from _mimetismo_internal.subject import default_subject  # noqa: E402
 
@@ -214,40 +213,29 @@ def question_cmd(
 def cover_letter_cmd(
     job: str = typer.Option(..., help="job_hash (SHA256) of the job."),
     body_file: str = typer.Option(..., help="Path to the agent-written HTML body file."),
-    provider: Optional[str] = typer.Option(None, help="Override provider (gmail|outlook)."),
-    to: Optional[str] = typer.Option(None, help="Recipient email address (required to create a draft)."),
-    subject: Optional[str] = typer.Option(None, help="Subject (default: Carta de presentación: <position> — <company>)."),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Emit wrapped HTML without creating a draft."),
 ) -> None:
-    """Generate a cover letter draft (or return text when no provider / no recipient)."""
+    """Return a copy/paste cover-letter artifact (no provider, no email footer).
+
+    The cover letter is a distinct action from the email: it reuses
+    ``data/correos.md`` only for voice and follows the dedicated cover-letter
+    structure from ``context --mode cover-letter``. It returns the body as a
+    copy/paste artifact and does NOT add the email signature footer nor
+    invoke/prepare any Gmail/Outlook provider behavior.
+    """
     def action() -> None:
-        job_row = _load_job(job)
+        _load_job(job)
         _load_analysis(job)
         body = _read_body_file(body_file)
-        profile = load_profile(_AGENT_ROOT)
-        prefs = _load_preferences()
-        # Cover letter is the portal fallback — no PORTAL_POSTULATION block.
-        prov = detect_provider_optional(prefs, provider)
-        cv_path = _resolve_cv_path(profile)
-        attachment = str(cv_path) if cv_path else None
-        attach_cv = attachment is not None
-        wrapped = _wrap_draft(body, profile, attach_cv=attach_cv)
-        subj = subject or default_subject("Carta de presentación", job_row)
-        if dry_run:
-            _emit({"ok": True, "mode": "cover-letter", "dry_run": True,
-                   "provider": prov, "html": wrapped, "job_hash": job, "attached": False})
-            return
-        if prov is not None and to:
-            # Use the provider registry to get the correct drafter function
-            drafter = get_provider(prov)
-            draft_id = drafter(to, subj, wrapped, attachment)
-            db.update_status(job, "applied")
-            _emit({"ok": True, "mode": "cover-letter", "provider": prov,
-                   "draft_id": draft_id, "to": to, "subject": subj, "job_hash": job, "attached": attach_cv})
-        else:
-            _emit({"ok": True, "mode": "cover-letter", "provider": None,
-                   "text_preview": wrapped.strip()[:100], "text": wrapped,
-                   "job_hash": job, "attached": False})
+        try:
+            profile = load_profile(_AGENT_ROOT)
+        except FileNotFoundError:
+            profile = {}
+        # Resolve contact markers into usable text/links, but never append the
+        # email footer and never create a provider draft.
+        text = format_links(body, profile)
+        _emit({"ok": True, "mode": "cover-letter",
+               "text_preview": text.strip()[:100], "text": text,
+               "job_hash": job})
 
     _run_with_cleanup(action)
 
