@@ -292,6 +292,10 @@ def mimetismo_cmd() -> None:
 @app.command("context")
 def context_cmd(
     job: str = typer.Option(..., help="job_hash of the position being drafted for."),
+    mode: str = typer.Option(
+        "email",
+        help="Drafting contract mode: email (default) or cover-letter.",
+    ),
 ) -> None:
     """Return a deterministic, source-separated generation context (read-only).
 
@@ -300,9 +304,16 @@ def context_cmd(
     attribution (what may be claimed), and the footer-managed contact links
     (which must NOT appear in the body). The model should not reread the
     raw perfil.json; the context is the single drafting input.
+
+    With ``--mode cover-letter`` the envelope also carries a dedicated
+    ``contract`` with the professional cover-letter structure (distinct from
+    the email), its per-source roles and the prohibited generic
+    requirement-summary phrasing. Default mode (email) keeps the envelope
+    shape unchanged for CLI compatibility.
     """
     def action() -> None:
         from _mimetismo_internal.context import (  # noqa: PLC0415
+            build_cover_letter_contract,
             build_profile_facts,
             extract_certificaciones,
             extract_remote_work,
@@ -321,7 +332,7 @@ def context_cmd(
         cv_path = _resolve_cv_path(profile) if profile else None
         attach_cv = cv_path is not None
         examples, has_examples, examples_source = load_examples(_AGENT_ROOT)
-        _emit({
+        payload: dict = {
             "ok": True,
             "mode": "context",
             "job_hash": job,
@@ -335,7 +346,11 @@ def context_cmd(
             "certificaciones": extract_certificaciones(raw),
             "remote_work": extract_remote_work(raw),
             "footer": footer_link_labels(profile, attach_cv=attach_cv),
-        })
+        }
+        if mode == "cover-letter":
+            payload["draft_mode"] = "cover-letter"
+            payload["contract"] = build_cover_letter_contract()
+        _emit(payload)
 
     _run_with_cleanup(action)
 

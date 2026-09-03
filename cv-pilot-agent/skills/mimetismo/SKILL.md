@@ -26,6 +26,18 @@ Ejecutar `python skills/mimetismo/scripts/cli.py context --job <h>` ANTES de red
 - **`job`** + **`analysis`**: la vacante y su análisis. Los requisitos se traducen en evidencia del perfil (`profile_facts`), NUNCA se copian como párrafo-resumen genérico (ej. "La oferta encaja: buscan X").
 - **`footer`**: los enlaces de contacto que la CLI añadirá en la firma. NUNCA repetirlos en el cuerpo (ni GitHub, ni LinkedIn, ni WhatsApp, ni CV, ni email, ni teléfono).
 
+## Contrato de carta de presentación (cover-letter)
+
+Ejecutar `python skills/mimetismo/scripts/cli.py context --job <h> --mode cover-letter` ANTES de redactar una carta de presentación. Devuelve el mismo contexto de `context --job <h>` (examples, profile_facts, certificaciones/remote_work, footer) MÁS un campo `contract` dedicado con la estructura profesional de la carta, distinta del email:
+
+1. **Presentación** — quién eres y la vacante objetivo.
+2. **Experiencia relevante** — los requisitos de la oferta traducidos en evidencia de `profile_facts`.
+3. **Conexión con el rol** — cómo el perfil responde a las necesidades específicas de la vacante.
+4. **Motivación** — interés genuino por la empresa y el rol.
+5. **CV y cierre** — menciona el CV una vez y cierra con cortesía; el footer es del CLI.
+
+La carta reutiliza `data/correos.md` SOLO para la voz (tono, saludo, ritmo, cierre); el contenido técnico sale de `profile_facts` y del análisis de la vacante. Está PROHIBIDO escribir párrafos-resumen genéricos de requisitos (p.ej. "cumplo con todo lo que buscan") sin evidencia del perfil, y se mantienen las salvaguardas: certificaciones, remote-work, años de experiencia y no-duplicación del footer.
+
 El modelo NO debe releer `data/perfil.json`: `context` ya entrega el subconjunto verificado y atribuido por fuente. `profile_facts` excluye la expectativa salarial (privada) y los enlaces de contacto (propiedad del footer).
 
 ## Salvaguardas deterministas (afirmaciones sin soporte quedan prohibidas)
@@ -63,7 +75,7 @@ La redacción la hace el agente; el envío, el script.
 | `question --job <h> --body-file <p>` | No | Error si cuerpo vacío |
 | `cover-letter --job <h> --body-file <p> [--provider ...] [--to ...] [--subject ...] [--dry-run]` | Solo con provider+to | Funciona siempre |
 | `mimetismo` | No | Devuelve los ejemplos de `data/correos.md` (fuente de estilo). `has_examples: false` si no existen |
-| `context --job <h>` | No | Contexto de generación determinista y separado por fuente: `examples` (estilo), `profile_facts` (hechos verificados atribuidos), `certificaciones`/`remote_work` (salvaguardas) y `footer` (enlaces no duplicables) |
+| `context --job <h> [--mode email\|cover-letter]` | No | Contexto de generación determinista y separado por fuente: `examples` (estilo), `profile_facts` (hechos verificados atribuidos), `certificaciones`/`remote_work` (salvaguardas) y `footer` (enlaces no duplicables). `--mode cover-letter` añade el `contract` con la estructura profesional de la carta de presentación |
 | `cv` | No | Devuelve info del CV real persistido (exists/path/filename). `exists: true` = el correo llevará adjunto |
 
 ## Contrato

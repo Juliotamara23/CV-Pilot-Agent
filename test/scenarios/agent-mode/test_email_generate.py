@@ -1031,8 +1031,11 @@ class TestGenerationContext:
     """Regression coverage for issue #25: deterministic, source-grounded
     generation context that prevents generic requirement-summary paragraphs,
     unsupported certification/remote claims, and duplicated footer contacts."""
-    def _run_context(self, h):
-        result = runner.invoke(generate.app, ["context", "--job", h])
+    def _run_context(self, h, mode=None):
+        args = ["context", "--job", h]
+        if mode is not None:
+            args += ["--mode", mode]
+        result = runner.invoke(generate.app, args)
         assert result.exit_code == 0, result.stderr
         return json.loads(result.stdout)
 
@@ -1176,3 +1179,88 @@ class TestGenerationContext:
         payload = self._run_context(h)
         assert payload["job"]["description"] == "Python, Git, 100% remoto, USD, 0-1 anio"
         assert "100% remoto" not in json.dumps(payload["profile_facts"])
+
+    # ------------------------------------------------------------------- #
+    # Issue #25 — dedicated cover-letter drafting contract
+    # ------------------------------------------------------------------- #
+    def test_cover_letter_contract_has_professional_structure(self, tmp_db, tmp_path, monkeypatch):
+        """--mode cover-letter returns a dedicated contract whose ordered structure
+        is distinct from the email: presentation, relevant experience, connection
+        to role, motivation, then CV/closing."""
+        h = _seed_job()
+        content = "Buenos días,\n\nMe postulo a la vacante de Backend Dev.\n\nUn saludo,\nAna"
+        root = _write_data(tmp_path, perfil=self._rich_perfil(), correos=content)
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        payload = self._run_context(h, mode="cover-letter")
+        assert payload["mode"] == "context"
+        assert payload["draft_mode"] == "cover-letter"
+        contract = payload["contract"]
+        assert contract["draft"] == "cover-letter"
+        keys = [sec["key"] for sec in contract["structure"]]
+        assert keys == [
+            "presentation",
+            "relevant_experience",
+            "connection_to_role",
+            "motivation",
+            "cv_closing",
+        ]
+        order = [contract["structure"].index(s) for s in contract["structure"]]
+        for idx, key in enumerate(keys):
+            assert contract["structure"][idx]["key"] == key
+            assert contract["structure"][idx]["title"]
+            assert contract["structure"][idx]["role"]
+        assert "Presentación" in contract["structure_summary"]
+        assert "CV y cierre" in contract["structure_summary"]
+
+    def test_cover_letter_contract_reuses_correos_only_for_voice(self, tmp_db, tmp_path, monkeypatch):
+        """The contract reuses data/correos.md only as the voice source; facts and
+        requirements keep their own pinned sources."""
+        h = _seed_job()
+        root = _write_data(tmp_path, perfil=self._rich_perfil(), correos="Hola, un saludo, Ana")
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        contract = self._run_context(h, mode="cover-letter")["contract"]
+        sources = contract["sources"]
+        assert sources["voice"]["source"] == "data/correos.md"
+        # voice is the tone, never the technical content
+        assert "voz" in sources["voice"]["usage"]
+        assert "skills" in sources["voice"]["usage"] or "tono" in sources["voice"]["usage"]
+        assert sources["facts"]["source"] == "profile_facts"
+        assert sources["requirements"]["source"] == "job + analysis"
+        assert "footer" in sources
+
+    def test_cover_letter_contract_prohibits_generic_requirement_summary(self, tmp_db, tmp_path, monkeypatch):
+        """Generic requirement-summary phrasing is explicitly prohibited."""
+        h = _seed_job()
+        root = _write_data(tmp_path, perfil=self._rich_perfil())
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        contract = self._run_context(h, mode="cover-letter")["contract"]
+        prohibited = " ".join(contract["prohibited"]).lower()
+        assert "requis" in prohibited
+        assert "resumen" in prohibited or "genérico" in prohibited
+        assert "cumplo con todo lo que buscan" in prohibited
+
+    def test_cover_letter_contract_preserves_grounded_facts_and_footer(self, tmp_db, tmp_path, monkeypatch):
+        """The cover-letter contract keeps the safeguarded context: profile_facts,
+        footer ownership and the salvaguardas all remain present alongside the contract."""
+        h = _seed_job()
+        root = _write_data(tmp_path, perfil=self._rich_perfil())
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        payload = self._run_context(h, mode="cover-letter")
+        assert payload["profile_facts"]
+        assert payload["footer"] == ["GitHub", "LinkedIn", "CV", "WhatsApp"]
+        assert "certificaciones" in payload and "remote_work" in payload
+        contract = payload["contract"]
+        # footer is owned by the CLI, never duplicated in the body
+        assert "footer" in contract["sources"]
+        assert "repetirlos" in contract["sources"]["footer"]["usage"].lower()
+
+    def test_context_default_mode_email_has_no_contract(self, tmp_db, tmp_path, monkeypatch):
+        """CLI compatibility: the default context (email) keeps its envelope shape and
+        adds no draft_mode/contract."""
+        h = _seed_job()
+        root = _write_data(tmp_path, perfil=self._rich_perfil())
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        payload = self._run_context(h)  # no --mode
+        assert payload["mode"] == "context"
+        assert "draft_mode" not in payload
+        assert "contract" not in payload

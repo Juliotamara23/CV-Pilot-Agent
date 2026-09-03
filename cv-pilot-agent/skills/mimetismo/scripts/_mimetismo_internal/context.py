@@ -130,3 +130,104 @@ def extract_remote_work(raw: dict) -> bool:
                 parts.append(val)
     text = " ".join(parts).lower()
     return any(marker in text for marker in _REMOTE_MARKERS)
+
+
+# --------------------------------------------------------------------------- #
+# Cover-letter drafting contract
+# --------------------------------------------------------------------------- #
+# A cover letter is NOT a postulation email with a different subject: it has its
+# own professional structure. This contract fixes the ordered sections the model
+# must draft and pins each source to its allowed role, mirroring the safeguarded
+# context (examples=voice only, profile_facts=single factual source, footer=
+# non-duplicable). It also forbids the generic requirement-summary paragraph
+# ("cumplo con todo lo que buscan") that the raw vacancy would otherwise invite.
+
+# (key, title, role) — ordered sections of the cover letter.
+_COVER_LETTER_STRUCTURE: tuple[tuple[str, str, str], ...] = (
+    (
+        "presentation",
+        "Presentación",
+        "Identifica al remitente y la vacante objetivo (posición + empresa del contexto 'job'). "
+        "Abre con cortesía siguiendo la voz de 'examples'.",
+    ),
+    (
+        "relevant_experience",
+        "Experiencia relevante",
+        "Traduce los requisitos de la oferta en evidencia del perfil usando SOLO 'profile_facts'. "
+        "Ordena la experiencia que más conecta con el rol; nunca una lista genérica de requisitos.",
+    ),
+    (
+        "connection_to_role",
+        "Conexión con el rol",
+        "Conecta 'skills'/'experiencia' del perfil con las necesidades específicas de la vacante "
+        "(job + analysis). Toda afirmación sobre el perfil debe estar soportada por 'profile_facts'.",
+    ),
+    (
+        "motivation",
+        "Motivación",
+        "Expresa interés genuino por la empresa y el rol. La motivación es subjetiva y no requiere "
+        "evidencia del perfil, pero no inventa hechos sobre la empresa ni el puesto.",
+    ),
+    (
+        "cv_closing",
+        "CV y cierre",
+        "Menciona el CV una sola vez ('[cv]' se resuelve a texto plano cuando se adjunta). Cierra "
+        "con cortesía. NUNCA repetir contactos: pertenecen al 'footer' del CLI.",
+    ),
+)
+
+# Drafting patterns that are banned regardless of source.
+_COVER_LETTER_PROHIBITED: tuple[str, ...] = (
+    "Párrafo-resumen genérico de requisitos sin evidencia del perfil (p.ej. repetir la lista de la "
+    "oferta con frases tipo 'cumplo con todo lo que buscan').",
+    "Afirmar certificaciones que no estén en 'certificaciones'.",
+    "Afirmar trabajo remoto cuando 'remote_work' es false.",
+    "Inflar años de experiencia respecto a lo declarado en 'resumen'.",
+    "Duplicar en el cuerpo los enlaces del 'footer' (GitHub, LinkedIn, WhatsApp, CV, email, teléfono).",
+)
+
+# Each drafting source and the single role it may play.
+_COVER_LETTER_SOURCES: dict[str, dict[str, str]] = {
+    "voice": {
+        "source": "data/correos.md",
+        "usage": "SOLO el tono, saludo, ritmo y cierre (la voz del usuario). Nunca es fuente de "
+        "skills, experiencia ni logros.",
+    },
+    "facts": {
+        "source": "profile_facts",
+        "usage": "Única fuente de afirmaciones de perfil, con atribución por 'field'. Solo puede "
+        "afirmarse lo listado allí.",
+    },
+    "requirements": {
+        "source": "job + analysis",
+        "usage": "La vacante y su análisis. Se traducen en evidencia de 'profile_facts'; nunca se "
+        "copian como párrafo-resumen genérico.",
+    },
+    "footer": {
+        "usage": "Enlaces de contacto que la CLI añade en la firma. Nunca repetirlos en el cuerpo.",
+    },
+}
+
+_COVER_LETTER_STRUCTURE_SUMMARY = (
+    "Presentación → Experiencia relevante → Conexión con el rol → Motivación → CV y cierre."
+)
+
+
+def build_cover_letter_contract() -> dict:
+    """Return the deterministic cover-letter drafting contract.
+
+    The model consumes this contract (with the same context envelope) to draft a
+    cover letter whose professional structure is distinct from the postulation
+    email, grounded only in the safeguarded sources, and free of generic
+    requirement-summary phrasing.
+    """
+    return {
+        "draft": "cover-letter",
+        "structure": [
+            {"key": key, "title": title, "role": role}
+            for key, title, role in _COVER_LETTER_STRUCTURE
+        ],
+        "structure_summary": _COVER_LETTER_STRUCTURE_SUMMARY,
+        "sources": _COVER_LETTER_SOURCES,
+        "prohibited": list(_COVER_LETTER_PROHIBITED),
+    }
