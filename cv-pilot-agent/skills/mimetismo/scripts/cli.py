@@ -73,6 +73,7 @@ def _run_with_cleanup(action) -> None:
     """Execute an action; map CV_PilotError to the stderr envelope; cleanup always."""
     try:
         action()
+    # pi-lens-ignore: ast-grep:no-boolean-in-except
     except CV_PilotError as exc:
         _emit_error(exc.message or exc.__class__.__name__, exc.code)
         raise typer.Exit(code=1)

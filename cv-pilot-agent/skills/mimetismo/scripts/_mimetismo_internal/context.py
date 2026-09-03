@@ -139,10 +139,11 @@ def extract_remote_work(raw: dict) -> bool:
 # own professional structure. This contract fixes the ordered sections the model
 # must draft and pins each source to its allowed role, mirroring the safeguarded
 # context (examples=voice only, profile_facts=single factual source, footer=
-# non-duplicable). Each section is defined structurally (what it must contain)
-# rather than by a list of banned wordings, so the contract is user-agnostic.
-# Only source-grounding safeguards (certifications, remote work, years of
-# experience, footer ownership) are enforced as strict rules.
+# email-only, NOT applicable to the letter). Each section is defined
+# structurally (what it must contain) rather than by a list of banned wordings,
+# so the contract is user-agnostic. Only source-grounding safeguards
+# (certifications, remote work, years of experience, footer inapplicability)
+# are enforced as strict rules.
 
 # (key, title, role) — ordered sections of the cover letter.
 _COVER_LETTER_STRUCTURE: tuple[tuple[str, str, str], ...] = (
@@ -173,23 +174,25 @@ _COVER_LETTER_STRUCTURE: tuple[tuple[str, str, str], ...] = (
     (
         "cv_closing",
         "CV y cierre",
-        "Menciona el CV una sola vez ('[cv]' se resuelve a texto plano cuando se adjunta). Cierra "
-        "con cortesía. NUNCA repetir contactos: pertenecen al 'footer' del CLI.",
+        "Menciona el CV UNA sola vez dentro del cuerpo ('[cv]' se resuelve como enlace "
+        "cuando el perfil tiene CV). Cierra con cortesía siguiendo la voz de 'examples'. "
+        "Sin bloque de contactos ni firma automática: el 'footer' solo aplica al flujo 'email'.",
     ),
 )
 
 # Rules that are enforced regardless of source. These are source-grounding
-# safeguards only (claims must be backed by the pinned sources, and footer
-# contacts are never repeated in the body). No user- or phrase-specific wording
-# is banned: the structure itself (see _COVER_LETTER_STRUCTURE) defines what
-# each section must contain, so the contract is user-agnostic.
+# safeguards only (claims must be backed by the pinned sources, and the email
+# footer is declared inapplicable to the letter). No user- or phrase-specific
+# wording is banned: the structure itself (see _COVER_LETTER_STRUCTURE) defines
+# what each section must contain, so the contract is user-agnostic.
 _COVER_LETTER_PROHIBITED: tuple[str, ...] = (
     "Cada requisito de la oferta se traduce en evidencia de 'profile_facts'; "
     "no se recitan como párrafo-resumen genérico sin respaldo del perfil.",
     "Afirmar certificaciones que no estén en 'certificaciones'.",
     "Afirmar trabajo remoto cuando 'remote_work' es false.",
     "Inflar años de experiencia respecto a lo declarado en 'resumen'.",
-    "Duplicar en el cuerpo los enlaces del 'footer' (GitHub, LinkedIn, WhatsApp, CV, email, teléfono).",
+    "Inyectar el 'footer' de correo en la carta: el footer (firma, enlaces de contacto) "
+    "es exclusivo del flujo 'email' y no se añade a la carta.",
 )
 
 # Each drafting source and the single role it may play.
@@ -210,8 +213,28 @@ _COVER_LETTER_SOURCES: dict[str, dict[str, str]] = {
         "copian como párrafo-resumen genérico.",
     },
     "footer": {
-        "usage": "Enlaces de contacto que la CLI añade en la firma. Nunca repetirlos en el cuerpo.",
+        "usage": "NO aplica a la carta: el footer de correo (firma y enlaces de contacto) es "
+        "exclusivo del flujo 'email'. La carta no lo añade; el cierre se escribe con la voz del usuario.",
     },
+}
+
+# Delivery contract for the cover letter: it is a copy/paste artifact. Nothing
+# email-specific applies — no provider, no draft, no signature footer, no
+# contact-links block; those belong to the email action alone.
+_COVER_LETTER_DELIVERY: dict[str, object] = {
+    "mode": "copy-paste",
+    "rules": (
+        "Entregar SOLO la carta lista para copiar y pegar; no crear borrador de correo.",
+        "No invocar proveedor (gmail/outlook): la carta es una acción distinta del flujo 'email'.",
+        "No añadir el 'footer' de correo: sin inyección de firma ni bloque final de enlaces de contacto.",
+        "No marcar la postulación como enviada: la carta no se envía ni actualiza estado.",
+    ),
+    "email_only": (
+        "proveedor (gmail/outlook)",
+        "creación de borrador",
+        "footer de correo y firma automática",
+        "bloque final de enlaces de contacto",
+    ),
 }
 
 _COVER_LETTER_STRUCTURE_SUMMARY = (
@@ -226,6 +249,9 @@ def build_cover_letter_contract() -> dict:
     cover letter whose professional structure is distinct from the postulation
     email and grounded only in the safeguarded sources. The rules are
     structural, not a list of banned wordings, so the contract is user-agnostic.
+    The ``delivery`` block makes the delivery contract explicit: the letter is a
+    copy/paste artifact only — no email footer, signature injection, contact
+    links, provider or draft behavior; those belong to the email action alone.
     """
     return {
         "draft": "cover-letter",
@@ -236,4 +262,5 @@ def build_cover_letter_contract() -> dict:
         "structure_summary": _COVER_LETTER_STRUCTURE_SUMMARY,
         "sources": _COVER_LETTER_SOURCES,
         "prohibited": list(_COVER_LETTER_PROHIBITED),
+        "delivery": _COVER_LETTER_DELIVERY,
     }

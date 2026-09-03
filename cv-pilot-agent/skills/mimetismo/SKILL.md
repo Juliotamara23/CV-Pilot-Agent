@@ -47,19 +47,40 @@ Es un documento independiente para copiar y pegar. Usa la voz de los ejemplos de
 
 No conviertas la carta en un correo ni conviertas el análisis interno de la vacante en texto visible.
 
+### Contrato de entrega de la carta
+
+La carta se entrega SOLO para copiar y pegar. NO lleva:
+
+- footer de correo ni inyección de firma automática;
+- bloque final de enlaces de contacto (GitHub, LinkedIn, WhatsApp, correo, teléfono);
+- proveedor (gmail/outlook) ni creación de borrador;
+- marcado de la postulación como enviada.
+
+Esos comportamientos pertenecen exclusivamente al flujo `email`. La carta cierra con cortesía usando la voz del usuario; si menciona el CV, lo hace una sola vez, dentro del cuerpo, sin bloques de contacto al final.
+
 ## Ejemplos de estilo
 
-Los ejemplos reales se cargan desde `data/correos.md` mediante `context`. No inventes ejemplos con nombres, empresas, teléfonos, URLs, tecnologías o experiencias de una persona concreta dentro de esta skill.
+Los ejemplos reales se cargan desde `data/correos.md` mediante `context`. No inventes ejemplos con nombres, empresas, teléfonos, URLs, tecnologías o experiencias de una persona concreta dentro de esta skill. Los ejemplos genéricos de abajo ilustran el estilo deseado; no son reglas de frases prohibidas: la voz del usuario manda y cada carta se redacta según la estructura del `contract`.
 
-### Ejemplo positivo: relación natural con el puesto
+### Ejemplo positivo: conexión narrativa natural
 
-> Mi experiencia incluye el desarrollo de APIs y la automatización de procesos, por lo que me interesa aportar estas capacidades en los proyectos del equipo.
+> En mi último rol me tocó un proceso manual que consumía horas cada semana. Lo descompuse, encontré los pasos que se podían automatizar y, con el equipo, lo dejamos funcionando solo; el tiempo de entrega bajó a menos de la mitad. Cuando leí que este puesto busca a alguien que simplifique flujos complejos, pensé que es justo el tipo de problema que ya sé resolver.
 
-### Ejemplo negativo: análisis visible de matching
+Por qué funciona: cuenta qué hizo (historia), qué aprendió (resultado) y por qué conecta con el puesto (relación explicada). La experiencia se muestra con una explicación natural, no se enumera contra la oferta.
 
-> La vacante pide A, B y C. Mi perfil encaja en X e Y. El gap está en Z.
+### Ejemplo negativo: análisis de matching visible
 
-El segundo ejemplo expone el razonamiento interno del agente. Debe transformarse en una explicación natural, manteniendo la voz observada en los ejemplos del usuario.
+> Revisé la vacante y vi que pide A, B y C. Mi perfil cumple A, tengo algo de B y me falta C, pero estoy dispuesto a aprenderlo. Mi porcentaje de ajuste con el puesto es alto y pueden verificarlo en mi CV.
+
+Por qué no funciona: expone el razonamiento interno del agente (requisitos → encaje → gap → porcentaje). El lector ve una plantilla de análisis, no a una persona explicando por qué su experiencia sirve.
+
+### Ejemplo negativo: recitado de requisitos
+
+> La vacante busca experiencia en A y B, trabajo en equipo y proactividad. Yo tengo experiencia en A y B, soy proactivo y me gusta trabajar en equipo. Cumplo con lo que piden y quedo atento.
+
+Por qué no funciona: devuelve cada requisito tal cual viene de la oferta, sin mostrar cómo se usó. Parafrasear la vacante no es conectar: cada requisito debe traducirse en evidencia concreta del perfil (`profile_facts`).
+
+Transforma ambos patrones negativos en una explicación natural, manteniendo la voz observada en los ejemplos del usuario (sus conectores, formalidad y forma de cerrar).
 
 ## Fuentes y límites
 
@@ -68,7 +89,7 @@ El segundo ejemplo expone el razonamiento interno del agente. Debe transformarse
 - `job` y `analysis`: contexto y necesidades del puesto.
 - No inventes información ni conviertas una inferencia en un hecho.
 - No leas el `perfil.json` completo si `context` ya entregó los hechos necesarios.
-- No repitas contactos o footer en una carta.
+- La carta no añade footer, firma ni bloque de contactos: esos elementos son exclusivos del flujo `email`.
 
 ## Comandos principales
 

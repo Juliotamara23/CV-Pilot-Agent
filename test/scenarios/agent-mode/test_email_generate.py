@@ -1241,7 +1241,7 @@ class TestGenerationContext:
         """The contract is user-agnostic: each section is defined structurally by
         what it must contain, and the enforced rules are source-grounding
         safeguards (profile_facts evidence, certifications, remote work, years,
-        footer ownership) — not a list of banned wordings."""
+        footer inapplicability) — not a list of banned wordings."""
         h = _seed_job()
         root = _write_data(tmp_path, perfil=self._rich_perfil())
         monkeypatch.setattr(generate, "_AGENT_ROOT", root)
@@ -1257,10 +1257,13 @@ class TestGenerationContext:
         assert "footer" in prohibited
         # user-agnostic: no user-specific example phrasing is banned
         assert "cumplo con todo lo que buscan" not in prohibited
+        # delivery is part of the contract: copy/paste only, no email behaviors
+        assert contract["delivery"]["mode"] == "copy-paste"
 
     def test_cover_letter_contract_preserves_grounded_facts_and_footer(self, tmp_db, tmp_path, monkeypatch):
-        """The cover-letter contract keeps the safeguarded context: profile_facts,
-        footer ownership and the salvaguardas all remain present alongside the contract."""
+        """The cover-letter contract keeps the safeguarded context: profile_facts
+        and the salvaguardas remain present, and the footer is declared NOT
+        applicable to the letter (email-only), never injected."""
         h = _seed_job()
         root = _write_data(tmp_path, perfil=self._rich_perfil())
         monkeypatch.setattr(generate, "_AGENT_ROOT", root)
@@ -1269,9 +1272,36 @@ class TestGenerationContext:
         assert payload["footer"] == ["GitHub", "LinkedIn", "CV", "WhatsApp"]
         assert "certificaciones" in payload and "remote_work" in payload
         contract = payload["contract"]
-        # footer is owned by the CLI, never duplicated in the body
+        # footer is email-only: the source entry must declare it non-applicable
+        # to the letter instead of implying the CLI adds it to the signature.
         assert "footer" in contract["sources"]
-        assert "repetirlos" in contract["sources"]["footer"]["usage"].lower()
+        usage = contract["sources"]["footer"]["usage"].lower()
+        assert "no aplica" in usage
+        assert "email" in usage
+
+    def test_cover_letter_contract_delivery_is_copy_paste_only(self, tmp_db, tmp_path, monkeypatch):
+        """The contract declares cover-letter delivery as copy/paste only: no email
+        footer, no signature injection, no contact-links block, no provider and no
+        draft — those behaviors are email-only."""
+        h = _seed_job()
+        root = _write_data(tmp_path, perfil=self._rich_perfil())
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        contract = self._run_context(h, mode="cover-letter")["contract"]
+        delivery = contract["delivery"]
+        assert delivery["mode"] == "copy-paste"
+        rules = " ".join(delivery["rules"]).lower()
+        assert "copiar y pegar" in rules
+        assert "footer" in rules
+        assert "firma" in rules
+        assert "enlaces de contacto" in rules
+        assert "proveedor" in rules
+        assert "borrador" in rules
+        # email-only behaviors are listed so the model never applies them to the letter
+        excluded = " ".join(delivery["email_only"]).lower()
+        assert "proveedor" in excluded
+        assert "borrador" in excluded
+        assert "footer" in excluded
+        assert "enlaces de contacto" in excluded
 
     def test_context_default_mode_email_has_no_contract(self, tmp_db, tmp_path, monkeypatch):
         """CLI compatibility: the default context (email) keeps its envelope shape and
