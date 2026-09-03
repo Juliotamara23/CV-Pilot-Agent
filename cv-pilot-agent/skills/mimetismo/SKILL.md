@@ -83,6 +83,18 @@ El segundo ejemplo expone el razonamiento interno del agente. Debe transformarse
 
 Usa `--help` para descubrir flags, proveedores y comandos no enumerados aquí.
 
-## Formato de redacción
+## Formato HTML
 
-El body file debe ser HTML. Usa `<p>` o `<br><br>` entre párrafos. Los marcadores `[github]`, `[linkedin]`, `[cv]` y `[whatsapp]` solo deben usarse cuando correspondan al flujo de correo; una carta no debe depender del footer para estar completa.
+El body file debe ser HTML, no texto plano. Usa `<p>` o `<br><br>` entre párrafos; no dependas de saltos de línea `\n`, porque Outlook puede colapsarlos.
+
+- `email`: escribe HTML y usa `--dry-run` para previsualizar antes de crear un borrador.
+- `cover-letter`: devuelve HTML o texto listo para copiar y pegar; no usa proveedor ni footer.
+- Los marcadores `[github]`, `[linkedin]`, `[cv]` y `[whatsapp]` solo corresponden al flujo de correo.
+
+Ejemplo:
+
+```html
+<p>Buenos días,</p>
+<p>Me postulo a la vacante y presento brevemente la experiencia relevante.</p>
+<p>Quedo atento a su respuesta.</p>
+```
