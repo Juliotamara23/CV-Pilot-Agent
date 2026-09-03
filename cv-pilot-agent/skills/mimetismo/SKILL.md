@@ -64,23 +64,27 @@ Los ejemplos reales se cargan desde `data/correos.md` mediante `context`. No inv
 
 ### Ejemplo positivo: conexión narrativa natural
 
-> En mi último rol me tocó un proceso manual que consumía horas cada semana. Lo descompuse, encontré los pasos que se podían automatizar y, con el equipo, lo dejamos funcionando solo; el tiempo de entrega bajó a menos de la mitad. Cuando leí que este puesto busca a alguien que simplifique flujos complejos, pensé que es justo el tipo de problema que ya sé resolver.
+```
+    Estimado/a Responsable de Selección,
 
-Por qué funciona: cuenta qué hizo (historia), qué aprendió (resultado) y por qué conecta con el puesto (relación explicada). La experiencia se muestra con una explicación natural, no se enumera contra la oferta.
+    Le escribo para expresar mi gran interés en la posición de **Líder de Proyectos de Innovación** en **AeroTech Dynamics**, una vacante que se ajusta de manera ideal a mi trayectoria profesional en la gestión de iniciativas tecnológicas y la optimización de procesos operativos.
 
-### Ejemplo negativo: análisis de matching visible
+    A lo largo de mi carrera, he dirigido equipos multidisciplinarios en el desarrollo e implementación de soluciones digitales de alto impacto. En mi último rol, fui responsable de coordinar la transición hacia metodologías ágiles en diversos departamentos, lo que derivó en una reducción del 25% en los tiempos de entrega de proyectos y un incremento significativo en la satisfacción de los clientes clave. Mi enfoque combina la planificación estratégica, la gestión eficiente del riesgo y una comunicación clara entre los equipos técnicos y las áreas de negocio.
 
-> Revisé la vacante y vi que pide A, B y C. Mi perfil cumple A, tengo algo de B y me falta C, pero estoy dispuesto a aprenderlo. Mi porcentaje de ajuste con el puesto es alto y pueden verificarlo en mi CV.
+    Lo que más me atrae de AeroTech Dynamics es su constante apuesta por el desarrollo de tecnología sostenible y su cultura de mejora continua. Estoy convencido/a de que mi capacidad para alinear objetivos estratégicos con la ejecución táctica me permitirá aportar valor inmediato a los nuevos lanzamientos y proyectos de la compañía.
 
-Por qué no funciona: expone el razonamiento interno del agente (requisitos → encaje → gap → porcentaje). El lector ve una plantilla de análisis, no a una persona explicando por qué su experiencia sirve.
+    Agradezco de antemano su tiempo y consideración al revisar mi solicitud. Quedo a su entera disposición para mantener una entrevista y conversar en detalle sobre cómo mi experiencia y habilidades pueden contribuir al crecimiento continuado de AeroTech Dynamics.
 
-### Ejemplo negativo: recitado de requisitos
+    Atentamente,
 
-> La vacante busca experiencia en A y B, trabajo en equipo y proactividad. Yo tengo experiencia en A y B, soy proactivo y me gusta trabajar en equipo. Cumplo con lo que piden y quedo atento.
+    **Candidato/a**
+```
 
-Por qué no funciona: devuelve cada requisito tal cual viene de la oferta, sin mostrar cómo se usó. Parafrasear la vacante no es conectar: cada requisito debe traducirse en evidencia concreta del perfil (`profile_facts`).
+### Ejemplo negativo: IA slop
 
-Transforma ambos patrones negativos en una explicación natural, manteniendo la voz observada en los ejemplos del usuario (sus conectores, formalidad y forma de cerrar).
+```
+     La vacante pide infraestructura, redes, Microsoft 365 y proveedores. Mi perfil encaja en automatización, scripting Python/Bash, Docker, CI/CD y cloud GCP — base para infraestructura moderna. El gap es administración pura de redes (MPLS, firewalls) y Microsoft 365; mi fortaleza es backend y automatización. El salario 4.5M es atractivo. La ubicación 90% Santa Rosa de Osos implica desplazamiento semanal desde Medellín, reserva para mí.
+```
 
 ## Fuentes y límites
 
@@ -108,9 +112,9 @@ Usa `--help` para descubrir flags, proveedores y comandos no enumerados aquí.
 
 El body file debe ser HTML, no texto plano. Usa `<p>` o `<br><br>` entre párrafos; no dependas de saltos de línea `\n`, porque Outlook puede colapsarlos.
 
+- `cover-letter`: devuelve texto plano listo para copiar y pegar; no usa proveedor ni footer.
 - `email`: escribe HTML y usa `--dry-run` para previsualizar antes de crear un borrador.
-- `cover-letter`: devuelve HTML o texto listo para copiar y pegar; no usa proveedor ni footer.
-- Los marcadores `[github]`, `[linkedin]`, `[cv]` y `[whatsapp]` solo corresponden al flujo de correo.
+- Los marcadores `[github]`, `[linkedin]`, `[cv]` y `[whatsapp]` solo corresponden al flujo de **email**.
 
 Ejemplo:
 

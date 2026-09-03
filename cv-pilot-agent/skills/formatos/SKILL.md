@@ -7,7 +7,7 @@ version: 4.1
 
 # Formatos de Salida
 
-Este skill es ahora un script determinista. El agente NO redacta el reporte — lo genera el CLI.
+Este skill es un script determinista. El agente NO redacta el reporte — lo genera el CLI.
 
 ## CLI: `skills/formatos/scripts/cli.py`
 
@@ -35,13 +35,13 @@ python skills/formatos/scripts/cli.py all [--format markdown|json] [--status ana
 - En formato markdown: concatena todos los reportes con separadores `---`.
 - En formato JSON: retorna `{ok, count, reports: [{job_hash, report}, ...]}`.
 
-**Regla anti-improvisación:** Cuando el usuario pide "análisis completo", "muéstrame todos los análisis", o variantes, el agente DEBE invocar `formatos all` — NUNCA improvisar el output.
+**Regla anti-improvisación:** Cuando el usuario pide "análisis completo", "muéstrame todo el análisis", o variantes, el agente DEBE invocar `formatos all` — NUNCA improvisar el output.
 
 ### Synopsis del flujo (AGENTS.md paso 5)
 
 1. El agente pasa el `job_hash` persistido en el paso 5 (luego de `analysis insert`).
 2. El CLI genera el reporte — campos ausentes (`salary`, `url`, `public_date`[→ `created_at`]) se degradan con defaults; `None` nunca aparece en el reporte markdown.
-3. El agente muestra la salida del CLI al usuario como reporte final.
+3. El agente muestra en el chat de la conversación la salida del CLI (build_markdown(sections)) al usuario usando  como reporte final.
 4. El agente NO añade texto propio al reporte — es output determinista del script.
 
 ### Salida markdown — secciones (en orden)
