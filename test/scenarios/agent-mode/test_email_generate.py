@@ -356,7 +356,7 @@ class TestErrorEnvelopes:
         body = tmp_path / "body.html"; body.write_text("x", encoding="utf-8")
         _patch_environment(monkeypatch, root, which=lambda n: f"/fake/{n}")
         result = runner.invoke(generate.app, [
-            "cover-letter", "--job", h, "--body-file", str(body), "--provider", "gmail", "--to", "r@x.com",
+            "cover-letter", "--job", h, "--body-file", str(body),
         ])
         assert result.exit_code == 1
         assert json.loads(result.stderr)["code"] == "ANALYSIS_NOT_FOUND"
@@ -676,24 +676,9 @@ class TestIntegration:
         assert not any("gws" in c[0] or "m365" in " ".join(c) for c in calls)
         assert db.get_job(h)["job"]["status"] == "analyzed"  # untouched
 
-    def test_cover_letter_without_provider(self, tmp_db, tmp_path, monkeypatch):
-        root = _write_data(tmp_path, preferencias={"gmail_drafts": False, "outlook_drafts": False})  # no provider
-        h = _seed_job(contact_method="portal")
-        body = tmp_path / "cl.html"; body.write_text("<p>Candidatura.</p>", encoding="utf-8")
-        _patch_environment(monkeypatch, root, which=lambda n: f"/fake/{n}",
-                           run=_fake_run_factory([]))
-        result = runner.invoke(generate.app, [
-            "cover-letter", "--job", h, "--body-file", str(body),
-        ])
-        assert result.exit_code == 0, result.stderr
-        payload = json.loads(result.stdout)
-        assert payload["ok"] is True and payload["mode"] == "cover-letter"
-        assert payload["provider"] is None
-        assert "body" in payload or "text" in payload
-        # no status change (no draft created)
-        assert db.get_job(h)["job"]["status"] == "analyzed"
-
-    def test_cover_letter_with_provider(self, tmp_db, tmp_path, monkeypatch):
+    def test_cover_letter_returns_copy_paste_artifact(self, tmp_db, tmp_path, monkeypatch):
+        """Cover letter returns a copy/paste text artifact: no provider, no email
+        footer, no draft, and no status change."""
         root = _write_data(tmp_path, preferencias={"gmail_drafts": True, "outlook_drafts": False})
         h = _seed_job(contact_method="portal")
         body = tmp_path / "cl.html"; body.write_text("<p>Candidatura.</p>", encoding="utf-8")
@@ -702,14 +687,42 @@ class TestIntegration:
                            run=_fake_run_factory(calls))
         result = runner.invoke(generate.app, [
             "cover-letter", "--job", h, "--body-file", str(body),
-            "--to", "rrhh@acme.com",
         ])
         assert result.exit_code == 0, result.stderr
         payload = json.loads(result.stdout)
         assert payload["ok"] is True and payload["mode"] == "cover-letter"
-        assert payload["provider"] == "gmail"
-        assert any("gws" in c[0] for c in calls)
-        assert db.get_job(h)["job"]["status"] == "applied"
+        # copy/paste artifact: exposes the text, never a provider draft
+        assert "text" in payload
+        assert "provider" not in payload
+        assert "attached" not in payload
+        # no email footer is appended to the artifact
+        assert "Saludos cordiales" not in payload["text"]
+        # no provider/subprocess draft invocation, only cleanup
+        assert not any("gws" in c[0] or "m365" in " ".join(c) for c in calls)
+        # no status change (no draft created)
+        assert db.get_job(h)["job"]["status"] == "analyzed"
+
+    def test_cover_letter_resolves_contact_markers(self, tmp_db, tmp_path, monkeypatch):
+        """Cover letter resolves contact markers into usable text/links but never
+        appends the email footer."""
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": False, "outlook_drafts": False})
+        h = _seed_job(contact_method="portal")
+        body = tmp_path / "cl.html"
+        body.write_text("Visita [github] y mi [cv].", encoding="utf-8")
+        calls = []
+        _patch_environment(monkeypatch, root, which=lambda n: f"/fake/{n}",
+                           run=_fake_run_factory(calls))
+        result = runner.invoke(generate.app, [
+            "cover-letter", "--job", h, "--body-file", str(body),
+        ])
+        assert result.exit_code == 0, result.stderr
+        payload = json.loads(result.stdout)
+        text = payload["text"]
+        assert '<a href="https://github.com/example">GitHub</a>' in text
+        assert '<a href="https://drive.google.com/cv">CV</a>' in text
+        assert "[github]" not in text and "[cv]" not in text
+        assert "Saludos cordiales" not in text  # no email footer
+        assert db.get_job(h)["job"]["status"] == "analyzed"
 
     def test_cleanup_runs_even_on_error(self, tmp_db, tmp_path, monkeypatch):
         # PORTAL_POSTULATION path: cleanup must still run.
@@ -969,11 +982,13 @@ class TestIntegrationOutlookAttachment:
 
 
 # --------------------------------------------------------------------------- #
-# 3.9 Integration: Cover-letter with attachment (uses _wrap_draft)
+# 3.9 Integration: Cover-letter copy/paste artifact (no attachment, no provider)
 # --------------------------------------------------------------------------- #
-class TestIntegrationCoverLetterAttachment:
-    def test_cover_letter_gmail_with_attachment(self, tmp_db, tmp_path, monkeypatch):
-        """Cover letter with cv_path -> attached:true and _wrap_draft receives attach_cv=True."""
+class TestIntegrationCoverLetterArtifact:
+    def test_cover_letter_no_attachment_semantics(self, tmp_db, tmp_path, monkeypatch):
+        """A persisted CV does NOT turn the cover letter into an email draft with
+        attachment: the artifact resolves [cv] as a link and never reports an
+        'attached' envelope field."""
         cv_file = tmp_path / "cv.pdf"
         cv_file.write_bytes(b"%PDF-1.4 fake pdf")
         perfil = dict(PERFIL_JSON, cv_path=str(cv_file))
@@ -986,27 +1001,28 @@ class TestIntegrationCoverLetterAttachment:
                            run=_fake_run_factory(calls))
         result = runner.invoke(generate.app, [
             "cover-letter", "--job", h, "--body-file", str(body),
-            "--to", "rrhh@acme.com",
         ])
         assert result.exit_code == 0, result.stderr
         payload = json.loads(result.stdout)
         assert payload["ok"] is True
         assert payload["mode"] == "cover-letter"
-        assert payload["attached"] is True
-        # The HTML should have "Currículum" (plain text) not the anchor
-        gws_calls = [c for c in calls if any("gws" in str(a) for a in c)]
-        assert gws_calls
-        assert db.get_job(h)["job"]["status"] == "applied"
+        # No attachment/draft semantics on the copy/paste artifact.
+        assert "attached" not in payload
+        assert "provider" not in payload
+        # [cv] resolves to the CV link, not to an attachment plain-text marker.
+        assert '<a href="https://drive.google.com/cv">CV</a>' in payload["text"]
+        assert "Saludos cordiales" not in payload["text"]
+        # no provider draft invoked
+        assert not any("gws" in c[0] or "m365" in " ".join(c) for c in calls)
+        assert db.get_job(h)["job"]["status"] == "analyzed"
 
-    def test_cover_letter_without_provider_attached_false(self, tmp_db, tmp_path, monkeypatch):
-        """Cover letter without provider -> attached:false in text output."""
-        cv_file = tmp_path / "cv.pdf"
-        cv_file.write_bytes(b"%PDF-1.4 fake pdf")
-        perfil = dict(PERFIL_JSON, cv_path=str(cv_file))
+    def test_cover_letter_no_cv_uses_label(self, tmp_db, tmp_path, monkeypatch):
+        """Without a cv_url, [cv] resolves to the plain label when no CV link exists."""
+        perfil = dict(PERFIL_JSON, cv_url=None)
         root = _write_data(tmp_path, preferencias={"gmail_drafts": False, "outlook_drafts": False}, perfil=perfil)
         h = _seed_job(contact_method="portal")
         body = tmp_path / "cl.html"
-        body.write_text("<p>Candidatura.</p>", encoding="utf-8")
+        body.write_text("Ver mi [cv].", encoding="utf-8")
         _patch_environment(monkeypatch, root, which=lambda n: f"/fake/{n}",
                            run=_fake_run_factory([]))
         result = runner.invoke(generate.app, [
@@ -1014,14 +1030,7 @@ class TestIntegrationCoverLetterAttachment:
         ])
         assert result.exit_code == 0, result.stderr
         payload = json.loads(result.stdout)
-        assert payload["ok"] is True
-        assert payload["mode"] == "cover-letter"
-        assert payload["provider"] is None
-        assert payload["attached"] is False
-        # HTML should still have the anchor since attach_cv is based on actual draft creation
-        # Actually, in text mode (no provider), attach_cv should be False per spec
-        assert "attached" in payload
-        assert db.get_job(h)["job"]["status"] == "analyzed"
+        assert "Ver mi CV." in payload["text"]
 
 
 # --------------------------------------------------------------------------- #
@@ -1031,8 +1040,11 @@ class TestGenerationContext:
     """Regression coverage for issue #25: deterministic, source-grounded
     generation context that prevents generic requirement-summary paragraphs,
     unsupported certification/remote claims, and duplicated footer contacts."""
-    def _run_context(self, h):
-        result = runner.invoke(generate.app, ["context", "--job", h])
+    def _run_context(self, h, mode=None):
+        args = ["context", "--job", h]
+        if mode is not None:
+            args += ["--mode", mode]
+        result = runner.invoke(generate.app, args)
         assert result.exit_code == 0, result.stderr
         return json.loads(result.stdout)
 
@@ -1176,3 +1188,128 @@ class TestGenerationContext:
         payload = self._run_context(h)
         assert payload["job"]["description"] == "Python, Git, 100% remoto, USD, 0-1 anio"
         assert "100% remoto" not in json.dumps(payload["profile_facts"])
+
+    # ------------------------------------------------------------------- #
+    # Issue #25 — dedicated cover-letter drafting contract
+    # ------------------------------------------------------------------- #
+    def test_cover_letter_contract_has_professional_structure(self, tmp_db, tmp_path, monkeypatch):
+        """--mode cover-letter returns a dedicated contract whose ordered structure
+        is distinct from the email: presentation, relevant experience, connection
+        to role, motivation, then CV/closing."""
+        h = _seed_job()
+        content = "Buenos días,\n\nMe postulo a la vacante de Backend Dev.\n\nUn saludo,\nAna"
+        root = _write_data(tmp_path, perfil=self._rich_perfil(), correos=content)
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        payload = self._run_context(h, mode="cover-letter")
+        assert payload["mode"] == "context"
+        assert payload["draft_mode"] == "cover-letter"
+        contract = payload["contract"]
+        assert contract["draft"] == "cover-letter"
+        keys = [sec["key"] for sec in contract["structure"]]
+        assert keys == [
+            "presentation",
+            "relevant_experience",
+            "connection_to_role",
+            "motivation",
+            "cv_closing",
+        ]
+        order = [contract["structure"].index(s) for s in contract["structure"]]
+        for idx, key in enumerate(keys):
+            assert contract["structure"][idx]["key"] == key
+            assert contract["structure"][idx]["title"]
+            assert contract["structure"][idx]["role"]
+        assert "Presentación" in contract["structure_summary"]
+        assert "CV y cierre" in contract["structure_summary"]
+
+    def test_cover_letter_contract_reuses_correos_only_for_voice(self, tmp_db, tmp_path, monkeypatch):
+        """The contract reuses data/correos.md only as the voice source; facts and
+        requirements keep their own pinned sources."""
+        h = _seed_job()
+        root = _write_data(tmp_path, perfil=self._rich_perfil(), correos="Hola, un saludo, Ana")
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        contract = self._run_context(h, mode="cover-letter")["contract"]
+        sources = contract["sources"]
+        assert sources["voice"]["source"] == "data/correos.md"
+        # voice is the tone, never the technical content
+        assert "voz" in sources["voice"]["usage"]
+        assert "skills" in sources["voice"]["usage"] or "tono" in sources["voice"]["usage"]
+        assert sources["facts"]["source"] == "profile_facts"
+        assert sources["requirements"]["source"] == "job + analysis"
+        assert "footer" in sources
+
+    def test_cover_letter_contract_enforces_structural_rules_not_wordings(self, tmp_db, tmp_path, monkeypatch):
+        """The contract is user-agnostic: each section is defined structurally by
+        what it must contain, and the enforced rules are source-grounding
+        safeguards (profile_facts evidence, certifications, remote work, years,
+        footer inapplicability) — not a list of banned wordings."""
+        h = _seed_job()
+        root = _write_data(tmp_path, perfil=self._rich_perfil())
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        contract = self._run_context(h, mode="cover-letter")["contract"]
+        prohibited = " ".join(contract["prohibited"]).lower()
+        # source-grounding guard: requirements must map to profile_facts evidence
+        assert "profile_facts" in prohibited
+        assert "requis" in prohibited
+        # safeguards preserved
+        assert "certificaciones" in prohibited
+        assert "remote_work" in prohibited
+        assert "experiencia" in prohibited
+        assert "footer" in prohibited
+        # user-agnostic: no user-specific example phrasing is banned
+        assert "cumplo con todo lo que buscan" not in prohibited
+        # delivery is part of the contract: copy/paste only, no email behaviors
+        assert contract["delivery"]["mode"] == "copy-paste"
+
+    def test_cover_letter_contract_preserves_grounded_facts_and_footer(self, tmp_db, tmp_path, monkeypatch):
+        """The cover-letter contract keeps the safeguarded context: profile_facts
+        and the salvaguardas remain present, and the footer is declared NOT
+        applicable to the letter (email-only), never injected."""
+        h = _seed_job()
+        root = _write_data(tmp_path, perfil=self._rich_perfil())
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        payload = self._run_context(h, mode="cover-letter")
+        assert payload["profile_facts"]
+        assert payload["footer"] == ["GitHub", "LinkedIn", "CV", "WhatsApp"]
+        assert "certificaciones" in payload and "remote_work" in payload
+        contract = payload["contract"]
+        # footer is email-only: the source entry must declare it non-applicable
+        # to the letter instead of implying the CLI adds it to the signature.
+        assert "footer" in contract["sources"]
+        usage = contract["sources"]["footer"]["usage"].lower()
+        assert "no aplica" in usage
+        assert "email" in usage
+
+    def test_cover_letter_contract_delivery_is_copy_paste_only(self, tmp_db, tmp_path, monkeypatch):
+        """The contract declares cover-letter delivery as copy/paste only: no email
+        footer, no signature injection, no contact-links block, no provider and no
+        draft — those behaviors are email-only."""
+        h = _seed_job()
+        root = _write_data(tmp_path, perfil=self._rich_perfil())
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        contract = self._run_context(h, mode="cover-letter")["contract"]
+        delivery = contract["delivery"]
+        assert delivery["mode"] == "copy-paste"
+        rules = " ".join(delivery["rules"]).lower()
+        assert "copiar y pegar" in rules
+        assert "footer" in rules
+        assert "firma" in rules
+        assert "enlaces de contacto" in rules
+        assert "proveedor" in rules
+        assert "borrador" in rules
+        # email-only behaviors are listed so the model never applies them to the letter
+        excluded = " ".join(delivery["email_only"]).lower()
+        assert "proveedor" in excluded
+        assert "borrador" in excluded
+        assert "footer" in excluded
+        assert "enlaces de contacto" in excluded
+
+    def test_context_default_mode_email_has_no_contract(self, tmp_db, tmp_path, monkeypatch):
+        """CLI compatibility: the default context (email) keeps its envelope shape and
+        adds no draft_mode/contract."""
+        h = _seed_job()
+        root = _write_data(tmp_path, perfil=self._rich_perfil())
+        monkeypatch.setattr(generate, "_AGENT_ROOT", root)
+        payload = self._run_context(h)  # no --mode
+        assert payload["mode"] == "context"
+        assert "draft_mode" not in payload
+        assert "contract" not in payload

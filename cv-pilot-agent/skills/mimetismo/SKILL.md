@@ -1,146 +1,125 @@
 ---
 name: Mimetismo — Generate CLI
-description: Contrato de redacción con la voz del usuario + CLI cli.py para correos, preguntas y cartas.
+description: Redacta correos y cartas con la voz del usuario mediante ejemplos actuales.
 scope: GLOBAL
 ---
 
-# Redacción con Mimetismo (OBLIGATORIO)
+# Mimetismo
 
-Toda comunicación saliente (email, cover-letter, question) se redacta imitando los ejemplos de correos del usuario. Los ejemplos delatan su forma de hablar (saludo, tono, estructura, cierre).
+Usa los ejemplos del usuario para imitar su voz: vocabulario, tono, formalidad, ritmo, conectores y cierres. Los ejemplos son fuente de estilo, nunca de experiencia, habilidades o logros.
 
-## Paso obligatorio: `cli.py mimetismo`
+## Flujo
 
-Ejecutar `python skills/mimetismo/scripts/cli.py mimetismo` ANTES de redactar cualquier comunicación saliente.
+1. Identifica la intención: correo, carta de presentación o pregunta.
+2. Para una comunicación saliente, ejecuta:
 
-- **`has_examples: true`** → los `examples` recibidos SON la voz del usuario. Uso obligatorio, no opcional.
-- **`has_examples: false`** → sugerir al usuario configurar sus ejemplos de correos; mientras tanto, redactar con estilo profesional estándar.
+   ```bash
+   python skills/mimetismo/scripts/cli.py context --job <job_hash> --mode <email|cover-letter>
+   ```
 
----
+3. Usa `examples` solo para la voz y `profile_facts` más el job para el contenido.
+4. Ejecuta la acción correspondiente:
+   - `email` crea un borrador y puede usar proveedor/footer.
+   - `cover-letter` devuelve una carta para copiar y pegar; no usa proveedor ni footer.
+   - `question` devuelve una respuesta para un portal.
+5. Si necesitas conocer opciones o comandos adicionales, ejecuta:
 
-## Paso obligatorio: `cli.py context --job <h>`
+   ```bash
+   python skills/mimetismo/scripts/cli.py --help
+   python skills/mimetismo/scripts/cli.py <command> --help
+   ```
 
-Ejecutar `python skills/mimetismo/scripts/cli.py context --job <h>` ANTES de redactar. Es la ÚNICA fuente determinista para el borrador y separa por fuente lo que el modelo puede usar:
+## Correo y carta son acciones distintas
 
-- **`examples`** (completos, `data/correos.md`): ÚNICA fuente de ESTILO (voz, ritmo, estructura de párrafos, conectores, cierres). No es fuente de contenido técnico.
-- **`profile_facts`** (verificados de `perfil.json`, cada uno con su campo `field` que atribuye el origen): la ÚNICA fuente de afirmaciones de perfil. Solo puede afirmarse lo que esté listado.
-- **`job`** + **`analysis`**: la vacante y su análisis. Los requisitos se traducen en evidencia del perfil (`profile_facts`), NUNCA se copian como párrafo-resumen genérico (ej. "La oferta encaja: buscan X").
-- **`footer`**: los enlaces de contacto que la CLI añadirá en la firma. NUNCA repetirlos en el cuerpo (ni GitHub, ni LinkedIn, ni WhatsApp, ni CV, ni email, ni teléfono).
+### Correo
 
-El modelo NO debe releer `data/perfil.json`: `context` ya entrega el subconjunto verificado y atribuido por fuente. `profile_facts` excluye la expectativa salarial (privada) y los enlaces de contacto (propiedad del footer).
+Breve y orientado a iniciar contacto. Puede incluir asunto, destinatario, CV y footer cuando el proveedor esté configurado.
 
-## Salvaguardas deterministas (afirmaciones sin soporte quedan prohibidas)
+### Carta de presentación
 
-| Afirmación | Redactar SÓLO si |
-| --- | --- |
-| Certificaciones | El nombre exacto está en `certificaciones`. Si `certificaciones` es `[]`, no mencionar ninguna. |
-| Trabajo remoto | `remote_work` es `true`. Si es `false`, no afirmar remoto. |
-| Años de experiencia | Exactamente lo que declara `resumen`, sin inflar. |
+Es un documento independiente para copiar y pegar. Usa la voz de los ejemplos de correo, pero desarrolla una estructura propia:
 
-## Límite: tono sí, contenido NO
+1. presentación;
+2. experiencia relevante;
+3. relación natural con el puesto;
+4. motivación;
+5. currículum y cierre.
 
-`correos.md` define SOLO el tono (saludo, formalidad, estructura de párrafos, frases de cierre, firma). NUNCA es fuente de skills, experiencia ni logros: el contenido técnico SIEMPRE sale del perfil actual (`perfil.json`) y del análisis de la vacante. Los ejemplos pueden estar desactualizados.
+No conviertas la carta en un correo ni conviertas el análisis interno de la vacante en texto visible.
 
----
+### Contrato de entrega de la carta
 
-## Paso obligatorio: `cli.py cv`
+La carta se entrega SOLO para copiar y pegar. NO lleva:
 
-Ejecutar `python skills/mimetismo/scripts/cli.py cv` ANTES de redactar. Informa dónde está el CV real persistido y si existe.
+- footer de correo ni inyección de firma automática;
+- bloque final de enlaces de contacto (GitHub, LinkedIn, WhatsApp, correo, teléfono);
+- proveedor (gmail/outlook) ni creación de borrador;
+- marcado de la postulación como enviada.
 
-- **`exists: true`** → el correo se envía con el CV adjunto (`attached: true`). Redactar "Adjunto mi Currículum" y `[cv]` se resuelve a texto plano.
-- **`exists: false`** → sin adjunto; `[cv]` usa el link `cv_url` si existe. **Sugerir al usuario subir su CV real (cv-update) para que se adjunte en futuros correos.**
+Esos comportamientos pertenecen exclusivamente al flujo `email`. La carta cierra con cortesía usando la voz del usuario; si menciona el CV, lo hace una sola vez, dentro del cuerpo, sin bloques de contacto al final.
 
----
+## Ejemplos de estilo
 
-# cli.py CLI
+Los ejemplos reales se cargan desde `data/correos.md` mediante `context`. No inventes ejemplos con nombres, empresas, teléfonos, URLs, tecnologías o experiencias de una persona concreta dentro de esta skill. Los ejemplos genéricos de abajo ilustran el estilo deseado; no son reglas de frases prohibidas: la voz del usuario manda y cada carta se redacta según la estructura del `contract`.
 
-La redacción la hace el agente; el envío, el script.
+### Ejemplo positivo: conexión narrativa natural
 
-## Comandos
+```
+    Estimado/a Responsable de Selección,
 
-| Comando | ¿Crea borrador? | Notas |
-| --- | --- | --- |
-| `email --job <h> --body-file <p> --to <e> [--provider gmail\|outlook] [--subject ...] [--dry-run]` | Sí | Bloquea si `contact_method=="portal"` |
-| `question --job <h> --body-file <p>` | No | Error si cuerpo vacío |
-| `cover-letter --job <h> --body-file <p> [--provider ...] [--to ...] [--subject ...] [--dry-run]` | Solo con provider+to | Funciona siempre |
-| `mimetismo` | No | Devuelve los ejemplos de `data/correos.md` (fuente de estilo). `has_examples: false` si no existen |
-| `context --job <h>` | No | Contexto de generación determinista y separado por fuente: `examples` (estilo), `profile_facts` (hechos verificados atribuidos), `certificaciones`/`remote_work` (salvaguardas) y `footer` (enlaces no duplicables) |
-| `cv` | No | Devuelve info del CV real persistido (exists/path/filename). `exists: true` = el correo llevará adjunto |
+    Le escribo para expresar mi gran interés en la posición de **Líder de Proyectos de Innovación** en **AeroTech Dynamics**, una vacante que se ajusta de manera ideal a mi trayectoria profesional en la gestión de iniciativas tecnológicas y la optimización de procesos operativos.
 
-## Contrato
+    A lo largo de mi carrera, he dirigido equipos multidisciplinarios en el desarrollo e implementación de soluciones digitales de alto impacto. En mi último rol, fui responsable de coordinar la transición hacia metodologías ágiles en diversos departamentos, lo que derivó en una reducción del 25% en los tiempos de entrega de proyectos y un incremento significativo en la satisfacción de los clientes clave. Mi enfoque combina la planificación estratégica, la gestión eficiente del riesgo y una comunicación clara entre los equipos técnicos y las áreas de negocio.
 
-1. Agente escribe HTML en `temp/cvp-{hash}-body.html` y pasa ruta con `--body-file`.
-2. Script reemplaza `[github]`/`[linkedin]`/`[cv]`/`[whatsapp]` por `<a href>` desde `perfil.json`.
-3. Provider auto-detectado de `preferencias.json`; `--provider` sobrescribe.
-4. Si ambos providers `sí`, pasar `--provider` con la elección del usuario.
-5. `cleanup.py` al final (éxito o error).
-6. Output: JSON `{"ok":bool, ...}` a stdout, errores a stderr con `code`.
-7. Proveedores: Gmail `gws`, Outlook `m365` (ver docs/gws-setup.md, docs/outlook-setup.md).
-8. Si `cli.py cv` reporta `exists: true`, el borrador se crea con el CV adjunto (`attached: true` en el output).
+    Lo que más me atrae de AeroTech Dynamics es su constante apuesta por el desarrollo de tecnología sostenible y su cultura de mejora continua. Estoy convencido/a de que mi capacidad para alinear objetivos estratégicos con la ejecución táctica me permitirá aportar valor inmediato a los nuevos lanzamientos y proyectos de la compañía.
 
-## Flags opcionales
+    Agradezco de antemano su tiempo y consideración al revisar mi solicitud. Quedo a su entera disposición para mantener una entrevista y conversar en detalle sobre cómo mi experiencia y habilidades pueden contribuir al crecimiento continuado de AeroTech Dynamics.
 
-### `--subject`
+    Atentamente,
 
-Línea de asunto personalizada. Si no se pasa, el script genera una por defecto según el modo:
-
-| Modo | Asunto por defecto |
-| --- | --- |
-| `email` | `Postulación: <position> — <company>` |
-| `cover-letter` | `Carta de presentación: <position> — <company>` |
-
-Uso: pasar `--subject` cuando el usuario pide un asunto específico o cuando la empresa indica un formato particular (ej. "Asunto: Candidatura - Full Stack Developer").
-
-```bash
-# Asunto personalizado
-python skills/mimetismo/scripts/cli.py email \
-  --job <h> --body-file <p> --to rrhh@x.com \
-  --subject "Candidatura: Senior React Developer"
+    **Candidato/a**
 ```
 
-### `--dry-run`
+### Ejemplo negativo: IA slop
 
-Previsualiza el HTML final (con links y firma) sin crear el borrador en el proveedor. No cambia el estado del job en la DB.
+```
+     La vacante pide infraestructura, redes, Microsoft 365 y proveedores. Mi perfil encaja en automatización, scripting Python/Bash, Docker, CI/CD y cloud GCP — base para infraestructura moderna. El gap es administración pura de redes (MPLS, firewalls) y Microsoft 365; mi fortaleza es backend y automatización. El salario 4.5M es atractivo. La ubicación 90% Santa Rosa de Osos implica desplazamiento semanal desde Medellín, reserva para mí.
+```
 
-| Valor | Comportamiento |
+## Fuentes y límites
+
+- `examples`: solo voz y estilo.
+- `profile_facts`: únicos hechos permitidos sobre el candidato.
+- `job` y `analysis`: contexto y necesidades del puesto.
+- No inventes información ni conviertas una inferencia en un hecho.
+- No leas el `perfil.json` completo si `context` ya entregó los hechos necesarios.
+- La carta no añade footer, firma ni bloque de contactos: esos elementos son exclusivos del flujo `email`.
+
+## Comandos principales
+
+| Comando | Uso |
 | --- | --- |
-| Sin flag (default) | Crea borrador en el proveedor y actualiza estado a `applied` |
-| `--dry-run` | Retorna `{"ok": true, "dry_run": true, "html": "...", ...}` sin crear borrador |
+| `context --job <hash> --mode <email\|cover-letter>` | Entrega ejemplos, hechos y contexto de redacción. |
+| `email --job <hash> --body-file <path> --to <email>` | Crea un borrador de correo con el proveedor configurado. |
+| `cover-letter --job <hash> --body-file <path>` | Devuelve la carta para copiar y pegar, sin footer ni proveedor. |
+| `question --job <hash> --body-file <path>` | Devuelve una respuesta para un portal. |
+| `mimetismo` | Devuelve los ejemplos de estilo actuales. |
+| `cv` | Informa si existe un CV persistido. |
 
-Uso: pasar `--dry-run` cuando se quiere mostrar el email/cartas al usuario antes de enviar, o para debugging del HTML.
+Usa `--help` para descubrir flags, proveedores y comandos no enumerados aquí.
 
-```bash
-# Previsualizar sin crear borrador
-python skills/mimetismo/scripts/cli.py email \
-  --job <h> --body-file <p> --to rrhh@x.com --dry-run
-```
+## Formato HTML
 
-**Envelope de salida con `--dry-run`:**
+El body file debe ser HTML, no texto plano. Usa `<p>` o `<br><br>` entre párrafos; no dependas de saltos de línea `\n`, porque Outlook puede colapsarlos.
 
-```json
-{
-  "ok": true,
-  "mode": "email",
-  "dry_run": true,
-  "provider": "gmail",
-  "to": "rrhh@x.com",
-  "subject": "Postulación: React Developer — Acme Corp",
-  "html": "<html>...</html>",
-  "job_hash": "abc123"
-}
-```
+- `cover-letter`: devuelve texto plano listo para copiar y pegar; no usa proveedor ni footer.
+- `email`: escribe HTML y usa `--dry-run` para previsualizar antes de crear un borrador.
+- Los marcadores `[github]`, `[linkedin]`, `[cv]` y `[whatsapp]` solo corresponden al flujo de **email**.
 
-## Formato del body file
-
-El body file es **HTML, no plain text**. Outlook colapsa whitespace, así que `\n` no se renderiza como salto de línea — el script no convierte. Usar `<br><br>` entre párrafos (consistente con `signature_footer`):
+Ejemplo:
 
 ```html
-Buenos días,<br><br>Me postulo a la vacante de [Cargo] en [Empresa]. Soy Ingeniero de Sistemas con experiencia en [stack].<br><br>Adjunto mi Currículum para su revisión. Quedo atento a su respuesta.
+<p>Buenos días,</p>
+<p>Me postulo a la vacante y presento brevemente la experiencia relevante.</p>
+<p>Quedo atento a su respuesta.</p>
 ```
-
-Equivalente válido con `<p>` (los tests usan este patrón):
-
-```html
-<p>Buenos días,</p><p>Me postulo a la vacante...</p>
-```
-
-**NO escribir** plain text con `\n` — el draft llega a Outlook como una sola línea.

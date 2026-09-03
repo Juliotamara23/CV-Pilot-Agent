@@ -130,3 +130,137 @@ def extract_remote_work(raw: dict) -> bool:
                 parts.append(val)
     text = " ".join(parts).lower()
     return any(marker in text for marker in _REMOTE_MARKERS)
+
+
+# --------------------------------------------------------------------------- #
+# Cover-letter drafting contract
+# --------------------------------------------------------------------------- #
+# A cover letter is NOT a postulation email with a different subject: it has its
+# own professional structure. This contract fixes the ordered sections the model
+# must draft and pins each source to its allowed role, mirroring the safeguarded
+# context (examples=voice only, profile_facts=single factual source, footer=
+# email-only, NOT applicable to the letter). Each section is defined
+# structurally (what it must contain) rather than by a list of banned wordings,
+# so the contract is user-agnostic. Only source-grounding safeguards
+# (certifications, remote work, years of experience, footer inapplicability)
+# are enforced as strict rules.
+
+# (key, title, role) — ordered sections of the cover letter.
+_COVER_LETTER_STRUCTURE: tuple[tuple[str, str, str], ...] = (
+    (
+        "presentation",
+        "Presentación",
+        "Identifica al remitente y la vacante objetivo (posición + empresa del contexto 'job'). "
+        "Abre con cortesía siguiendo la voz de 'examples'.",
+    ),
+    (
+        "relevant_experience",
+        "Experiencia relevante",
+        "Traduce los requisitos de la oferta en evidencia del perfil usando SOLO 'profile_facts'. "
+        "Ordena la experiencia que más conecta con el rol; nunca una lista genérica de requisitos.",
+    ),
+    (
+        "connection_to_role",
+        "Conexión con el rol",
+        "Conecta 'skills'/'experiencia' del perfil con las necesidades específicas de la vacante "
+        "(job + analysis). Toda afirmación sobre el perfil debe estar soportada por 'profile_facts'.",
+    ),
+    (
+        "motivation",
+        "Motivación",
+        "Expresa interés genuino por la empresa y el rol. La motivación es subjetiva y no requiere "
+        "evidencia del perfil, pero no inventa hechos sobre la empresa ni el puesto.",
+    ),
+    (
+        "cv_closing",
+        "CV y cierre",
+        "Menciona el CV UNA sola vez dentro del cuerpo ('[cv]' se resuelve como enlace "
+        "cuando el perfil tiene CV). Cierra con cortesía siguiendo la voz de 'examples'. "
+        "Sin bloque de contactos ni firma automática: el 'footer' solo aplica al flujo 'email'.",
+    ),
+)
+
+# Rules that are enforced regardless of source. These are source-grounding
+# safeguards only (claims must be backed by the pinned sources, and the email
+# footer is declared inapplicable to the letter). No user- or phrase-specific
+# wording is banned: the structure itself (see _COVER_LETTER_STRUCTURE) defines
+# what each section must contain, so the contract is user-agnostic.
+_COVER_LETTER_PROHIBITED: tuple[str, ...] = (
+    "Cada requisito de la oferta se traduce en evidencia de 'profile_facts'; "
+    "no se recitan como párrafo-resumen genérico sin respaldo del perfil.",
+    "Afirmar certificaciones que no estén en 'certificaciones'.",
+    "Afirmar trabajo remoto cuando 'remote_work' es false.",
+    "Inflar años de experiencia respecto a lo declarado en 'resumen'.",
+    "Inyectar el 'footer' de correo en la carta: el footer (firma, enlaces de contacto) "
+    "es exclusivo del flujo 'email' y no se añade a la carta.",
+)
+
+# Each drafting source and the single role it may play.
+_COVER_LETTER_SOURCES: dict[str, dict[str, str]] = {
+    "voice": {
+        "source": "data/correos.md",
+        "usage": "SOLO el tono, saludo, ritmo y cierre (la voz del usuario). Nunca es fuente de "
+        "skills, experiencia ni logros.",
+    },
+    "facts": {
+        "source": "profile_facts",
+        "usage": "Única fuente de afirmaciones de perfil, con atribución por 'field'. Solo puede "
+        "afirmarse lo listado allí.",
+    },
+    "requirements": {
+        "source": "job + analysis",
+        "usage": "La vacante y su análisis. Se traducen en evidencia de 'profile_facts'; nunca se "
+        "copian como párrafo-resumen genérico.",
+    },
+    "footer": {
+        "usage": "NO aplica a la carta: el footer de correo (firma y enlaces de contacto) es "
+        "exclusivo del flujo 'email'. La carta no lo añade; el cierre se escribe con la voz del usuario.",
+    },
+}
+
+# Delivery contract for the cover letter: it is a copy/paste artifact. Nothing
+# email-specific applies — no provider, no draft, no signature footer, no
+# contact-links block; those belong to the email action alone.
+_COVER_LETTER_DELIVERY: dict[str, object] = {
+    "mode": "copy-paste",
+    "rules": (
+        "Entregar SOLO la carta lista para copiar y pegar; no crear borrador de correo.",
+        "No invocar proveedor (gmail/outlook): la carta es una acción distinta del flujo 'email'.",
+        "No añadir el 'footer' de correo: sin inyección de firma ni bloque final de enlaces de contacto.",
+        "No marcar la postulación como enviada: la carta no se envía ni actualiza estado.",
+    ),
+    "email_only": (
+        "proveedor (gmail/outlook)",
+        "creación de borrador",
+        "footer de correo y firma automática",
+        "bloque final de enlaces de contacto",
+    ),
+}
+
+_COVER_LETTER_STRUCTURE_SUMMARY = (
+    "Presentación → Experiencia relevante → Conexión con el rol → Motivación → CV y cierre."
+)
+
+
+def build_cover_letter_contract() -> dict:
+    """Return the deterministic cover-letter drafting contract.
+
+    The model consumes this contract (with the same context envelope) to draft a
+    cover letter whose professional structure is distinct from the postulation
+    email and grounded only in the safeguarded sources. The rules are
+    structural, not a list of banned wordings, so the contract is user-agnostic.
+    The ``delivery`` block makes the delivery contract explicit: the letter is a
+    copy/paste artifact only — no email footer, signature injection, contact
+    links, provider or draft behavior; those belong to the email action alone.
+    """
+    return {
+        "draft": "cover-letter",
+        "structure": [
+            {"key": key, "title": title, "role": role}
+            for key, title, role in _COVER_LETTER_STRUCTURE
+        ],
+        "structure_summary": _COVER_LETTER_STRUCTURE_SUMMARY,
+        "sources": _COVER_LETTER_SOURCES,
+        "prohibited": list(_COVER_LETTER_PROHIBITED),
+        "delivery": _COVER_LETTER_DELIVERY,
+    }
