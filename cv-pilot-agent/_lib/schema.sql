@@ -34,3 +34,17 @@ CREATE TABLE IF NOT EXISTS jobs (
     status TEXT DEFAULT 'new',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Skill load audit trail (skill-registry-cache).
+-- Append-only: record_load uses INSERT OR IGNORE for idempotent retries.
+CREATE TABLE IF NOT EXISTS skill_loads (
+    skill_name     TEXT NOT NULL,
+    version        TEXT,
+    loaded_at      DATETIME NOT NULL,
+    trigger        TEXT NOT NULL,
+    session_id     TEXT NOT NULL,
+    requested_by   TEXT NOT NULL,
+    PRIMARY KEY (skill_name, version, session_id, loaded_at)
+);
+CREATE INDEX IF NOT EXISTS ix_skill_loads_skill ON skill_loads(skill_name);
+CREATE INDEX IF NOT EXISTS ix_skill_loads_session ON skill_loads(session_id);
