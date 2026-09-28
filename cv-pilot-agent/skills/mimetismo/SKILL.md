@@ -1,5 +1,5 @@
 ---
-name: Mimetismo — Generate CLI
+name: mimetismo
 description: Redacta correos y cartas con la voz del usuario mediante ejemplos actuales.
 scope: GLOBAL
 ---
