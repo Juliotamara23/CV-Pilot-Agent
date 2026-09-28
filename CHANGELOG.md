@@ -5,6 +5,16 @@ All notable changes to CV-Pilot Agent are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.8] - 2026-09-28
+
+### Fixed
+- **skills**: normalize the `name` field in every `SKILL.md` frontmatter to the slug
+  of its directory (`apify`, `database`, `formatos`, `mimetismo`, `onboarding`).
+  Five skills declared human-readable names such as `Mimetismo — Generate CLI`,
+  which broke any consumer that derives a command, index key, or stable handle from
+  the `name` field. `cv-update` already matched and is unchanged. Only the `name:`
+  line changed; `description`, `scope`, `version` and body content are untouched.
+
 ## [3.0.7] - 2026-08-19
 
 ### Added
