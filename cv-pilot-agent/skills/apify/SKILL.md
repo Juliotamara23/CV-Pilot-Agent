@@ -1,5 +1,5 @@
 ---
-name: Skill Apify Scraper
+name: apify
 description: Scraping multi-plataforma de vacantes vía el CLI `cli.py`.
 scope: SOURCING_PHASE
 version: 3.0

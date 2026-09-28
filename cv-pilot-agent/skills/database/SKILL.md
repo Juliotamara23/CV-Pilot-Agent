@@ -1,5 +1,5 @@
 ---
-name: Database Manager
+name: database
 description: CLI query.py para CRUD de vacantes y análisis (SQLite).
 scope: GLOBAL
 ---
