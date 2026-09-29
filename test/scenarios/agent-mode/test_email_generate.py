@@ -8,7 +8,9 @@ with gws/m365/pwsh + cleanup subprocess calls monkeypatched.
 
 from __future__ import annotations
 
+import base64
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -27,6 +29,7 @@ _GEN_DIR = _AGENT_ROOT / "skills" / "mimetismo" / "scripts"
 if str(_GEN_DIR) not in sys.path:
     sys.path.insert(0, str(_GEN_DIR))
 
+import _mimetismo_internal.drafts as drafts_mod  # noqa: E402
 import cli as generate  # type: ignore  # noqa: E402
 from _mimetismo_internal.links import format_links as _format_links, signature_footer as _signature_footer  # noqa: E402
 from _mimetismo_internal.providers import detect_provider_optional as _detect_provider_optional, detect_provider as _detect_provider  # noqa: E402
@@ -93,13 +96,42 @@ def _seed_job_no_analysis() -> str:
     return db.insert_job(JobInsert(company="Acme", position="Backend Dev", location="Madrid"))["hash"]
 
 
-def _fake_run_factory(calls: list):
-    """subprocess.run replacement that records calls and returns success."""
+def _read_referenced_payloads(script_text: str) -> dict:
+    """Map every ``Get-Content -Path '<file>'`` target to its content.
+
+    The PowerShell script only carries paths; payloads travel as files. This
+    reads them back while they still exist (they are deleted in a `finally`).
+    """
+    return {
+        path: Path(path).read_text(encoding="utf-8")
+        for path in re.findall(r"Get-Content -Path '([^']+)'", script_text)
+    }
+
+
+def _fake_run_factory(calls: list, capture: dict | None = None):
+    """subprocess.run replacement that records calls and returns success.
+
+    The Outlook draft is no longer identifiable from argv (the script travels
+    as a file), so classification reads the `-File` script when it exists and
+    falls back to the Gmail default for wrapper scripts like ``gws.ps1``.
+    When `capture` is given, the script text, its payload files and the argv
+    size are recorded so tests can assert payloads never ride on argv.
+    """
     def _fake_run(args, **kwargs):
         calls.append(list(args))
-        joined = " ".join(str(a) for a in args)
-        # Outlook draft is created via a PowerShell Graph POST (Invoke-RestMethod).
-        stdout = "msg-graph-id-456\n" if "Invoke-RestMethod" in joined else "draft-id-123\n"
+        stdout = "draft-id-123\n"
+        if "-File" in args:
+            script_file = Path(args[args.index("-File") + 1])
+            if script_file.is_file():
+                script_text = script_file.read_text(encoding="utf-8")
+                if capture is not None:
+                    capture["script"] = script_text
+                    capture["payloads"] = _read_referenced_payloads(script_text)
+                    capture["argv_size"] = sum(len(str(a)) for a in args)
+                # Only the Outlook Graph script defines the message id, and it
+                # is identified by its content, not by an argv token.
+                if "Invoke-RestMethod" in script_text:
+                    stdout = "msg-graph-id-456\n"
         return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
     return _fake_run
 
@@ -950,17 +982,23 @@ class TestIntegrationGmailAttachment:
 # --------------------------------------------------------------------------- #
 class TestIntegrationOutlookAttachment:
     def test_email_outlook_with_attachment(self, tmp_db, tmp_path, monkeypatch):
-        """Outlook email with cv_path -> generated PowerShell includes attachment POST."""
+        """Outlook + cv_path -> the attachment payload travels as a file.
+
+        A real CV exceeds the OS argument limit (32 KiB command line on
+        Windows, 128 KiB per argument on Linux), so the base64 must never be
+        inlined in the PowerShell arguments.
+        """
         cv_file = tmp_path / "cv.pdf"
-        cv_file.write_bytes(b"%PDF-1.4 fake pdf")
+        cv_file.write_bytes(b"%PDF-1.4 fake pdf" + b"\0" * 200_000)
         perfil = dict(PERFIL_JSON, cv_path=str(cv_file))
         root = _write_data(tmp_path, preferencias={"gmail_drafts": False, "outlook_drafts": True}, perfil=perfil)
         h = _seed_job(contact_method="email")
         body = tmp_path / "body.html"
         body.write_text("<p>Hola, adjunto mi [cv].</p>", encoding="utf-8")
         calls = []
+        capture: dict = {}
         _patch_environment(monkeypatch, root, which=lambda n: f"/fake/{n}",
-                           run=_fake_run_factory(calls))
+                           run=_fake_run_factory(calls, capture))
         result = runner.invoke(generate.app, [
             "email", "--job", h, "--body-file", str(body),
             "--to", "rrhh@acme.com", "--provider", "outlook",
@@ -970,15 +1008,95 @@ class TestIntegrationOutlookAttachment:
         assert payload["ok"] is True
         assert payload["provider"] == "outlook"
         assert payload["attached"] is True
-        # Find the PowerShell script in the calls
+
         ps_calls = [c for c in calls if any("powershell" in str(a).lower() or "pwsh" in str(a).lower() for a in c)]
         assert ps_calls, "PowerShell subprocess not invoked"
-        # The script is the last argument (after -Command)
-        script = " ".join(ps_calls[0])
+        assert "-File" in ps_calls[0], "the script must travel as a file"
+        # Bounded argv regardless of attachment size (the old form carried ~270 KB).
+        assert capture["argv_size"] < 4096, f"argv grew with the payload: {capture['argv_size']}"
+
+        script = capture["script"]
         assert "/attachments" in script, f"Attachment POST not found in script: {script}"
-        assert "cv.pdf" in script, f"Filename not found in attachment POST: {script}"
-        assert "contentBytes" in script, f"base64 contentBytes not found in script: {script}"
+        assert "Get-Content" in script, "payload should be read from a file"
+        assert "contentBytes" not in script, "base64 must not be inlined in the script"
+        assert "cv.pdf" not in script, "filename must not be interpolated in the script"
+
+        att_payloads = [text for text in capture["payloads"].values() if "contentBytes" in text]
+        assert att_payloads, f"No attachment payload file found: {capture['payloads']}"
+        att = json.loads(att_payloads[0])
+        assert att["@odata.type"] == "#microsoft.graph.fileAttachment"
+        assert att["name"] == "cv.pdf"
+        assert base64.b64decode(att["contentBytes"]) == cv_file.read_bytes()
         assert db.get_job(h)["job"]["status"] == "applied"
+
+    def test_apostrophe_in_filename_does_not_break_script(self, tmp_db, tmp_path, monkeypatch):
+        """A filename with an apostrophe must survive verbatim: it is never
+        interpolated into the PowerShell source."""
+        cv_file = tmp_path / "CV D'Angelo.pdf"
+        cv_file.write_bytes(b"%PDF-1.4 fake pdf")
+        perfil = dict(PERFIL_JSON, cv_path=str(cv_file))
+        root = _write_data(tmp_path, preferencias={"gmail_drafts": False, "outlook_drafts": True}, perfil=perfil)
+        h = _seed_job(contact_method="email")
+        body = tmp_path / "body.html"
+        body.write_text("<p>Adjunto mi [cv].</p>", encoding="utf-8")
+        calls = []
+        capture: dict = {}
+        _patch_environment(monkeypatch, root, which=lambda n: f"/fake/{n}",
+                           run=_fake_run_factory(calls, capture))
+        result = runner.invoke(generate.app, [
+            "email", "--job", h, "--body-file", str(body),
+            "--to", "rrhh@acme.com", "--provider", "outlook",
+        ])
+        assert result.exit_code == 0, result.stderr
+        assert "D'Angelo" not in capture["script"], "filename must not enter the script source"
+        att_payloads = [text for text in capture["payloads"].values() if "contentBytes" in text]
+        assert json.loads(att_payloads[0])["name"] == "CV D'Angelo.pdf"
+
+
+class TestShellPathTranslation:
+    """Path translation must depend on the resolved shell, not on `wslpath`."""
+
+    def test_native_posix_shell_keeps_posix_path(self):
+        assert drafts_mod._shell_path("/tmp/x.json", "/usr/bin/pwsh") == "/tmp/x.json"
+
+    def test_resolved_windows_binary_is_detected(self, tmp_path):
+        exe = tmp_path / "powershell.exe"
+        exe.write_text("", encoding="utf-8")
+        expected = False if sys.platform.startswith("win") else True
+        assert drafts_mod._shell_reads_windows_paths(str(exe)) is expected
+
+    def test_posix_shell_without_windows_suffix_is_not_detected(self, tmp_path):
+        posix = tmp_path / "pwsh"
+        posix.write_text("", encoding="utf-8")
+        assert drafts_mod._shell_reads_windows_paths(str(posix)) is False
+
+    def test_windows_shell_translates_path(self, monkeypatch):
+        monkeypatch.setattr(drafts_mod, "_shell_reads_windows_paths", lambda shell: True)
+        monkeypatch.setattr(drafts_mod.shutil, "which",
+                            lambda name: "/usr/bin/wslpath" if name == "wslpath" else None)
+        monkeypatch.setattr(
+            drafts_mod.subprocess, "run",
+            lambda args, **kw: subprocess.CompletedProcess(
+                args, 0, stdout="\\\\wsl.localhost\\Ubuntu\\tmp\\x.json\n", stderr=""),
+        )
+        assert drafts_mod._shell_path("/tmp/x.json", "/mnt/c/powershell.exe") == (
+            "\\\\wsl.localhost\\Ubuntu\\tmp\\x.json"
+        )
+
+    def test_missing_wslpath_keeps_path(self, monkeypatch):
+        monkeypatch.setattr(drafts_mod, "_shell_reads_windows_paths", lambda shell: True)
+        monkeypatch.setattr(drafts_mod.shutil, "which", lambda name: None)
+        assert drafts_mod._shell_path("/tmp/x.json", "/mnt/c/powershell.exe") == "/tmp/x.json"
+
+    def test_wslpath_failure_keeps_path(self, monkeypatch):
+        monkeypatch.setattr(drafts_mod, "_shell_reads_windows_paths", lambda shell: True)
+        monkeypatch.setattr(drafts_mod.shutil, "which",
+                            lambda name: "/usr/bin/wslpath" if name == "wslpath" else None)
+        monkeypatch.setattr(
+            drafts_mod.subprocess, "run",
+            lambda args, **kw: subprocess.CompletedProcess(args, 1, stdout="", stderr="boom"),
+        )
+        assert drafts_mod._shell_path("/tmp/x.json", "/mnt/c/powershell.exe") == "/tmp/x.json"
 
 
 # --------------------------------------------------------------------------- #

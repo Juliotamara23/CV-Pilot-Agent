@@ -129,6 +129,36 @@ def create_draft_gmail(to: str, subject: str, body_html: str, attachment: Option
     return "draft"
 
 
+def _shell_reads_windows_paths(shell: str) -> bool:
+    r"""Return True when ``shell`` is a Windows binary reached through WSL interop.
+
+    A resolved Windows ``powershell.exe`` cannot read Linux ``/tmp`` paths and
+    needs them translated; a native Linux/macOS ``pwsh`` cannot read
+    ``\\wsl.localhost\...`` paths and must keep POSIX ones.
+    """
+    if sys.platform.startswith("win"):
+        return False
+    resolved = Path(shell).resolve()
+    return resolved.suffix.lower() in {".exe", ".cmd", ".bat"} or str(resolved).startswith("/mnt/")
+
+
+def _shell_path(path: str, shell: str) -> str:
+    """Translate ``path`` for ``shell`` when it crosses the WSL interop boundary.
+
+    Returns ``path`` unchanged on Windows, macOS, native Linux, and whenever
+    ``wslpath`` is unavailable.
+    """
+    if not _shell_reads_windows_paths(shell):
+        return path
+    wslpath = shutil.which("wslpath")
+    if wslpath is None:
+        return path
+    conv = subprocess.run([wslpath, "-w", path], capture_output=True, text=True)
+    if conv.returncode == 0 and conv.stdout.strip():
+        return conv.stdout.strip()
+    return path
+
+
 @register_provider("outlook")
 def create_draft_outlook(to: str, subject: str, body_html: str, attachment: Optional[str] = None) -> str:
     """Create an Outlook draft via ``m365`` CLI + PowerShell. Returns the message id.
@@ -171,59 +201,79 @@ def create_draft_outlook(to: str, subject: str, body_html: str, attachment: Opti
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as fh:
         body_path = fh.name
         fh.write(payload)
-    # Windows PowerShell (WSL interop) cannot read Linux /tmp paths — convert
-    # to a \\wsl.localhost\... path when wslpath is available.
-    body_script_path = body_path
-    wslpath = shutil.which("wslpath")
-    if wslpath and not sys.platform.startswith("win"):
-        conv = subprocess.run(
-            [wslpath, "-w", body_path], capture_output=True, text=True
-        )
-        if conv.returncode == 0 and conv.stdout.strip():
-            body_script_path = conv.stdout.strip()
-    script = (
-        "$ErrorActionPreference='Stop';"
-        f"$token = '{token}';"
-        f"$body = Get-Content -Path '{body_script_path}' -Raw -Encoding UTF8;"
-        "$resp = Invoke-RestMethod -Uri "
-        "'https://graph.microsoft.com/v1.0/me/messages' -Method Post "
-        "-ContentType 'application/json; charset=utf-8' "
-        "-Headers @{Authorization = \"Bearer $token\"} -Body $body;"
-        "Write-Output $resp.id;"
-    )
-    if attachment:
-        att_path = Path(attachment)
-        filename = att_path.name
-        with open(attachment, "rb") as f:
-            b64 = base64.b64encode(f.read()).decode("ascii")
-        script += (
-            "$ErrorActionPreference='Stop';"
-            "try {"
-            f"$attBody = @{{ '@odata.type' = '#microsoft.graph.fileAttachment'; "
-            f"name = '{filename}'; contentBytes = '{b64}' }} | ConvertTo-Json -Depth 3;"
-            f"Invoke-RestMethod -Uri (\"https://graph.microsoft.com/v1.0/me/messages/\" + "
-            f"$resp.id + \"/attachments\") -Method Post "
-            f"-ContentType 'application/json; charset=utf-8' "
-            f"-Headers @{{Authorization = \"Bearer $token\"}} -Body $attBody | Out-Null;"
-            "} catch {"
-            "  $respBody = '';"
-            "  if ($_.Exception.Response) {"
-            "    try { $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream());"
-            "          $respBody = $reader.ReadToEnd() } catch { $respBody = '' }"
-            "  }"
-            "  throw (\"Graph attachment POST failed: \" + $_.Exception.Message + "
-            "         $(if ($respBody) { \" | \" + $respBody } else { '' }));"
-            "}"
-        )
+    body_script_path = _shell_path(body_path, shell)
+    att_payload_path: str | None = None
+    proc: subprocess.CompletedProcess[str] | None = None
     try:
-        proc = subprocess.run(
-            [shell, "-NoProfile", "-Command", script],
-            capture_output=True, text=True, encoding="utf-8",
+        att_script_path = None
+        if attachment:
+            att = Path(attachment)
+            with open(attachment, "rb") as f:
+                b64 = base64.b64encode(f.read()).decode("ascii")
+            # The base64 payload goes to a file, never into argv: a real CV
+            # exceeds every OS argument limit (32 KiB command line on Windows,
+            # 128 KiB per argument on Linux), and interpolating the raw
+            # filename could break the PowerShell source. json.dumps keeps the
+            # payload ASCII, so the file has no encoding ambiguity.
+            att_payload = json.dumps({
+                "@odata.type": "#microsoft.graph.fileAttachment",
+                "name": att.name,
+                "contentBytes": b64,
+            })
+            with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as af:
+                att_payload_path = af.name
+                af.write(att_payload)
+            att_script_path = _shell_path(att_payload_path, shell)
+
+        script = (
+            "$ErrorActionPreference='Stop';"
+            f"$token = '{token}';"
+            f"$body = Get-Content -Path '{body_script_path}' -Raw -Encoding UTF8;"
+            "$resp = Invoke-RestMethod -Uri "
+            "'https://graph.microsoft.com/v1.0/me/messages' -Method Post "
+            "-ContentType 'application/json; charset=utf-8' "
+            "-Headers @{Authorization = \"Bearer $token\"} -Body $body;"
+            "Write-Output $resp.id;"
         )
+        if att_script_path:
+            script += (
+                "$ErrorActionPreference='Stop';"
+                "try {"
+                f"$attBody = Get-Content -Path '{att_script_path}' -Raw -Encoding UTF8;"
+                f"Invoke-RestMethod -Uri (\"https://graph.microsoft.com/v1.0/me/messages/\" + "
+                f"$resp.id + \"/attachments\") -Method Post "
+                f"-ContentType 'application/json; charset=utf-8' "
+                f"-Headers @{{Authorization = \"Bearer $token\"}} -Body $attBody | Out-Null;"
+                "} catch {"
+                "  $respBody = '';"
+                "  if ($_.Exception.Response) {"
+                "    try { $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream());"
+                "          $respBody = $reader.ReadToEnd() } catch { $respBody = '' }"
+                "  }"
+                "  throw (\"Graph attachment POST failed: \" + $_.Exception.Message + "
+                "         $(if ($respBody) { \" | \" + $respBody } else { '' }));"
+                "}"
+            )
+
+        # argv stays bounded — the script travels as a file, never inline.
+        with tempfile.NamedTemporaryFile("w", suffix=".ps1", delete=False, encoding="utf-8") as sf:
+            script_path = sf.name
+            sf.write(script)
+        try:
+            proc = subprocess.run(
+                [shell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+                 _shell_path(script_path, shell)],
+                capture_output=True, text=True, encoding="utf-8",
+            )
+        finally:
+            Path(script_path).unlink(missing_ok=True)
     finally:
         Path(body_path).unlink(missing_ok=True)
-    if proc.returncode != 0:
+        if att_payload_path:
+            Path(att_payload_path).unlink(missing_ok=True)
+    if proc is None or proc.returncode != 0:
+        detail = proc.stderr.strip() if proc is not None else "PowerShell script could not be executed"
         raise CV_PilotError(
-            f"Outlook draft creation failed: {proc.stderr.strip()}", code="DRAFT_FAILED"
+            f"Outlook draft creation failed: {detail}", code="DRAFT_FAILED"
         )
     return (proc.stdout.strip().splitlines() or [""])[0] or "draft"
