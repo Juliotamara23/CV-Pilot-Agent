@@ -14,12 +14,12 @@ version: 5.0
 | Integridad | `./rules/integridad.md` | Validación de perfil + VSI (Validación Semántica de Identidad) |
 | Code Guard | `./rules/code_guard.md` | Anti-improvisación, scripts temporales, restricciones absolutas |
 | Skills | `./skills/{onboarding,cv-update,database,mimetismo,apify,formatos}/SKILL.md` | Contratos CLI de cada capacidad |
-| CLI | `.venv/Scripts/python.exe skills/<skill>/scripts/cli.py` | Scripts deterministas (database usa `query.py`, cv-update usa `python` del sistema) |
-| Venv | `cv-pilot-agent/.venv/` (`python scripts/venv_setup.py`) | Obligatorio. Si falla 3 intentos, avisar al usuario |
+| CLI | `.venv/bin/python skills/<skill>/scripts/cli.py` | Scripts deterministas (database usa `query.py`, cv-update usa `python` del sistema) |
+| Venv | `.venv/` (`python scripts/venv_setup.py`) | Obligatorio. Si falla 3 intentos, avisar al usuario |
 | Perfil | `data/perfil.json` | Datos persistidos del usuario (snapshot del último CV) |
 
 > **Regla de carga:** Al iniciar cualquier tarea, el agente DEBE leer `rules/{persona,integridad,code_guard}.md` y los `SKILL.md` de las skills que vaya a invocar. Este archivo referencia; los archivos referenciados contienen el contrato detallado.
-> **Regla de delegación:** Al enviar subagentes vía `delegate_task`, incluir en el contexto la instrucción de leer `AGENTS.md`, `rules/code_guard.md` y las skills relevantes (`skills/database/SKILL.md`, `references/db_batch_ops.md`) antes de escribir cualquier script. Deben usar CLIs existentes (`query.py`) y solo como último recurso generar scripts temporales en `temp/`.
+> **Regla de delegación:** Al enviar subagentes vía `delegate_task`, incluir en el contexto la instrucción de leer `AGENTS.md`, `rules/code_guard.md` y las skills relevantes `skills/database/SKILL.md` antes de escribir cualquier script. Deben usar CLIs existentes (`query.py`) y solo como último recurso generar scripts temporales en `temp/`.
 
 ## Flujo
 
