@@ -702,12 +702,12 @@ def check_issue_references(repo_root: Path) -> CheckResult:
 # ---------------------------------------------------------------------------
 
 # Hard limit for skill contracts: they must stay "how to use" pointers, not
-# duplicate what the CLI's --help already documents.
-# 800 is deliberately ~12% above the worst measured value (mimetismo at 688
-# tiktoken / 708 len//4) so estimator noise can never flip the verdict.
+# duplicate what the CLI's --help already documents. Style-guide token budget:
+# target 180-450, hard max 700 (measured worst after trim: mimetismo, within
+# budget under both the tiktoken and len//4 estimators).
 # TODO(budget): AGENTS.md will be brought under budget later, once the
 # orchestrator contract is trimmed (owner decision: out of scope for now).
-SKILL_TOKEN_BUDGET = 800
+SKILL_TOKEN_BUDGET = 700
 
 
 def _load_token_counter(candidate_root: Path):

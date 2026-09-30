@@ -1,6 +1,6 @@
 ---
 name: formatos
-description: CLI `cli.py` — genera reportes de análisis (markdown | json) deterministas. Lectura de DB.
+description: "CLI `cli.py` — genera reportes de análisis (markdown | json) deterministas. Lectura de DB."
 scope: STRUCTURAL_ONLY
 version: 4.1
 ---
