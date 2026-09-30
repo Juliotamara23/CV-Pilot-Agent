@@ -1,6 +1,6 @@
 ---
 name: cv-update
-description: Rewrite perfil.json from scratch using a new CV PDF. Each update is a full snapshot — old fields are never preserved. Ensures ATS fidelity.
+description: "Rewrite perfil.json from scratch using a new CV PDF. Each update is a full snapshot — old fields are never preserved. Ensures ATS fidelity."
 scope: DATA
 version: "3.0"
 required_in_flujo: true

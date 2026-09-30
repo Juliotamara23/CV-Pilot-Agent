@@ -1,6 +1,6 @@
 ---
 name: apify
-description: Scraping multi-plataforma de vacantes vía el CLI `cli.py`.
+description: "Scraping multi-plataforma de vacantes vía el CLI `cli.py`."
 scope: SOURCING_PHASE
 version: 3.0
 ---

@@ -380,7 +380,7 @@ class TestCheckSkillTokenBudget:
         assert result.status == "FAIL"
         detail = result.details[0]
         assert str(skill_md.relative_to(mini_repo)) in detail
-        assert re.search(r"\d+ tokens exceeds budget 800", detail)
+        assert re.search(r"\d+ tokens exceeds budget 700", detail)
         assert "estimator:" in detail
         assert re.search(r"estimator: (tiktoken|len//4)", detail)
         assert "--help" in detail

@@ -1,12 +1,12 @@
 ---
 name: mimetismo
-description: Redacta correos y cartas con la voz del usuario mediante ejemplos actuales.
+description: "Redacta correos y cartas con la voz del usuario mediante ejemplos actuales."
 scope: GLOBAL
 ---
 
 # Mimetismo
 
-Usa los ejemplos del usuario para imitar su voz: vocabulario, tono, formalidad, ritmo, conectores y cierres. Los ejemplos son fuente de estilo, nunca de experiencia, habilidades o logros.
+Usa los ejemplos del usuario para imitar su voz: vocabulario, tono, formalidad, ritmo, conectores y cierres.
 
 ## Flujo
 
@@ -33,7 +33,7 @@ Esos comportamientos pertenecen exclusivamente al flujo `email`. La carta cierra
 
 ## Ejemplos de estilo
 
-Los ejemplos reales se cargan desde `data/correos.md` mediante `context`; son la única fuente de estilo. No inventes ejemplos con datos de una persona concreta. Regla de calidad: conecta la experiencia del candidato con la vacante de forma narrativa y natural, nunca con tono genérico de IA ("AI slop": listas de Buzzwords, resúmenes de la descripción del puesto o comentarios de salario/ubicación ajenos a la candidatura).
+Los ejemplos reales se cargan desde `data/correos.md` mediante `context`. No inventes ejemplos con datos de una persona concreta. Regla de calidad: conecta la experiencia del candidato con la vacante de forma narrativa y natural, nunca con tono genérico de IA (AI slop).
 
 ## Fuentes y límites
 
