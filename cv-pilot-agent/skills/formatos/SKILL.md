@@ -11,29 +11,10 @@ Este skill es un script determinista. El agente NO redacta el reporte — lo gen
 
 ## CLI: `skills/formatos/scripts/cli.py`
 
-Lectura de `jobs` + `analyses` (vía `_lib.db`) y `data/perfil.json`. Salida a stdout.
+Lectura de `jobs` + `analyses` (vía `_lib.db`) y `data/perfil.json`. Salida a stdout. Para flags, defaults y formatos, ejecuta `cli.py <command> --help`.
 
-### Comando `main` — reporte individual
-
-```
-python skills/formatos/scripts/cli.py main --job <hash> [--format markdown|json]
-```
-
-- `--job <hash>` (obligatorio): SHA256 del trabajo analizado (tabla `jobs`).
-- `--format` (opcional): `markdown` (default, legible) o `json` (programático).
-
-### Comando `all` — análisis completo (todos los jobs)
-
-```
-python skills/formatos/scripts/cli.py all [--format markdown|json] [--status analyzed] [--limit 50]
-```
-
-- `--format` (opcional): `markdown` (default) o `json`.
-- `--status` (opcional): filtra por status de job (default: `analyzed`).
-- `--limit` (opcional): máximo de jobs a retornar (default: 50).
-- Si no hay análisis: imprime "No hay análisis pendientes" y retorna exit 0 (no falla).
-- En formato markdown: concatena todos los reportes con separadores `---`.
-- En formato JSON: retorna `{ok, count, reports: [{job_hash, report}, ...]}`.
+- `main --job <hash>`: reporte individual de un job analizado.
+- `all`: análisis completo (todos los jobs). Si no hay análisis: imprime "No hay análisis pendientes" y retorna exit 0 (no falla).
 
 **Regla anti-improvisación:** Cuando el usuario pide "análisis completo", "muéstrame todo el análisis", o variantes, el agente DEBE invocar `formatos all` — NUNCA improvisar el output.
 
@@ -54,11 +35,4 @@ python skills/formatos/scripts/cli.py all [--format markdown|json] [--status ana
 
 ### Errores (exit 1, envelope JSON a stderr)
 
-| code | causa |
-|------|-------|
-| `INVALID_FORMAT` | `--format` no es `markdown`/`json` |
-| `JOB_NOT_FOUND` (heredado) | `--job` no existe en `jobs` |
-| `ANALYSIS_NOT_FOUND` (heredado) | el job no tiene análisis asociado |
-
-## Scripts de Respaldo
-- `skills/formatos/scripts/cli.py` — generador de reportes.
+`INVALID_FORMAT` (formato inválido), `JOB_NOT_FOUND` y `ANALYSIS_NOT_FOUND` (heredados del CLI de DB).

@@ -6,36 +6,17 @@ scope: GLOBAL
 
 # query.py CLI
 
-El agente NUNCA escribe SQL directo a la DB. Para analytics/agregaciones (GROUP BY, JOINs, conteos) puede generar SQL de LECTURA (SELECT/WITH) y ejecutarlo SOLO vía `query.py query` (modo read-only validado). Escrituras (job/analysis/status) únicamente por comandos nativos de este CLI. SQL crudo fuera de este CLI: prohibido.
+El agente NUNCA escribe SQL directo a la DB (ni a la URI en modo escritura). Para analytics/agregaciones (GROUP BY, JOINs, conteos) puede generar SQL de LECTURA (SELECT/WITH) y ejecutarlo SOLO vía `query.py query` (modo read-only, `mode=ro` validado a nivel motor). Escrituras (job/analysis/status) únicamente por comandos nativos de este CLI. SQL crudo fuera de este CLI: prohibido.
 
-## Comandos
+## Comando `query` — SQL de solo lectura
 
-| App | Comando | Flags |
-| --- | --- | --- |
-| `job` | `insert` | `--company --position --location [--url --source --public-date ...]` |
-| | `insert-batch` | `--file jobs.json` |
-| | `list` | `[--status S] [--limit N]` |
-| | `get` | `--hash H` |
-| | `update` | `--hash H [--public-date --url --salary --description --external-id --source]` |
-| | `delete` | `--hash H \| --status S [--dry-run]` |
-| `analysis` | `insert` | `--job-hash H --percentage N --comparativa ... --observaciones ... --verdict ... --tldr ... [--contact-method email\|portal]` |
-| | `get` | `--job-hash H` |
-| | `update` | `--job-hash H \| --analysis-id ID [--percentage --comparativa --observaciones --verdict --tldr --contact-method]` |
-| | `delete` | `--job-hash H \| --analysis-id ID` |
-| `status` | `set` | `--hash H --status S` |
+Uso: `query.py query "<sql>" [--limit N]` (default 100).
 
-    | `query` | `(callback)` | `<sql> [--limit N]` |
+- Solo `SELECT` (o `WITH ... SELECT`) — primera palabra clave validada case-insensitive.
+- Conexión SQLite `mode=ro`; una sola sentencia por `execute()`.
+- Códigos de error: `QUERY_INVALID_SQL`, `QUERY_WRITE_NOT_ALLOWED`, `DATABASE_ERROR`.
 
-## query — Arbitrary read-only SQL
-
-    Uso: `query.py query "<sql>" [--limit N]`
-
-    * Solo `SELECT` (o `WITH ... SELECT`) — primera palabra clave validada case-insensitive.
-    * Conexión SQLite en modo `mode=ro` (URI) — escrituras fallan nativamente en el motor.
-    * Una sola sentencia por `execute()` — driver Python `sqlite3` rechaza multi-statement.
-    * `--limit` (default 100) aplica cap en Python tras fetch.
-    * Celdas no-JSON (bytes/memoryview) → UTF-8 con replacement.
-    * Códigos de error: `QUERY_INVALID_SQL`, `QUERY_WRITE_NOT_ALLOWED`, `DATABASE_ERROR`.
+Para el resto de comandos (`job`, `analysis`, `status` con sus subcomandos y flags) ejecuta `query.py <app> --help` o `query.py <app> <cmd> --help`; la ayuda documenta cada flag con su default.
 
 ## Estados
 
@@ -43,11 +24,11 @@ El agente NUNCA escribe SQL directo a la DB. Para analytics/agregaciones (GROUP 
 
 ## Dedup
 
-SHA256(company+position+location). Hash nuevo→insert. Hash existe+fecha más nueva→refresh (borra análisis, resetea a `new`). Hash existe+fecha igual→ignora.
+SHA256(company+position+location). Hash nuevo→insert. Hash existe+fecha más nueva→refresh (borra análisis, resetea a `new`). Hash existe+fecha igual→ignora. Los campos identidad (`company`, `position`, `location`) NUNCA se actualizan; `job update` solo toca campos no-identidad y no altera analyses ni status.
 
 ## Reevaluación de análisis
 
-Para corregir un análisis existente (veredicto/porcentaje/observaciones) usar `analysis update --job-hash H`, NUNCA `analysis insert` repetido (duplica filas). `analysis update --job-hash` afecta la fila más reciente; `--analysis-id` apunta a una fila concreta. `job update` solo toca campos no-identidad (`public_date/url/salary/description/external_id/source`) y no altera analyses ni status.
+Para corregir un análisis existente (veredicto/porcentaje/observaciones) usar `analysis update --job-hash H`, NUNCA `analysis insert` repetido (duplica filas). `analysis update --job-hash` afecta la fila más reciente; `--analysis-id` apunta a una fila concreta.
 
 ## FK
 

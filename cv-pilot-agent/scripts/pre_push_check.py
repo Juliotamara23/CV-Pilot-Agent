@@ -7,6 +7,7 @@ Validates categories of breakage that have shipped in past releases:
   Check C: Flujo coverage of the skills that AGENTS.md declares.
   Check D: pyright type errors on Python files changed vs origin/main.
   Check E: Issue-management references in code/config/file names.
+  Check F: SKILL.md token budget (flag docs belong in --help, not contracts).
 
 Exit codes:
   0  all checks passed (or only WARN-level issues)
@@ -21,6 +22,7 @@ Designed to be invoked by .git/hooks/pre-push. Stdlib only.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import re
 import shutil
 import subprocess
@@ -28,7 +30,6 @@ import sys
 import traceback
 from dataclasses import dataclass, field
 from pathlib import Path
-
 
 # ---------------------------------------------------------------------------
 # Result types
@@ -204,8 +205,8 @@ def _path_exists_on_disk(repo_root: Path, source_file: Path, token: str) -> bool
     if (repo_root / clean).exists():
         return True
     agent_root = repo_root / "cv-pilot-agent"
-    if agent_root.is_dir() and (agent_root / clean).exists():
-        return True
+    if agent_root.is_dir():
+        return (agent_root / clean).exists()
     return False
 
 
@@ -216,9 +217,10 @@ def _is_interesting_token(token: str) -> bool:
     if is_bak(token):
         return False
     # Pure placeholders or partial fragments.
-    if token.endswith("/") or token.startswith("<") or token.startswith("["):
-        return False
-    return True
+    return not (
+        token.endswith("/")
+        or token.startswith(("<", "["))
+    )
 
 
 def _is_externalized_runtime_token(token: str, repo_root: Path) -> bool:
@@ -696,6 +698,97 @@ def check_issue_references(repo_root: Path) -> CheckResult:
 
 
 # ---------------------------------------------------------------------------
+# Check F: SKILL.md token budget
+# ---------------------------------------------------------------------------
+
+# Hard limit for skill contracts: they must stay "how to use" pointers, not
+# duplicate what the CLI's --help already documents.
+# 800 is deliberately ~12% above the worst measured value (mimetismo at 688
+# tiktoken / 708 len//4) so estimator noise can never flip the verdict.
+# TODO(budget): AGENTS.md will be brought under budget later, once the
+# orchestrator contract is trimmed (owner decision: out of scope for now).
+SKILL_TOKEN_BUDGET = 800
+
+
+def _load_token_counter(candidate_root: Path):
+    """Load test/test_helpers/token_counter.py, or None when unavailable.
+    Import failures are expected here (missing helper / missing tiktoken) and
+    the caller degrades to the len//4 estimate, so they are swallowed."""
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "cv_pilot_token_counter",
+            candidate_root / "test" / "test_helpers" / "token_counter.py",
+        )
+        if spec is None or spec.loader is None:
+            return None
+        loaded = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(loaded)
+        return loaded
+    except Exception:
+        return None
+
+
+def check_skill_token_budget(repo_root: Path) -> CheckResult:
+    """FAIL when a SKILL.md exceeds the token budget.
+
+    Over-budget contract text is usually duplicated `--help` documentation.
+    The failure detail says so: exception detail belongs in the CLI's
+    `--help` (generated from code, never drifts), not in the contract.
+
+    One severity regardless of estimator: tiktoken (via the repo token
+    counter) when importable, ``len(text) // 4`` otherwise — over-budget is
+    FAIL either way, and the detail names which estimator produced the
+    number.
+    """
+    result = CheckResult(name="Check F: SKILL.md token budget", status="PASS")
+    estimator_label = "tiktoken"
+    candidate_roots = [repo_root, *Path(__file__).resolve().parents[1:]]
+    module = None
+    for candidate in candidate_roots:
+        module = _load_token_counter(candidate)
+        if module is not None:
+            break
+    try:
+        if module is None:
+            raise ImportError("token counter module not found")
+        estimate = module.count_tokens
+    except Exception:
+        estimator_label = "len//4"
+
+        def estimate(text: str) -> int:
+            return len(text) // 4
+
+    # Budget applies ONLY to skills. AGENTS.md is deliberately out of scope
+    # for now (see module TODO above).
+    targets = sorted((repo_root / "cv-pilot-agent" / "skills").glob("*/SKILL.md"))
+
+    for path in targets:
+        rel = path.relative_to(repo_root)
+        try:
+            text = path.read_text(encoding="utf-8")
+            count = estimate(text)
+        except OSError as exc:
+            result.status = "FAIL"
+            result.details.append(f"  {rel}: could not read file ({exc})")
+            continue
+        if count <= SKILL_TOKEN_BUDGET:
+            continue
+        result.status = "FAIL"  # one severity: FAIL on both estimator paths
+        result.details.append(
+            f"  {rel}: {count} tokens exceeds budget {SKILL_TOKEN_BUDGET} "
+            f"(estimator: {estimator_label}); over-budget wording usually "
+            "duplicates what the CLI's --help already documents — flag "
+            "tables and output schemas belong in --help, not in the contract"
+        )
+
+    if result.status == "PASS" and not result.details:
+        result.details.append(
+            f"  {len(targets)} file(s) within budget (SKILL.md <= {SKILL_TOKEN_BUDGET})"
+        )
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 # Entry point
@@ -730,6 +823,7 @@ def main(argv: list[str] | None = None) -> int:
         check_flujo_coverage,
         check_pyright,
         check_issue_references,
+        check_skill_token_budget,
     ]:
         try:
             results.append(check_fn(repo_root))
