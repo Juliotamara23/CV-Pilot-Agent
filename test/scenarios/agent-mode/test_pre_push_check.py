@@ -11,16 +11,21 @@ The script is stdlib-only and reads synthetic repo structures from
 
 from __future__ import annotations
 
+import importlib.util
+import re
 import sys
 from pathlib import Path
 
 import pytest
 
-# Make cv-pilot-agent/scripts importable so we can load the module.
-_SCRIPTS_DIR = Path(__file__).resolve().parent.parent.parent.parent / "cv-pilot-agent" / "scripts"
-sys.path.insert(0, str(_SCRIPTS_DIR))
-
-import pre_push_check as ppc  # noqa: E402
+# Load scripts/pre_push_check.py directly (it is not a package module).
+_SCRIPTS_DIR = (Path(__file__).resolve().parent.parent.parent.parent / "cv-pilot-agent" / "scripts")
+_SCRIPT = importlib.util.spec_from_file_location("pre_push_check", _SCRIPTS_DIR / "pre_push_check.py")
+if _SCRIPT is None or _SCRIPT.loader is None:
+    raise ImportError(f"could not load pre_push_check from {_SCRIPTS_DIR}")
+ppc = importlib.util.module_from_spec(_SCRIPT)
+sys.modules["pre_push_check"] = ppc
+_SCRIPT.loader.exec_module(ppc)
 
 
 # ---------------------------------------------------------------------------
@@ -143,7 +148,6 @@ class TestHelpers:
     def test_is_template_fragment_detects_placeholder(self):
         source = "see skills/<skill>/scripts/cli.py now"
         # The token 'scripts/cli.py' is inside a placeholder run.
-        span = (0, len(source))
         assert ppc._is_template_fragment(source, (9, 22)) is True
 
     def test_path_exists_on_disk_relative_to_md(self, tmp_path):
@@ -340,6 +344,69 @@ class TestCheckFlujoCoverage:
         skill_md = tmp_path / "SKILL.md"
         skill_md.write_text("---\nname: x\n---\n", encoding="utf-8")
         assert ppc._parse_frontmatter_bool(skill_md, "required_in_flujo") is None
+
+
+# ---------------------------------------------------------------------------
+# Check F: SKILL.md token budget
+# ---------------------------------------------------------------------------
+
+BUDGET_TEST_BODY = ("long contract text telling the agent how to run the CLI. " * 80)
+
+
+def _write_overbudget_skill(mini_repo, slug="apify"):
+    skill_md = mini_repo / "cv-pilot-agent" / "skills" / slug / "SKILL.md"
+    skill_md.write_text(
+        f"---\nname: {slug}\n---\n\n" + BUDGET_TEST_BODY,
+        encoding="utf-8",
+    )
+    return skill_md
+
+
+class TestCheckSkillTokenBudget:
+    def test_pass_when_all_within_budget(self, mini_repo):
+        result = ppc.check_skill_token_budget(mini_repo)
+        assert result.status == "PASS"
+        assert result.passed()
+
+    def test_fail_when_skill_over_budget(self, mini_repo):
+        _write_overbudget_skill(mini_repo)
+        result = ppc.check_skill_token_budget(mini_repo)
+        assert result.status == "FAIL"
+        assert not result.passed()
+
+    def test_fail_detail_names_file_count_budget_estimator_and_guidance(self, mini_repo):
+        skill_md = _write_overbudget_skill(mini_repo, "database")
+        result = ppc.check_skill_token_budget(mini_repo)
+        assert result.status == "FAIL"
+        detail = result.details[0]
+        assert str(skill_md.relative_to(mini_repo)) in detail
+        assert re.search(r"\d+ tokens exceeds budget 800", detail)
+        assert "estimator:" in detail
+        assert re.search(r"estimator: (tiktoken|len//4)", detail)
+        assert "--help" in detail
+        assert "flag tables" in detail
+
+    def test_verdict_identical_with_and_without_token_counter(self, mini_repo, monkeypatch):
+        """The same over-budget fixture must FAIL under BOTH estimators."""
+        _write_overbudget_skill(mini_repo)
+        result_with = ppc.check_skill_token_budget(mini_repo)
+        assert result_with.status == "FAIL"
+        # Simulate an environment without the token counter helper.
+        monkeypatch.setattr(ppc, "_load_token_counter", lambda root: None)
+        result_without = ppc.check_skill_token_budget(mini_repo)
+        assert result_without.status == result_with.status == "FAIL"
+        assert "estimator: len//4" in result_without.details[0]
+        assert "estimator: tiktoken" in result_with.details[0]
+
+    def test_agents_md_is_not_budgeted(self, mini_repo):
+        agents = mini_repo / "cv-pilot-agent" / "AGENTS.md"
+        agents.write_text("# CV-Pilot\n\n" + ("filler sentence for budget\n" * 400), encoding="utf-8")
+        result = ppc.check_skill_token_budget(mini_repo)
+        assert result.status == "PASS"
+        assert "AGENTS.md" not in " ".join(result.details)
+
+    def test_main_includes_check_f(self, mini_repo):
+        assert ppc.main(["--repo-root", str(mini_repo), "--quiet"]) == 0
 
 
 # ---------------------------------------------------------------------------
