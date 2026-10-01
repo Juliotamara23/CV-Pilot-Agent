@@ -43,7 +43,7 @@ Los ejemplos reales se cargan desde `data/correos.md` mediante `context`. No inv
 
 ## Formato HTML
 
-El body file debe ser HTML, no texto plano. Usa `<p>` o `<br><br>` entre párrafos; no dependas de saltos de línea `\n`, porque Outlook puede colapsarlos.
+Partir de `assets/email-body.html` y reemplazar los párrafos. Es HTML, nunca texto plano; separar con `<p>` o `<br><br>` y no depender de `\n` (Outlook los colapsa). El CLI inyecta firma y enlaces.
 
 - `cover-letter`: devuelve texto plano listo para copiar y pegar; no usa proveedor ni footer.
 - `email`: escribe HTML y usa `--dry-run` para previsualizar antes de crear un borrador.

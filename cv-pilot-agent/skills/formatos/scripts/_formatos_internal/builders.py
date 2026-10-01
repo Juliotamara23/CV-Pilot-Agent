@@ -6,7 +6,81 @@ job, analysis, and profile data.
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional  # noqa: F401  (dict used for annotations)
+
+# Single source of truth for field emoji decoration. The emote belongs to the
+# FIELD, not to the report: every field selection carries its own emote.
+# `build_markdown` and the `list` command (cli.py) both consume this map.
+FIELD_EMOTES: dict = {
+    "analysis_id": "🆔",
+    "created_at": "📅",
+    "url": "🔗",
+    "company": "💻",
+    "position": "💼",
+    "location": "🚩",
+    "percentage": "🎯",
+    "verdict": "✅",
+    "tldr": "🌟",
+    "comparativa": "⚖️",
+    "observaciones": "💡",
+}
+
+# Display labels for scalar listing fields (used by the `list` command).
+LIST_FIELD_LABELS: dict = {
+    "analysis_id": "ID",
+    "created_at": "Fecha",
+    "url": "Fuente",
+    "company": "Empresa",
+    "position": "Cargo",
+    "location": "Localidad",
+    "percentage": "Porcentaje",
+    "verdict": "Veredicto",
+    "tldr": "TL;DR",
+}
+
+# Scalar fields accepted by `--fields` (block fields excluded on purpose).
+LIST_SCALAR_FIELDS = tuple(LIST_FIELD_LABELS)
+
+
+def format_percentage(percentage) -> str:
+    """Return the percentage as a rounded int string like '82', or '0'."""
+    try:
+        raw = str(percentage).replace("%", "").strip()
+        return f"{float(raw):.0f}"
+    except (ValueError, TypeError):
+        return "0"
+
+
+def format_source(job: dict) -> str:
+    """Return the job URL, or the manual-origin fallback text."""
+    url = job.get("url")
+    return url if url else "Texto manual"
+
+
+def build_list_lines(job: dict, analysis: dict, fields) -> list:
+    """Build decorated listing lines ``{emote} {Etiqueta}: {valor}``.
+
+    One line per requested field, in the caller-supplied order. Only scalar
+    fields are supported (callers must validate against LIST_SCALAR_FIELDS).
+    """
+    lines = []
+    for field in fields:
+        emote = FIELD_EMOTES[field]
+        label = LIST_FIELD_LABELS[field]
+        if field == "analysis_id":
+            value = analysis.get("analysis_id") or ""
+        elif field == "created_at":
+            value = format_date(job, analysis)
+        elif field == "url":
+            value = format_source(job)
+        elif field in ("company", "position", "location"):
+            value = job.get(field) or ""
+        elif field == "percentage":
+            value = f"{format_percentage(analysis.get('percentage'))}%"
+        else:  # verdict, tldr
+            value = (analysis.get(field) or "").strip()
+        lines.append(f"{emote} {label}: {value}")
+    return lines
 
 
 def format_date(job: dict, analysis: dict) -> str:
