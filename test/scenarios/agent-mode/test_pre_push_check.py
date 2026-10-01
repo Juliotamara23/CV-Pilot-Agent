@@ -410,6 +410,101 @@ class TestCheckSkillTokenBudget:
 
 
 # ---------------------------------------------------------------------------
+# Check G: AGENTS.md content guard
+# ---------------------------------------------------------------------------
+
+def _write_clean_agents_md(agent_dir: Path):
+    agent_dir.mkdir(parents=True)
+    (agent_dir / "AGENTS.md").write_text(
+        "# CV-Pilot\n\nUse `python cv-pilot-agent/scripts/cli.py --help`.\n",
+        encoding="utf-8",
+    )
+
+
+class TestCheckAgentsContent:
+    def test_pass_when_no_fences_and_only_help_flag(self, tmp_path):
+        _write_clean_agents_md(tmp_path / "cv-pilot-agent")
+        result = ppc.check_agents_content(tmp_path)
+        assert result.status == "PASS"
+        assert result.name == "Check G: AGENTS.md content guard"
+        assert "no code fences, no CLI flags other than --help" in result.details[0]
+
+    def test_fail_on_fenced_code_block(self, tmp_path):
+        agent = tmp_path / "cv-pilot-agent"
+        agent.mkdir()
+        (agent / "AGENTS.md").write_text(
+            "```\npython cli.py upload.jpg --help\n```\n",
+            encoding="utf-8",
+        )
+        result = ppc.check_agents_content(tmp_path)
+        assert result.status == "FAIL"
+        detail = result.details[0]
+        assert "AGENTS.md:1:" in detail
+        assert "--help" in detail
+
+    def test_fail_on_cli_flag_other_than_help(self, tmp_path):
+        agent = tmp_path / "cv-pilot-agent"
+        agent.mkdir()
+        (agent / "AGENTS.md").write_text(
+            "upload.py --limit 5 per run.\n",
+            encoding="utf-8",
+        )
+        result = ppc.check_agents_content(tmp_path)
+        assert result.status == "FAIL"
+        detail = result.details[0]
+        assert "AGENTS.md:1:" in detail
+        assert "--limit" in detail
+
+    def test_help_flag_alone_does_not_fail(self, tmp_path):
+        agent = tmp_path / "cv-pilot-agent"
+        agent.mkdir()
+        (agent / "AGENTS.md").write_text(
+            "Run with --help for details, then --help again.\n",
+            encoding="utf-8",
+        )
+        result = ppc.check_agents_content(tmp_path)
+        assert result.status == "PASS"
+
+    def test_fail_when_agents_md_missing(self, tmp_path):
+        result = ppc.check_agents_content(tmp_path)
+        assert result.status == "FAIL"
+        detail = result.details[0]
+        assert "AGENTS.md not found at cv-pilot-agent/AGENTS.md" in detail
+
+    def test_does_not_scan_flags_inside_fence(self, tmp_path):
+        # Rule 1 already fails the fence; the inside must not be scanned.
+        agent = tmp_path / "cv-pilot-agent"
+        agent.mkdir()
+        (agent / "AGENTS.md").write_text(
+            "text line\n```\n--limit --flag --x\n```\n",
+            encoding="utf-8",
+        )
+        result = ppc.check_agents_content(tmp_path)
+        assert result.status == "FAIL"
+        assert len(result.details) == 1  # only the fence
+        assert "--limit" not in result.details[0]
+
+    def test_main_wiring_includes_check_g(self, mini_repo, monkeypatch):
+        calls = []
+        for fn_name in [
+            "check_broken_references",
+            "check_bidirectional_skills",
+            "check_flujo_coverage",
+            "check_pyright",
+            "check_issue_references",
+            "check_skill_token_budget",
+            "check_agents_content",
+        ]:
+            def _recorder(repo_root, _calls=calls, _name=fn_name):
+                _calls.append(_name)
+                return ppc.CheckResult(name=_name, status="PASS")
+            monkeypatch.setattr(ppc, fn_name, _recorder)
+        assert ppc.main(["--repo-root", str(mini_repo), "--quiet"]) == 0
+        assert "check_agents_content" in calls
+        assert calls[-1] == "check_agents_content"
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 

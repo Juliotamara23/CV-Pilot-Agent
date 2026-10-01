@@ -8,6 +8,7 @@ Validates categories of breakage that have shipped in past releases:
   Check D: pyright type errors on Python files changed vs origin/main.
   Check E: Issue-management references in code/config/file names.
   Check F: SKILL.md token budget (flag docs belong in --help, not contracts).
+  Check G: AGENTS.md content guard (no fenced blocks, no CLI flags but --help).
 
 Exit codes:
   0  all checks passed (or only WARN-level issues)
@@ -789,6 +790,69 @@ def check_skill_token_budget(repo_root: Path) -> CheckResult:
 
 
 # ---------------------------------------------------------------------------
+# Check G: AGENTS.md content guard
+# ---------------------------------------------------------------------------
+
+# CLI flags of the form --word or --word-with-dashes. Only --help is allowed
+# in the orchestrator contract.
+CLI_FLAG_PATTERN = re.compile(r"--[a-z][a-z0-9-]+")
+ALLOWED_FLAGS = {"--help"}
+
+
+def check_agents_content(repo_root: Path) -> CheckResult:
+    """FAIL when AGENTS.md duplicates what a CLI or skill contract already owns.
+
+    Two rules:
+      1. No fenced code blocks. Fenced blocks are where command examples sneak
+         in, and command examples belong in the CLI's --help.
+      2. No CLI flags other than --help. Flag tables cannot be kept in sync
+         by hand; --help is generated from the code and cannot drift.
+
+    Deliberately rejected rule: flagging skill names appearing as paths (the
+    `./skills/{onboarding,cv-update,...}/SKILL.md` row and Flujo step labels
+    like "Sourcing Apify") produce false positives — do not re-add it.
+    """
+    result = CheckResult(name="Check G: AGENTS.md content guard", status="PASS")
+    agents_md = repo_root / "cv-pilot-agent" / "AGENTS.md"
+    if not agents_md.is_file():
+        result.status = "FAIL"
+        result.details.append(
+            f"  AGENTS.md not found at {agents_md.relative_to(repo_root)}: "
+            "the orchestrator contract must exist"
+        )
+        return result
+    text = agents_md.read_text(encoding="utf-8", errors="replace")
+    in_fence = False
+    fence_start_line = 0
+    for lineno, line in enumerate(text.splitlines(), 1):
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            if not in_fence:
+                result.status = "FAIL"
+                result.details.append(
+                    f"  AGENTS.md:{lineno}: fenced code block — command "
+                    "examples belong in the CLI's --help"
+                )
+                fence_start_line = lineno
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        for flag in CLI_FLAG_PATTERN.findall(line):
+            if flag not in ALLOWED_FLAGS:
+                result.status = "FAIL"
+                result.details.append(
+                    f"  AGENTS.md:{lineno}: CLI flag {flag!r} — flag tables "
+                    "belong in --help, which is generated from code"
+                )
+    if result.status == "PASS":
+        result.details.append(
+            "  AGENTS.md: no code fences, no CLI flags other than --help"
+        )
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 # Entry point
@@ -824,6 +888,7 @@ def main(argv: list[str] | None = None) -> int:
         check_pyright,
         check_issue_references,
         check_skill_token_budget,
+        check_agents_content,
     ]:
         try:
             results.append(check_fn(repo_root))
