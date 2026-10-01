@@ -8,10 +8,12 @@ to stdout. Invoked by the orchest layer (AGENTS.md) via subprocess::
     python skills/formatos/scripts/cli.py main --job <hash> --format json
     python skills/formatos/scripts/cli.py all
     python skills/formatos/scripts/cli.py all --format json [--status analyzed] [--limit 50]
+    python skills/formatos/scripts/cli.py list [--status S] [--limit N] [--fields f1,f2,...]
 
 Commands:
     main  — single-job report (requires --job).
     all   — every analyzed job in one document (default: markdown).
+    list  — decorated, field-selected one-line-per-field listing per job.
 
 Prints the report to stdout on success and exits 0; emits an error envelope to
 stderr and exits non-zero on failure.
@@ -39,7 +41,12 @@ from _lib import db  # noqa: E402
 from _lib.errors import CV_PilotError  # noqa: E402
 from _lib.shared.profile_loader import load_profile  # noqa: E402
 
-from _formatos_internal.builders import build_json, build_markdown  # noqa: E402
+from _formatos_internal.builders import (  # noqa: E402
+    LIST_SCALAR_FIELDS,
+    build_json,
+    build_list_lines,
+    build_markdown,
+)
 
 app = typer.Typer(
     name="format_report",
@@ -174,6 +181,60 @@ def all_reports(
                 parts.append("\n---\n")
             parts.append(build_markdown(pair["job"], pair["analysis"], profile))
         typer.echo("".join(parts))
+
+
+@app.command("list")
+def list_reports(
+    status: str = typer.Option("analyzed", "--status", help="Filter jobs by status."),
+    limit: int = typer.Option(50, "--limit", help="Max jobs to fetch."),
+    fields: str = typer.Option(
+        "position,url,tldr,percentage",
+        "--fields",
+        help=(
+            "Comma-separated scalar fields, in the order wanted. Valid values: "
+            + ", ".join(LIST_SCALAR_FIELDS)
+            + ". Default: position,url,tldr,percentage. Block fields "
+            "(comparativa, observaciones) are not valid here."
+        ),
+    ),
+) -> None:
+    """Print a decorated per-job listing of the selected scalar fields.
+
+    Each job is rendered as one ``{emote} {Etiqueta}: {valor}`` line per
+    requested field, in the requested order (the emote belongs to the field).
+    Jobs are separated by a single blank line. Uses the same DB access path
+    and error envelope as the other commands.
+    """
+    selected = [f.strip() for f in (fields or "").split(",") if f.strip()]
+    invalid = [f for f in selected if f not in LIST_SCALAR_FIELDS]
+    if not selected or invalid:
+        _emit_error(
+            "Invalid --fields value(s): "
+            + ", ".join(invalid or selected)
+            + ". Valid scalar fields: "
+            + ", ".join(LIST_SCALAR_FIELDS)
+            + ". Block fields (comparativa, observaciones) are not valid here.",
+            code="INVALID_FIELDS",
+        )
+        raise typer.Exit(code=1)
+    # Deduplicate while preserving the requested order.
+    seen: set[str] = set()
+    ordered_fields = [f for f in selected if not (f in seen or seen.add(f))]
+
+    try:
+        reports = _load_all_reports(status=status, limit=limit)
+    except CV_PilotError as exc:
+        _emit_error(exc.message or exc.__class__.__name__, exc.code)
+        raise typer.Exit(code=1)
+
+    if not reports:
+        typer.echo(_NO_ANALYSIS_MSG)
+        raise typer.Exit(code=0)
+
+    blocks: list[str] = []
+    for pair in reports:
+        blocks.append("\n".join(build_list_lines(pair["job"], pair["analysis"], ordered_fields)))
+    typer.echo("\n\n".join(blocks))
 
 
 if __name__ == "__main__":

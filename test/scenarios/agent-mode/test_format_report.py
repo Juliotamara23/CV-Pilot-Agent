@@ -550,3 +550,141 @@ class TestCLIAll:
         r2 = runner.invoke(format_report.app, ["all"])
         assert r1.stdout == r2.stdout
         assert r1.exit_code == r2.exit_code == 0
+
+
+# --------------------------------------------------------------------------- #
+# 3.4 CLI tests — `list` command
+# --------------------------------------------------------------------------- #
+from _formatos_internal.builders import (  # noqa: E402
+    FIELD_EMOTES as _FIELD_EMOTES,
+    LIST_FIELD_LABELS as _LIST_FIELD_LABELS,
+    LIST_SCALAR_FIELDS as _LIST_SCALAR_FIELDS,
+)
+
+
+def _assert_envelope_invalid_fields(result, *named_fields):
+    """Common assertions for the INVALID_FIELDS error envelope."""
+    assert result.exit_code == 1
+    err = json.loads(result.stderr)
+    assert err["ok"] is False
+    assert err["code"] == "INVALID_FIELDS"
+    for name in named_fields:
+        assert name in err["error"]
+    # Error must name the valid scalar fields
+    for field in _LIST_SCALAR_FIELDS:
+        assert field in err["error"]
+
+
+class TestCLIList:
+    def _setup(self, tmp_db, tmp_path, monkeypatch):
+        root = _write_perfil(tmp_path)
+        monkeypatch.setattr(format_report, "_AGENT_ROOT", root)
+        import _lib.shared.profile_loader as pl
+        monkeypatch.setattr(pl, "load_profile", lambda r=None: _load_profile(root))
+
+    def test_help_exits_zero(self):
+        result = runner.invoke(format_report.app, ["list", "--help"])
+        assert result.exit_code == 0
+        assert "--status" in result.stdout
+        assert "--limit" in result.stdout
+        assert "--fields" in result.stdout
+
+    def test_decorated_fields_emote_and_label(self, tmp_db, tmp_path, monkeypatch):
+        self._setup(tmp_db, tmp_path, monkeypatch)
+        h = _seed_job(company="Alpha", position="Dev", location="Madrid",
+                      url="https://x.com/a")
+        _seed_analysis(h, percentage=80, tldr="Tldr alpha")
+
+        result = runner.invoke(format_report.app, ["list"])
+        assert result.exit_code == 0, result.stderr
+        lines = result.stdout.strip("\n").split("\n")
+        # One line per field, no blank separator for a single job
+        assert len(lines) == 4
+        expected_values = {
+            "position": "Dev",
+            "url": "https://x.com/a",
+            "tldr": "Tldr alpha",
+            "percentage": "80%",
+        }
+        for line in lines:
+            matched = False
+            for field in ("position", "url", "tldr", "percentage"):
+                emote = _FIELD_EMOTES[field]
+                label = _LIST_FIELD_LABELS[field]
+                if emote in line and label in line:
+                    assert line == f"{emote} {label}: {expected_values[field]}"
+                    matched = True
+            assert matched, f"line without expected emote/label: {line}"
+
+    def test_requested_field_order_is_respected(self, tmp_db, tmp_path, monkeypatch):
+        self._setup(tmp_db, tmp_path, monkeypatch)
+        h = _seed_job()
+        _seed_analysis(h)
+
+        result = runner.invoke(
+            format_report.app, ["list", "--fields", "tldr,url,percentage,position"])
+        assert result.exit_code == 0, result.stderr
+        lines = [l for l in result.stdout.split("\n") if l.strip()]
+        labels = [_LIST_FIELD_LABELS[f] for f in ("tldr", "url", "percentage", "position")]
+        assert [l.split(":")[0] for l in lines] == [f"{_FIELD_EMOTES[f]} {lab}" for f, lab in zip(("tldr", "url", "percentage", "position"), labels)]
+
+    def test_default_fields_when_flag_omitted(self, tmp_db, tmp_path, monkeypatch):
+        self._setup(tmp_db, tmp_path, monkeypatch)
+        h = _seed_job()
+        _seed_analysis(h)
+
+        result = runner.invoke(format_report.app, ["list"])
+        assert result.exit_code == 0, result.stderr
+        lines = [l for l in result.stdout.split("\n") if l.strip()]
+        assert len(lines) == 4
+        for field in ("position", "url", "tldr", "percentage"):
+            emote = _FIELD_EMOTES[field]
+            label = _LIST_FIELD_LABELS[field]
+            assert any(l.startswith(f"{emote} {label}:") for l in lines), field
+
+    def test_limit_is_respected(self, tmp_db, tmp_path, monkeypatch):
+        self._setup(tmp_db, tmp_path, monkeypatch)
+        h1 = _seed_job(company="A", position="P", location="L")
+        _seed_analysis(h1)
+        h2 = _seed_job(company="B", position="Q", location="M")
+        _seed_analysis(h2)
+
+        result = runner.invoke(format_report.app, ["list", "--limit", "1"])
+        assert result.exit_code == 0, result.stderr
+        blocks = result.stdout.strip("\n").split("\n\n")
+        assert len(blocks) == 1
+
+    def test_status_filters(self, tmp_db, tmp_path, monkeypatch):
+        self._setup(tmp_db, tmp_path, monkeypatch)
+        h1 = _seed_job(company="Analyzed", position="P", location="L")
+        _seed_analysis(h1)
+        h2 = _seed_job(company="Other", position="Q", location="M")
+        _seed_analysis(h2)
+        # give the second job a non-default status
+        import os
+        import sqlite3
+        conn = sqlite3.connect(os.environ["CV_PILOT_DB"])
+        conn.execute("UPDATE jobs SET status='discarded' WHERE job_hash=?", (h2,))
+        conn.commit()
+        conn.close()
+
+        result = runner.invoke(format_report.app, ["list"])
+        assert result.exit_code == 0, result.stderr
+        # Only the analyzed job
+        assert len(result.stdout.strip("\n").split("\n\n")) == 1
+        assert "P" in result.stdout
+
+        result2 = runner.invoke(format_report.app, ["list", "--status", "discarded"])
+        assert result2.exit_code == 0, result2.stderr
+        assert "Q" in result2.stdout
+
+    def test_invalid_field_fails(self, tmp_db, tmp_path, monkeypatch):
+        self._setup(tmp_db, tmp_path, monkeypatch)
+        result = runner.invoke(format_report.app, ["list", "--fields", "nope"])
+        _assert_envelope_invalid_fields(result, "nope")
+
+    def test_block_field_comparativa_rejected(self, tmp_db, tmp_path, monkeypatch):
+        self._setup(tmp_db, tmp_path, monkeypatch)
+        result = runner.invoke(format_report.app, ["list", "--fields", "comparativa"])
+        _assert_envelope_invalid_fields(result, "comparativa")
+        assert "observaciones" in json.loads(result.stderr)["error"]
