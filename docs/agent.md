@@ -79,6 +79,10 @@ cv-pilot-agent/
 │   │   ├── scripts/
 │   │   │   └── cli.py         # extract, parse, generate, full
 │   │   └── templates/
+│   ├── cv-update/
+│   │   ├── SKILL.md
+│   │   └── scripts/
+│   │       └── cli.py         # extract, apply --source-pdf
 │   ├── apify/
 │   │   ├── SKILL.md
 │   │   └── scripts/
@@ -90,12 +94,14 @@ cv-pilot-agent/
 │   │       └── query.py       # ORM (list, insert, status, analysis)
 │   ├── mimetismo/
 │   │   ├── SKILL.md
+│   │   ├── assets/
+│   │   │   └── email-body.html  # Esqueleto del cuerpo de correo
 │   │   └── scripts/
-│   │       └── cli.py         # email, question, cover-letter, mimetismo, cv
+│   │       └── cli.py         # email, question, cover-letter, mimetismo, context, cv
 │   └── formatos/
 │       ├── SKILL.md
 │       └── scripts/
-│           └── cli.py         # reporte determinista
+│           └── cli.py         # reporte determinista (main | all | list)
 ├── _lib/                      # Utilidades internas compartidas
 │   ├── db.py
 │   ├── models.py
@@ -107,7 +113,7 @@ cv-pilot-agent/
 │   ├── setup.sh               # Alternativa legacy para Linux/macOS
 │   ├── pdf_parser.py          # Extracción PDF con PyMuPDF
 │   ├── init.py                # Inicialización de la base de datos
-│   ├── pre_push_check.py      # Gate de pre-push (refs, skills, pyright)
+│   ├── pre_push_check.py      # Gate de pre-push (7 checks; ver docs/skill-conventions.md)
 │   ├── migrate_perfil_to_json.py  # Migración perfil.md → perfil.json
 │   └── cleanup.py             # Limpieza de archivos temporales
 ├── db/
