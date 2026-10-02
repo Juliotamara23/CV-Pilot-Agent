@@ -23,11 +23,13 @@ Reescribir `data/perfil.json` **desde cero** con la información de un nuevo CV 
 
 ## Flujo: extract → agente → apply
 
-El script maneja operaciones deterministas (PDF→texto, VSI, JSON I/O). El agente (Hermes) maneja la extracción inteligente de campos con su propio LLM. Para flags, argumentos y envelope de salida exacto de cada paso, ejecuta `cli.py <command> --help`.
+El script hace lo determinista (PDF→texto, VSI, JSON I/O); el agente hace la extracción inteligente de campos con su LLM. Flags, argumentos y envelope exactos: `cli.py <command> --help`.
 
-1. `extract <pdf_path>`: extrae texto del PDF, valida la identidad semántica (VSI) y devuelve `{text, vsi, prompt, ...}`. Si la VSI rechaza el PDF, devuelve `ok:false` con `error:"VSI_REJECTED"` y no continúes.
-2. El agente envía el `prompt` de la salida a su LLM y guarda la respuesta JSON (raw o ya parseada) en un archivo temporal.
-3. `apply <fields.json> [--data-dir <path>]`: aplica los campos extraídos y reconstruye `perfil.json`. Los campos canónicos no encontrados quedan en `null`; las secciones no canónicas del CV (ej. "Certificaciones") van en `extras`; el resultado incluye `fuente` y `timestamp` (ISO-8601).
+| Paso | Quién | Comando | Efecto |
+| --- | --- | --- | --- |
+| 1 | script | `extract <pdf_path>` | Texto del PDF + VSI + `prompt` → `{text, vsi, prompt, ...}`. Si la VSI rechaza: `ok:false`, `VSI_REJECTED` — no continuar |
+| 2 | agente | — | Envía el `prompt` a su LLM y guarda la respuesta JSON en un archivo temporal |
+| 3 | script | `apply <fields.json> [--data-dir <path>]` | Reconstruye `perfil.json`. Campos canónicos ausentes → `null`; secciones no canónicas del CV (ej. "Certificaciones") → `extras`; agrega `fuente` y `timestamp` (ISO-8601) |
 
 ## Contrato de Reescritura
 

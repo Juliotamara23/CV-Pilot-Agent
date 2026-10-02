@@ -20,14 +20,10 @@ python skills/apify/scripts/datasets_cli.py <command> --help
 
 Búsqueda de dos fases (cost wizard):
 
-1. **Sin `--confirm`** — NO llama al actor. Devuelve el costo real en USD:
-   ```json
-   {"ok": true, "phase": "cost", "actor": "...", "platform": "linkedin",
-    "count": 5, "cost_usd": 0.005, "position": "...", "location": "..."}
-   ```
-2. **Con `--confirm`** — ejecuta el actor, normaliza vía el adapter, etiqueta
-   cada resultado `high|medium|low` (NO descarta nada) y persiste TODO vía
-   `query.py job insert-batch --file <tmp>`.
+| Fase | Flag | Efecto |
+| --- | --- | --- |
+| Costo | (ninguno) | NO llama al actor; el envelope trae `phase: "cost"` y `cost_usd` real |
+| Ejecución | `--confirm` | Corre el actor, normaliza, etiqueta `high\|medium\|low` (no descarta nada) y persiste todo vía `query.py job insert-batch --file <tmp>` |
 
 ## Comandos de dataset (recuperación)
 
@@ -41,13 +37,15 @@ Ejecuta `datasets_cli.py <command> --help` para ver todos los flags de cada coma
 
 ## Comportamiento
 
-- Plataforma inválida → error `INVALID_PLATFORM` y exit no-cero.
-- CLI de Apify ausente → error `APIFY_CLI_MISSING`.
-- `position` genérico (ej. "developer", "ingeniero") → advertencia en stderr.
-- LinkedIn exige mínimo 10 resultados: el script clampea `count` y advierte.
-- Vacío (0 resultados) → `count: 0`, `persisted: null`, exit cero.
-- Errores a stderr: `{"ok": false, "error": "...", "code": "..."}` con exit no-cero.
-- Sin `--confirm` nunca se ejecuta el actor ni se gasta dinero.
-- Sin runs recientes / dataset vacío → envelopes con contadores en cero, exit cero.
-- Dataset inexistente o actor inválido → error en stderr, exit no-cero.
-- `datasets-fetch` con campos faltantes → aparecen en `validation_failures` con índice y error; no bloquean los válidos.
+| Condición | Efecto |
+| --- | --- |
+| Plataforma inválida | `INVALID_PLATFORM`, exit ≠ 0 |
+| CLI de Apify ausente | `APIFY_CLI_MISSING` |
+| `position` genérico (ej. "developer", "ingeniero") | Advertencia en stderr |
+| LinkedIn | Clampea `count` a un mínimo de 10 y advierte |
+| 0 resultados | `count: 0`, `persisted: null`, exit 0 |
+| Sin `--confirm` | Nunca ejecuta el actor ni gasta dinero |
+| Sin runs recientes / dataset vacío | Envelopes con contadores en cero, exit 0 |
+| Dataset inexistente o actor inválido | Error en stderr, exit ≠ 0 |
+| `datasets-fetch` con campos faltantes | Van a `validation_failures` con índice y error; los válidos no se bloquean |
+| Cualquier error | Stderr `{"ok": false, "error": "...", "code": "..."}`, exit ≠ 0 |

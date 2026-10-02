@@ -18,18 +18,15 @@ Usa los ejemplos del usuario para imitar su voz: vocabulario, tono, formalidad, 
 
 ## Correo y carta son acciones distintas
 
-La carta sigue la estructura que entrega `context --mode cover-letter` en su `contract`, no la de un correo, y no debe transformar el análisis interno de la vacante en texto visible.
+La carta sigue la estructura de `context --mode cover-letter` (su `contract`), no la de un correo; no convierte el análisis interno de la vacante en texto visible.
 
-### Contrato de entrega de la carta
-
-La carta se entrega SOLO para copiar y pegar. NO lleva:
-
-- footer de correo ni inyección de firma automática;
-- bloque final de enlaces de contacto (GitHub, LinkedIn, WhatsApp, correo, teléfono);
-- proveedor (gmail/outlook) ni creación de borrador;
-- marcado de la postulación como enviada.
-
-Esos comportamientos pertenecen exclusivamente al flujo `email`. La carta cierra con cortesía usando la voz del usuario; si menciona el CV, lo hace una sola vez, dentro del cuerpo.
+| | Correo (`email`) | Carta (`cover-letter`) |
+| --- | --- | --- |
+| Proveedor / borrador | Gmail u Outlook; crea borrador | Ninguno; texto para copiar y pegar |
+| Footer y enlaces de contacto | Sí: firma y bloque de enlaces | **No** |
+| Marcado como enviada | Sí | **No** |
+| Marcadores `[github]`, `[linkedin]`, `[cv]`, `[whatsapp]` | Sí | No aplican |
+| Cierre | Según el contrato del correo | Con cortesía, con la voz del usuario; menciona el CV una sola vez, dentro del cuerpo |
 
 ## Ejemplos de estilo
 
@@ -45,6 +42,4 @@ Los ejemplos reales se cargan desde `data/correos.md` mediante `context`. No inv
 
 Partir de `assets/email-body.html` y reemplazar los párrafos. Es HTML, nunca texto plano; separar con `<p>` o `<br><br>` y no depender de `\n` (Outlook los colapsa). El CLI inyecta firma y enlaces.
 
-- `cover-letter`: devuelve texto plano listo para copiar y pegar; no usa proveedor ni footer.
 - `email`: escribe HTML y usa `--dry-run` para previsualizar antes de crear un borrador.
-- Los marcadores `[github]`, `[linkedin]`, `[cv]` y `[whatsapp]` solo corresponden al flujo de **email**.
