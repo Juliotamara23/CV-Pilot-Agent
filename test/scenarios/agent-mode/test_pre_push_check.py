@@ -32,11 +32,12 @@ _SCRIPT.loader.exec_module(ppc)
 # Fixtures
 # ---------------------------------------------------------------------------
 
-@pytest.fixture
-def mini_repo(tmp_path: Path) -> Path:
-    """Build a minimal valid repository layout for pre-push checks."""
-    agent = tmp_path / "cv-pilot-agent"
-    (agent / "rules").mkdir(parents=True)
+def _populate_agent_tree(agent: Path) -> None:
+    """Write the minimal valid agent content (AGENTS.md, rules/, skills/)
+    into *agent* (which may be a repo root for the runtime layout, or a
+    ``cv-pilot-agent/`` subdirectory for the repository layout)."""
+    agent.mkdir(parents=True, exist_ok=True)
+    (agent / "rules").mkdir()
     (agent / "skills").mkdir()
     (agent / "scripts").mkdir()
     (agent / "AGENTS.md").write_text(
@@ -60,6 +61,12 @@ def mini_repo(tmp_path: Path) -> Path:
             f"---\nname: {skill}\n---\n\n# {skill}\n",
             encoding="utf-8",
         )
+
+
+@pytest.fixture
+def mini_repo(tmp_path: Path) -> Path:
+    """Build a minimal valid repository layout for pre-push checks."""
+    _populate_agent_tree(tmp_path / "cv-pilot-agent")
     return tmp_path
 
 
@@ -179,6 +186,68 @@ class TestHelpers:
         assert ppc._is_interesting_token("https://x.io") is False
         assert ppc._is_interesting_token("file.bak") is False
         assert ppc._is_interesting_token("skills/") is False
+
+
+# ---------------------------------------------------------------------------
+# Agent root resolution (repository vs deployed runtime layout)
+# ---------------------------------------------------------------------------
+
+class TestAgentRoot:
+    def test_returns_cv_pilot_agent_subdir_when_present(self, tmp_path):
+        agent = tmp_path / "cv-pilot-agent"
+        agent.mkdir()
+        assert ppc._agent_root(tmp_path) == agent
+
+    def test_returns_repo_root_when_subdir_absent(self, tmp_path):
+        assert ppc._agent_root(tmp_path) == tmp_path
+
+
+class TestRuntimeLayoutParity:
+    """The same agent content must pass with or without the cv-pilot-agent/
+    prefix — a deployed runtime keeps AGENTS.md, rules/ and skills/ at its
+    own root."""
+
+    def test_checks_pass_at_runtime_root(self, tmp_path):
+        _populate_agent_tree(tmp_path)
+        assert ppc.check_broken_references(tmp_path).status == "PASS"
+        assert ppc.check_flujo_coverage(tmp_path).status == "PASS"
+        budget = ppc.check_skill_token_budget(tmp_path)
+        assert budget.status == "PASS"
+        assert "6 file(s) within budget" in " ".join(budget.details)
+        assert ppc.check_agents_content(tmp_path).status == "PASS"
+
+    def test_same_verdicts_in_both_layouts(self, tmp_path):
+        runtime = tmp_path / "runtime"
+        _populate_agent_tree(runtime)
+        repo = tmp_path / "repo"
+        _populate_agent_tree(repo / "cv-pilot-agent")
+
+        check_names = [
+            "check_broken_references",
+            "check_flujo_coverage",
+            "check_skill_token_budget",
+            "check_agents_content",
+        ]
+        for check_name in check_names:
+            in_runtime = getattr(ppc, check_name)(runtime)
+            in_repo = getattr(ppc, check_name)(repo)
+            assert in_runtime.status == in_repo.status, (
+                f"{check_name}: runtime={in_runtime.status} "
+                f"repo={in_repo.status}"
+            )
+            assert in_runtime.status == "PASS"
+
+
+class TestEmptyScopeFails:
+    def test_empty_tree_fails_check_a_with_nothing_to_scan(self, tmp_path):
+        result = ppc.check_broken_references(tmp_path)
+        assert result.status == "FAIL"
+        assert "nothing to scan" in " ".join(result.details)
+
+    def test_empty_tree_fails_check_f_with_scans_nothing(self, tmp_path):
+        result = ppc.check_skill_token_budget(tmp_path)
+        assert result.status == "FAIL"
+        assert "scans nothing" in " ".join(result.details)
 
 
 # ---------------------------------------------------------------------------
@@ -466,10 +535,12 @@ class TestCheckAgentsContent:
         assert result.status == "PASS"
 
     def test_fail_when_agents_md_missing(self, tmp_path):
+        # With no cv-pilot-agent/ prefix, tmp_path IS the runtime layout, so
+        # the missing-file detail points at AGENTS.md at the (agent) root.
         result = ppc.check_agents_content(tmp_path)
         assert result.status == "FAIL"
         detail = result.details[0]
-        assert "AGENTS.md not found at cv-pilot-agent/AGENTS.md" in detail
+        assert "AGENTS.md not found at AGENTS.md" in detail
 
     def test_does_not_scan_flags_inside_fence(self, tmp_path):
         # Rule 1 already fails the fence; the inside must not be scanned.

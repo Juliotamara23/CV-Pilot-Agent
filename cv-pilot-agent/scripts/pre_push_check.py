@@ -180,6 +180,19 @@ def is_bak(token: str) -> bool:
 # Check A: broken references
 # ---------------------------------------------------------------------------
 
+def _agent_root(repo_root: Path) -> Path:
+    """Return the directory that holds AGENTS.md, rules/ and skills/.
+
+    The repository keeps them under ``cv-pilot-agent/``; a deployed runtime (the
+    personal environment the agent actually runs in) keeps the same files at its
+    own root, with no ``cv-pilot-agent/`` prefix. Every check resolves paths
+    through this helper so the gate returns the same verdict in both layouts
+    instead of looking inside a directory that does not exist.
+    """
+    candidate = repo_root / "cv-pilot-agent"
+    return candidate if candidate.is_dir() else repo_root
+
+
 def _path_exists_on_disk(repo_root: Path, source_file: Path, token: str) -> bool:
     """Return True if `token` (a path-shaped string) resolves on disk.
 
@@ -205,8 +218,8 @@ def _path_exists_on_disk(repo_root: Path, source_file: Path, token: str) -> bool
         return True
     if (repo_root / clean).exists():
         return True
-    agent_root = repo_root / "cv-pilot-agent"
-    if agent_root.is_dir():
+    agent_root = _agent_root(repo_root)
+    if agent_root != repo_root:
         return (agent_root / clean).exists()
     return False
 
@@ -228,28 +241,43 @@ def _is_externalized_runtime_token(token: str, repo_root: Path) -> bool:
     """Return True for intentionally externalized CV-Pilot runtime paths."""
     if not token.startswith("data/"):
         return False
-    ignored = repo_root / ".gitignore"
-    try:
-        return "cv-pilot-agent/data/" in ignored.read_text(encoding="utf-8")
-    except OSError:
-        return False
+    for base in (repo_root, _agent_root(repo_root)):
+        try:
+            text = (base / ".gitignore").read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if "data/" in text:
+            return True
+    return False
 
 
 def check_broken_references(repo_root: Path) -> CheckResult:
     result = CheckResult(name="Check A: broken references", status="PASS")
-    target_paths = [
-        repo_root / "cv-pilot-agent" / "AGENTS.md",
-    ]
-    rules_dir = repo_root / "cv-pilot-agent" / "rules"
+    agent_root = _agent_root(repo_root)
+    target_paths: list[Path] = []
+    agents_md = agent_root / "AGENTS.md"
+    if agents_md.is_file():
+        target_paths.append(agents_md)
+    rules_dir = agent_root / "rules"
     if rules_dir.is_dir():
         target_paths.extend(sorted(rules_dir.glob("*.md")))
-    skills_dir = repo_root / "cv-pilot-agent" / "skills"
+    skills_dir = agent_root / "skills"
     if skills_dir.is_dir():
         for skill_dir in sorted(skills_dir.iterdir()):
             if skill_dir.is_dir():
                 skill_md = skill_dir / "SKILL.md"
                 if skill_md.exists():
                     target_paths.append(skill_md)
+
+    # A check whose scope matches nothing is not verifying anything. Report it
+    # as a failure instead of silently passing on an empty scan.
+    if not target_paths:
+        result.status = "FAIL"
+        result.details.append(
+            f"  nothing to scan under {agent_root.relative_to(repo_root)}: "
+            "AGENTS.md, rules/ and skills/ are all missing"
+        )
+        return result
 
     for md_file in target_paths:
         original_text = md_file.read_text(encoding="utf-8", errors="replace")
@@ -336,10 +364,10 @@ def _extract_skill_names_from_skills_row(agents_md: Path) -> list[str]:
 
 def check_bidirectional_skills(repo_root: Path) -> CheckResult:
     result = CheckResult(name="Check B: bidirectional skill registration", status="PASS")
-    agents_md = repo_root / "cv-pilot-agent" / "AGENTS.md"
+    agents_md = _agent_root(repo_root) / "AGENTS.md"
     declared = set(_extract_skill_names_from_skills_row(agents_md))
 
-    skills_dir = repo_root / "cv-pilot-agent" / "skills"
+    skills_dir = _agent_root(repo_root) / "skills"
     on_disk: set[str] = set()
     if skills_dir.is_dir():
         for child in skills_dir.iterdir():
@@ -350,13 +378,13 @@ def check_bidirectional_skills(repo_root: Path) -> CheckResult:
     for name in sorted(declared - on_disk):
         result.status = "FAIL"
         result.details.append(
-            f"  AGENTS.md declares {name!r} but cv-pilot-agent/skills/{name}/SKILL.md is missing"
+            f"  AGENTS.md declares {name!r} but skills/{name}/SKILL.md is missing"
         )
     # Reverse: on disk -> declared
     for name in sorted(on_disk - declared):
         result.status = "FAIL"
         result.details.append(
-            f"  cv-pilot-agent/skills/{name}/SKILL.md exists but AGENTS.md does not register it"
+            f"  skills/{name}/SKILL.md exists but AGENTS.md does not register it"
         )
 
     if not result.details:
@@ -421,7 +449,7 @@ def _get_required_flujo_skills(skills_dir: Path) -> set[str]:
 def check_flujo_coverage(repo_root: Path) -> CheckResult:
     """WARN if a declared skill is missing from ## Flujo, FAIL for required ones."""
     result = CheckResult(name="Check C: Flujo coverage", status="PASS")
-    agents_md = repo_root / "cv-pilot-agent" / "AGENTS.md"
+    agents_md = _agent_root(repo_root) / "AGENTS.md"
     if not agents_md.is_file():
         result.status = "FAIL"
         result.details.append(
@@ -443,7 +471,7 @@ def check_flujo_coverage(repo_root: Path) -> CheckResult:
     flujo_body = flujo_match.group(1).lower()
 
     required_flujo_skills = _get_required_flujo_skills(
-        repo_root / "cv-pilot-agent" / "skills"
+        _agent_root(repo_root) / "skills"
     )
 
     for name in sorted(declared):
@@ -477,7 +505,7 @@ def check_flujo_coverage(repo_root: Path) -> CheckResult:
 
 def _find_pyright(repo_root: Path) -> str | None:
     """Locate the pyright executable (venv-first, then PATH)."""
-    venv = repo_root / "cv-pilot-agent" / ".venv"
+    venv = _agent_root(repo_root) / ".venv"
     for candidate in (venv / "bin" / "pyright", venv / "Scripts" / "pyright.exe"):
         if candidate.is_file():
             return str(candidate)
@@ -521,7 +549,7 @@ def check_pyright(repo_root: Path) -> CheckResult:
     if pyright is None:
         result.status = "WARN"
         result.details.append(
-            "  pyright not found; install with cv-pilot-agent/.venv/bin/pip install pyright"
+            "  pyright not found; install with .venv/bin/pip install pyright"
         )
         return result
 
@@ -669,7 +697,7 @@ def check_issue_references(repo_root: Path) -> CheckResult:
 
         # This checker necessarily contains the patterns it enforces. Do not
         # report its own documentation/regex as a violation.
-        if file_path.resolve() == (repo_root / "cv-pilot-agent" / "scripts" / "pre_push_check.py").resolve():
+        if file_path.resolve() == Path(__file__).resolve():
             continue
 
         # Check file content for checked extensions
@@ -761,7 +789,17 @@ def check_skill_token_budget(repo_root: Path) -> CheckResult:
 
     # Budget applies ONLY to skills. AGENTS.md is deliberately out of scope
     # for now (see module TODO above).
-    targets = sorted((repo_root / "cv-pilot-agent" / "skills").glob("*/SKILL.md"))
+    targets = sorted((_agent_root(repo_root) / "skills").glob("*/SKILL.md"))
+
+    # Same rule as Check A: an empty scope is a failure, never a pass.
+    if not targets:
+        result.status = "FAIL"
+        result.details.append(
+            "  no SKILL.md found under "
+            f"{( _agent_root(repo_root) / 'skills').relative_to(repo_root)}: "
+            "a check that scans nothing cannot pass"
+        )
+        return result
 
     for path in targets:
         rel = path.relative_to(repo_root)
@@ -813,7 +851,7 @@ def check_agents_content(repo_root: Path) -> CheckResult:
     like "Sourcing Apify") produce false positives — do not re-add it.
     """
     result = CheckResult(name="Check G: AGENTS.md content guard", status="PASS")
-    agents_md = repo_root / "cv-pilot-agent" / "AGENTS.md"
+    agents_md = _agent_root(repo_root) / "AGENTS.md"
     if not agents_md.is_file():
         result.status = "FAIL"
         result.details.append(
