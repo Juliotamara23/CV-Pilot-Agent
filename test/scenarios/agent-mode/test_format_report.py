@@ -169,9 +169,20 @@ class TestBuildMarkdown:
         _seed_analysis(h)
         job, analysis = _load(h)
         md = _build_markdown(job, analysis, {})
-        assert "Origen: Texto manual" in md
+        # Same fallback text the `list` command uses, so both paths agree.
+        assert "🔗 Fuente: Texto manual" in md
         # created_at fallback for date
         assert analysis["created_at"] in md
+
+    def test_report_carries_no_html(self, tmp_db):
+        """The report is printed verbatim into the chat, so it must not carry
+        HTML: an `<a href=...>` renders as literal tags in a terminal."""
+        h = _seed_job()
+        _seed_analysis(h)
+        job, analysis = _load(h)
+        md = _build_markdown(job, analysis, {})
+        assert "<" not in md, f"report contains markup: {md}"
+        assert "🔗 Fuente: https://x.com/job" in md
 
     def test_no_salary_line_ever_present(self, tmp_db):
         h = _seed_job()
