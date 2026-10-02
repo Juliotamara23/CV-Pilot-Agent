@@ -9,6 +9,7 @@
 - **Análisis técnico riguroso**: compara cada vacante contra tu CV real, tecnología por tecnología.
 - **Borradores en tu correo**: guarda las postulaciones como borrador en Gmail (`gws`) u Outlook (`m365` / Microsoft Graph) para que las revises antes de enviar, con tu **CV real adjunto** en PDF. HTML con hipervínculos, sin URLs crudas.
 - **Reportes accionables**: porcentaje de compatibilidad, veredicto, carta de presentación o borrador de email.
+- **Listados a medida**: pedí por ejemplo *"5 vacantes con título, link, tldr y %"* y salen **decorados por campo** — cada dato con su emoji (`💼 Cargo`, `🔗 Fuente`, `🌟 TL;DR`, `🎯 Porcentaje`). La decoración la genera el CLI: el modelo no la escribe a mano.
 - **Privacidad total**: tus datos se almacenan localmente en `data/`. Compatible con LLMs locales.
 
 ## 🚀 Empezar
@@ -67,8 +68,8 @@ sourcing (apify | manual) ──► db/cv-pilot.db ──► análisis (razonami
 | `cv-update` | `cli.py`: extract, apply `--source-pdf` | Reescribe `perfil.json` desde un CV nuevo (fidelidad ATS, no merge) y persiste `data/cv.pdf` + `cv_path` |
 | `apify` | `cli.py`: search (indeed, linkedin, computrabajo) | Sourcing multi-plataforma con plugins |
 | `database` | `query.py`: list, insert, status, analysis | ORM y deduplicación en SQLite |
-| `mimetismo` | `cli.py`: email, question, cover-letter, mimetismo, cv | Redacción con estilo del usuario + borrador en Gmail/Outlook con el CV real adjunto |
-| `formatos` | `cli.py`: main `--job`, all | Reporte determinista por vacante o análisis completo |
+| `mimetismo` | `cli.py`: email, question, cover-letter, mimetismo, context, cv | Redacción con estilo del usuario + borrador en Gmail/Outlook con el CV real adjunto |
+| `formatos` | `cli.py`: main `--job`, all, list `--fields` | Reporte determinista por vacante, análisis completo, o listado decorado con los campos que pidas |
 
 ### Componentes transversales
 
