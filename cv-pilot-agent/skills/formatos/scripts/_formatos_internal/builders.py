@@ -107,18 +107,18 @@ def format_comparativa(comparativa: Optional[str]) -> str:
 
 
 def build_markdown(job: dict, analysis: dict, profile: dict) -> str:
-    """Build the full markdown report."""
-    url = job.get("url")
-    fuente = f'<a href="{url}">{url}</a>' if url else "Origen: Texto manual"
+    """Build the full markdown report.
+
+    Field rendering goes through the same helpers the `list` command uses
+    (`format_source`, `format_percentage`), so both output paths agree and the
+    report carries NO HTML: it is printed verbatim into the chat, where an
+    `<a href=...>` shows up as literal tags.
+    """
+    fuente = format_source(job)
     company = job.get("company") or ""
     position = job.get("position") or ""
     location = job.get("location") or ""
-    percentage = analysis.get("percentage")
-    try:
-        raw = str(percentage).replace("%", "").strip()
-        pct = f"{float(raw):.0f}"
-    except (ValueError, TypeError):
-        pct = "0"
+    pct = format_percentage(analysis.get("percentage"))
     observaciones = (analysis.get("observaciones") or "").strip()
     sections = [
         f"🆔 ID: {analysis.get('analysis_id') or ''}",
