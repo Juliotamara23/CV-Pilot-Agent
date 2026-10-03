@@ -87,13 +87,59 @@ def _require_single_selector(
         )
 
 
+# Tables that prove a SQLite file is a CV-Pilot database. Their absence is what
+# used to surface as a misleading "no such table: jobs" blaming the schema.
+_REQUIRED_TABLES = ("jobs", "analyses")
+
+
+def _validate_db_path(path: str) -> None:
+    """Fail fast when the resolved database is missing or is not a CV-Pilot one.
+
+    Deliberately creates NOTHING: the schema is created explicitly by
+    ``scripts/init.py``. A mistyped ``CV_PILOT_DB`` must raise instead of
+    silently materialising an empty database, which then fails later as if the
+    schema were broken.
+    """
+    if not Path(path).is_file():
+        raise DatabaseError(
+            f"Database not found at {path}. Create it with `python scripts/init.py`, "
+            "or point CV_PILOT_DB at an existing CV-Pilot database.",
+            code="DB_NOT_FOUND",
+        )
+    try:
+        probe = sqlite3.connect(path)
+    except sqlite3.Error as exc:
+        raise DatabaseError(f"Cannot open database at {path}: {exc}") from exc
+    try:
+        present = {
+            row[0]
+            for row in probe.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            ).fetchall()
+        }
+    except sqlite3.Error as exc:
+        raise DatabaseError(f"Cannot read database at {path}: {exc}") from exc
+    finally:
+        probe.close()
+    missing = [table for table in _REQUIRED_TABLES if table not in present]
+    if missing:
+        raise DatabaseError(
+            f"{path} is not a CV-Pilot database "
+            f"(missing table(s): {', '.join(missing)}). Check CV_PILOT_DB.",
+            code="DB_INVALID",
+        )
+
+
 def get_connection() -> sqlite3.Connection:
     """Open a connection configured for the contract (WAL, FK=ON, Row).
 
-    Applies idempotent schema migrations on every connect so existing
-    databases stay compatible without touching ``scripts/init.py``.
+    Validates the target first. This module never runs DDL (see the module
+    docstring): a missing database, or a file without the CV-Pilot schema,
+    raises a typed error here instead of being created and then failing as if
+    the schema were broken. Initialise with ``scripts/init.py``.
     """
     path = _resolve_db_path()
+    _validate_db_path(path)
     try:
         conn = sqlite3.connect(path)
     except sqlite3.Error as exc:

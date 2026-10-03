@@ -1,12 +1,68 @@
 """Unit tests for `_lib/db.py` using an in-process SQLite file (CV_PILOT_DB)."""
 
 import sqlite3
-
 import pytest
 
 from _lib import db
-from _lib.errors import JobNotFoundError, ValidationError
+from _lib.errors import DatabaseError, JobNotFoundError, ValidationError
 from _lib.models import AnalysisInsert, JobInsert, AnalysisUpdate, JobUpdate
+
+
+class TestConnectionValidation:
+    """`get_connection` must fail fast on a wrong database, never create one."""
+
+    def test_missing_database_raises_and_creates_nothing(self, tmp_path, monkeypatch):
+        missing = tmp_path / "no-existe.db"
+        monkeypatch.setenv("CV_PILOT_DB", str(missing))
+
+        with pytest.raises(DatabaseError) as exc:
+            db.get_connection()
+
+        assert exc.value.code == "DB_NOT_FOUND"
+        # The whole point: a mistyped path must not materialise an empty DB.
+        assert not missing.exists(), "get_connection created the database"
+
+    def test_missing_database_error_names_the_path_and_the_fix(self, tmp_path, monkeypatch):
+        missing = tmp_path / "no-existe.db"
+        monkeypatch.setenv("CV_PILOT_DB", str(missing))
+
+        with pytest.raises(DatabaseError) as exc:
+            db.get_connection()
+
+        assert str(missing) in exc.value.message
+        assert "scripts/init.py" in exc.value.message
+
+    def test_empty_sqlite_is_rejected(self, tmp_path, monkeypatch):
+        empty = tmp_path / "vacia.sqlite"
+        sqlite3.connect(empty).close()
+        monkeypatch.setenv("CV_PILOT_DB", str(empty))
+
+        with pytest.raises(DatabaseError) as exc:
+            db.get_connection()
+
+        assert exc.value.code == "DB_INVALID"
+        assert "jobs" in exc.value.message and "analyses" in exc.value.message
+
+    def test_foreign_sqlite_is_rejected(self, tmp_path, monkeypatch):
+        foreign = tmp_path / "ajena.sqlite"
+        conn = sqlite3.connect(foreign)
+        conn.execute("CREATE TABLE cosas(x)")
+        conn.commit()
+        conn.close()
+        monkeypatch.setenv("CV_PILOT_DB", str(foreign))
+
+        with pytest.raises(DatabaseError) as exc:
+            db.get_connection()
+
+        assert exc.value.code == "DB_INVALID"
+        assert str(foreign) in exc.value.message
+
+    def test_valid_database_connects(self, tmp_db):
+        conn = db.get_connection()
+        try:
+            assert conn.execute("SELECT count(*) FROM jobs").fetchone()[0] == 0
+        finally:
+            conn.close()
 
 
 class TestComputeHash:
@@ -138,7 +194,7 @@ class TestListJobs:
         assert len(result["jobs"]) == 2
 
     def test_list_by_status(self, tmp_db):
-        h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
+        db.insert_job(JobInsert(company="A", position="P", location="L"))
         db.insert_job(JobInsert(company="B", position="P", location="L"))
         result = db.list_jobs(status="new")
         assert result["count"] == 2
@@ -399,9 +455,8 @@ class TestUpdateAnalysis:
     def test_update_by_analysis_id_targets_specific_row(self, tmp_db):
         h = db.insert_job(JobInsert(company="A", position="P", location="L"))["hash"]
         r1 = db.insert_analysis(AnalysisInsert(job_hash=h, percentage=10.0, comparativa="c1", observaciones="o1", verdict="No apto", tldr="t1"))
-        r2 = db.insert_analysis(AnalysisInsert(job_hash=h, percentage=20.0, comparativa="c2", observaciones="o2", verdict="Apto con reservas", tldr="t2"))
+        db.insert_analysis(AnalysisInsert(job_hash=h, percentage=20.0, comparativa="c2", observaciones="o2", verdict="Apto con reservas", tldr="t2"))
         id1 = r1["analysis_id"]
-        id2 = r2["analysis_id"]
         # Update the older one by ID
         result = db.update_analysis(analysis_id=id1, analysis_update=AnalysisUpdate(verdict="Apto"))
         assert result["ok"] is True
