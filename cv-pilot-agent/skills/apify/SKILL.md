@@ -42,7 +42,7 @@ Ejecuta `datasets_cli.py <command> --help` para ver todos los flags de cada coma
 | Plataforma inválida | `INVALID_PLATFORM`, exit ≠ 0 |
 | CLI de Apify ausente | `APIFY_CLI_MISSING` |
 | `position` genérico (ej. "developer", "ingeniero") | Advertencia en stderr |
-| LinkedIn | Clampea `count` a un mínimo de 10 y advierte |
+| LinkedIn | El actor por defecto clampea `count` a un mínimo de 10 y advierte. `CVPILOT_LINKEDIN_JOBS_ACTOR=johnvc/linkedin-jobs-api` envía `keyword`, `location` y `maxJobs`, sin ese mínimo. https://apify.com/johnvc/linkedin-jobs-api https://alphaosint.com/ |
 | 0 resultados | `count: 0`, `persisted: null`, exit 0 |
 | Sin `--confirm` | Nunca ejecuta el actor ni gasta dinero |
 | Sin runs recientes / dataset vacío | Envelopes con contadores en cero, exit 0 |

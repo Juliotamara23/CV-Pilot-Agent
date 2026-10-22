@@ -77,8 +77,10 @@ def test_indeed_normalize_maps_fields_and_source():
     assert j.source == "apify-indeed"
 
 
-def test_linkedin_builds_search_url_and_clamps_count():
+def test_linkedin_builds_search_url_and_clamps_count(monkeypatch):
+    monkeypatch.delenv("CVPILOT_LINKEDIN_JOBS_ACTOR", raising=False)
     adapter = LinkedinAdapter()
+    assert adapter.get_actor() == "curious_coder/linkedin-jobs-scraper"
     assert adapter.min_count() == 10
     params = _params(count=3, workplace_type="remote", experience_level="mid")
     inp = adapter.build_input(params)
@@ -89,6 +91,60 @@ def test_linkedin_builds_search_url_and_clamps_count():
     assert "keywords=React+Developer" in url
     assert "location=Medell%C3%ADn" in url
     assert "f_WT=2" in url and "f_E=3" in url
+
+
+def test_optional_linkedin_actor_sends_keyword_body(monkeypatch):
+    monkeypatch.setenv("CVPILOT_LINKEDIN_JOBS_ACTOR", "johnvc~linkedin-jobs-api")
+    adapter = LinkedinAdapter()
+    assert adapter.get_actor() == "johnvc/linkedin-jobs-api"
+    assert adapter.min_count() == 1
+    remote = adapter.build_input(
+        _params(count=3, workplace_type="remote", experience_level="entry")
+    )
+    assert remote == {
+        "keyword": "React Developer",
+        "location": "Medellín",
+        "maxJobs": 3,
+        "remote": True,
+        "experienceLevel": "entry",
+    }
+    hybrid = adapter.build_input(
+        _params(count=4, workplace_type="hybrid", experience_level="mid")
+    )
+    assert hybrid["remote"] is False
+    assert hybrid["maxJobs"] == 4
+    assert "experienceLevel" not in hybrid
+    assert "urls" not in hybrid
+
+    rows = adapter.normalize_output(
+        [
+            {"result_type": "error", "title": "skip"},
+            {
+                "result_type": "job",
+                "jobId": "1",
+                "title": "Example role",
+                "companyName": "Example Co",
+                "jobUrl": "https://www.linkedin.com/jobs/view/1",
+                "location": "Example City",
+                "description": "Example description",
+                "postedDate": "2026-10-01",
+                "salaryMin": 1,
+                "salaryMax": 2,
+                "salaryCurrency": "USD",
+            },
+        ]
+    )
+    assert len(rows) == 1
+    job = rows[0]
+    assert job.position == "Example role"
+    assert job.company == "Example Co"
+    assert job.location == "Example City"
+    assert job.url == "https://www.linkedin.com/jobs/view/1"
+    assert job.external_id == "1"
+    assert job.public_date == "2026-10-01"
+    assert job.salary == "1-2 USD"
+    assert job.description == "Example description"
+    assert job.source == "apify-linkedin"
 
 
 def test_linkedin_normalize_handles_missing_optionals():
